@@ -1,16 +1,3 @@
-# QuarterLens AI — Golden Dataset Scope
-# Single source of truth for WHICH companies and periods every pipeline stage
-# (edgar_downloader, transcript_fetcher, indexer, golden claims) pulls.
-#
-# Scope decision A: fiscal Q4 has no 10-Q — the annual 10-K is the Q4 financial
-# source, keeping the quarter-over-quarter series continuous for the Comparison
-# and Numeric Validation agents.
-#
-# NOTE: filing dates / accession numbers are intentionally NOT stored here.
-# edgar_downloader.py resolves them from EDGAR's submissions API
-# (https://data.sec.gov/submissions/CIK##########.json) and skips any listed
-# period that isn't filed yet. This file declares intent only.
-
 meta:
   sector: technology-megacap
   scope_note: >

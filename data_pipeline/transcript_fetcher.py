@@ -1,15 +1,20 @@
 """Earnings-call transcript ingestion with a pluggable provider interface.
 
-Why pluggable: transcript sources (FMP, etc.) are paid, key-gated, and prone to
-lock-in — unlike free SEC EDGAR. Isolating the source behind TranscriptProvider
-means swapping vendors touches one class, not the pipeline. A MockProvider lets
-the loop/mapping/manifest logic run and be tested with no key and no network.
+Why pluggable: transcript sources (FMP, Roic, etc.) differ in pricing, keys, rate
+limits, and response shape. Isolating each behind TranscriptProvider means swapping
+vendors touches one class, not the pipeline. A MockProvider lets the loop/mapping/
+manifest logic run and be tested with no key and no network.
 
-Fiscal mapping: FMP keys transcripts by the company's *fiscal* quarter numbering
-(e.g. Apple's "Q1 FY2026" call -> year=2026, quarter=1), which is exactly what the
-fiscal labels in companies.yaml already encode. So the label maps directly for FMP.
-That assumption lives inside FMPProvider; a calendar-keyed provider would convert
-using fiscal_year_end_month (helper stub noted below).
+Providers:
+  - roic  : Roic AI. Earnings-call transcripts on the FREE tier (5 req/min, 2yr
+            history). Recommended $0 source. Keyed by fiscal year/quarter.
+  - fmp   : FinancialModelingPrep. Transcripts are Ultimate-tier only ($99/mo).
+  - mock  : offline stub for tests/CI.
+
+Fiscal mapping: both real providers key transcripts by the company's *fiscal*
+quarter numbering (e.g. Apple's "Q1 FY2026" call -> year=2026, quarter=1), which is
+exactly what the fiscal labels in companies.yaml already encode. So the label maps
+directly. A calendar-keyed provider would convert using fiscal_year_end_month.
 
 Output: data/raw/transcripts/{TICKER}/{fiscal_label}.json + a transcripts manifest,
 parallel to the filings manifest produced by edgar_downloader.py.
@@ -65,6 +70,30 @@ def parse_fiscal_label(label: str) -> tuple[int, int]:
     return int(m.group(1)), int(m.group(2))
 
 
+def _parse_retry_seconds(msg: str) -> Optional[int]:
+    """Pull the N from a 'Retry in 42s' rate-limit message, if present."""
+    m = re.search(r"[Rr]etry in (\d+)\s*s", msg)
+    return int(m.group(1)) if m else None
+
+
+def _parse_transcript_payload(payload) -> Optional[TranscriptResult]:
+    """Shared parser for the {symbol, year, quarter, date, content} shape used by
+    both Roic and FMP. Accepts a dict or a single-item list; None if empty/no text."""
+    if not payload:
+        return None
+    item = payload[0] if isinstance(payload, list) else payload
+    if not item:
+        return None
+    text = (item.get("content") or "").strip()
+    if not text:
+        return None
+    return TranscriptResult(
+        text=text,
+        call_date=item.get("date"),
+        metadata={k: item.get(k) for k in ("symbol", "year", "quarter") if k in item},
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Provider interface + implementations
 # --------------------------------------------------------------------------- #
@@ -77,10 +106,79 @@ class TranscriptProvider(ABC):
         for the requested period. Must not raise on 'not found'."""
 
 
+class RoicProvider(TranscriptProvider):
+    """Roic AI — free-tier earnings-call transcripts.
+
+    AUTH: confirmed — key goes in the 'apikey' query param (?apikey=...).
+    VERIFY: BASE path for the by-quarter endpoint. CONFIRMED from docs: the *latest*
+    endpoint is  GET https://api.roic.ai/v2/company/earnings-calls/latest/{id}
+    returning {symbol, year, quarter, date, content}. The by-quarter path below is
+    inferred by analogy; if Roic's "Get Transcript by Quarter" doc shows a different
+    path, edit BASE.
+
+    Error handling: Roic returns errors as a JSON body {"error": "..."}. We retry on
+    rate-limit (5 req/min free tier) and skip cleanly when a period is outside the
+    free-tier 2-year history window.
+    """
+    name = "roic"
+    BASE = "https://api.roic.ai/v2/company/earnings-calls/transcript/{identifier}"
+    REQUEST_INTERVAL = 15.0  # free tier = 5 req/min; ~4/min leaves safety margin
+    MAX_RETRIES = 3
+
+    def __init__(self) -> None:
+        self.api_key = os.environ.get("ROIC_API_KEY")
+        if not self.api_key:
+            raise RuntimeError("ROIC_API_KEY env var is required for RoicProvider.")
+        self.session = requests.Session()
+
+    def fetch(self, req: TranscriptRequest) -> Optional[TranscriptResult]:
+        url = self.BASE.format(identifier=req.ticker)
+        params = {
+            "year": req.fiscal_year,
+            "quarter": req.fiscal_quarter,
+            "format": "json",
+            "apikey": self.api_key,
+        }
+        for _ in range(self.MAX_RETRIES):
+            time.sleep(self.REQUEST_INTERVAL)
+            resp = self.session.get(url, params=params, timeout=30)
+            try:
+                payload = resp.json()
+            except ValueError:
+                resp.raise_for_status()  # non-JSON error -> surface it
+                return None
+
+            # Roic signals problems via {"error": "..."} rather than by status alone.
+            if isinstance(payload, dict) and payload.get("error"):
+                msg = payload["error"]
+                low = msg.lower()
+                if "rate limit" in low:
+                    wait = _parse_retry_seconds(msg) or int(self.REQUEST_INTERVAL * 2)
+                    log.warning("  %s %s: rate limited, waiting %ds", req.ticker, req.fiscal_label, wait)
+                    time.sleep(wait)
+                    continue  # retry
+                if any(w in low for w in ("plan", "history", "upgrade")):
+                    log.warning("  %s %s: outside free-tier history — skipping (%s)",
+                                req.ticker, req.fiscal_label, msg)
+                    return None
+                log.warning("  %s %s: API error — %s", req.ticker, req.fiscal_label, msg)
+                return None
+
+            if resp.status_code == 404:
+                return None
+            if resp.status_code >= 400:
+                resp.raise_for_status()
+            return _parse_transcript_payload(payload)
+
+        log.warning("  %s %s: gave up after %d rate-limit retries",
+                    req.ticker, req.fiscal_label, self.MAX_RETRIES)
+        return None
+
+
 class FMPProvider(TranscriptProvider):
     name = "fmp"
     BASE = "https://financialmodelingprep.com/api/v3/earning_call_transcript"
-    REQUEST_INTERVAL = 0.3  # be gentle with free-tier rate limits
+    REQUEST_INTERVAL = 0.3
 
     def __init__(self) -> None:
         self.api_key = os.environ.get("FMP_API_KEY")
@@ -89,25 +187,12 @@ class FMPProvider(TranscriptProvider):
         self.session = requests.Session()
 
     def fetch(self, req: TranscriptRequest) -> Optional[TranscriptResult]:
-        # FMP uses fiscal quarter numbering -> pass fiscal year/quarter directly.
         url = f"{self.BASE}/{req.ticker}"
         params = {"year": req.fiscal_year, "quarter": req.fiscal_quarter, "apikey": self.api_key}
         time.sleep(self.REQUEST_INTERVAL)
         resp = self.session.get(url, params=params, timeout=30)
         resp.raise_for_status()
-        payload = resp.json()
-        # FMP returns a list; empty means no transcript for that period.
-        if not payload:
-            return None
-        item = payload[0] if isinstance(payload, list) else payload
-        text = (item.get("content") or "").strip()
-        if not text:
-            return None
-        return TranscriptResult(
-            text=text,
-            call_date=item.get("date"),
-            metadata={k: item.get(k) for k in ("symbol", "year", "quarter") if k in item},
-        )
+        return _parse_transcript_payload(resp.json())
 
 
 class MockProvider(TranscriptProvider):
@@ -124,6 +209,7 @@ class MockProvider(TranscriptProvider):
 
 
 _PROVIDERS: dict[str, type[TranscriptProvider]] = {
+    "roic": RoicProvider,
     "fmp": FMPProvider,
     "mock": MockProvider,
 }
@@ -204,8 +290,8 @@ def main() -> None:
     parser.add_argument("--config", default="golden_dataset/companies.yaml")
     parser.add_argument("--out", default=os.environ.get(
         "QUARTERLENS_TRANSCRIPT_DIR", "data/raw/transcripts"))
-    parser.add_argument("--provider", default=os.environ.get("TRANSCRIPT_PROVIDER", "fmp"),
-                        help="transcript provider: fmp | mock")
+    parser.add_argument("--provider", default=os.environ.get("TRANSCRIPT_PROVIDER", "roic"),
+                        help="transcript provider: roic | fmp | mock")
     args = parser.parse_args()
     run(args.config, args.out, args.provider)
 

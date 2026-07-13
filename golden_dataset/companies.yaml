@@ -1,0 +1,98 @@
+# QuarterLens AI — Golden Dataset Scope
+# Single source of truth for WHICH companies and periods every pipeline stage
+# (edgar_downloader, transcript_fetcher, indexer, golden claims) pulls.
+#
+# Scope decision A: fiscal Q4 has no 10-Q — the annual 10-K is the Q4 financial
+# source, keeping the quarter-over-quarter series continuous for the Comparison
+# and Numeric Validation agents.
+#
+# NOTE: filing dates / accession numbers are intentionally NOT stored here.
+# edgar_downloader.py resolves them from EDGAR's submissions API
+# (https://data.sec.gov/submissions/CIK##########.json) and skips any listed
+# period that isn't filed yet. This file declares intent only.
+
+meta:
+  sector: technology-megacap
+  scope_note: >
+    MVP: 5 companies x 5 most-recent completed fiscal quarters. Sized to fit
+    Azure AI Search F0 (50MB, 3 indexes). Widen only if the index has headroom.
+  form_types:
+    quarterly: "10-Q"   # fiscal Q1-Q3
+    annual: "10-K"      # fiscal Q4 financials (scope decision A)
+
+defaults:
+  quarters_per_company: 5
+  comparison_lookback: 3   # Comparison Agent compares current vs up to 3 prior periods
+
+# fiscal_year_end_month drives fiscal->calendar mapping for transcript_fetcher.py.
+# These fiscal calendars are NOT aligned across companies (see FISCAL NOTE below),
+# so "same quarter" is per-company, never assume a shared calendar period.
+companies:
+  - ticker: AAPL
+    cik: "0000320193"
+    name: "Apple Inc."
+    fiscal_year_end_month: 9        # fiscal year ends late September
+    periods:
+      - { fiscal: "FY2025-Q2", form: "10-Q" }
+      - { fiscal: "FY2025-Q3", form: "10-Q" }
+      - { fiscal: "FY2025-Q4", form: "10-K" }
+      - { fiscal: "FY2026-Q1", form: "10-Q" }
+      - { fiscal: "FY2026-Q2", form: "10-Q" }
+
+  - ticker: MSFT
+    cik: "0000789019"
+    name: "Microsoft Corporation"
+    fiscal_year_end_month: 6        # fiscal year ends June 30
+    periods:
+      - { fiscal: "FY2025-Q3", form: "10-Q" }
+      - { fiscal: "FY2025-Q4", form: "10-K" }
+      - { fiscal: "FY2026-Q1", form: "10-Q" }
+      - { fiscal: "FY2026-Q2", form: "10-Q" }
+      - { fiscal: "FY2026-Q3", form: "10-Q" }
+
+  - ticker: NVDA
+    cik: "0001045810"
+    name: "NVIDIA Corporation"
+    fiscal_year_end_month: 1        # fiscal year ends late January
+    periods:
+      - { fiscal: "FY2026-Q1", form: "10-Q" }
+      - { fiscal: "FY2026-Q2", form: "10-Q" }
+      - { fiscal: "FY2026-Q3", form: "10-Q" }
+      - { fiscal: "FY2026-Q4", form: "10-K" }
+      - { fiscal: "FY2027-Q1", form: "10-Q" }
+
+  - ticker: GOOGL
+    cik: "0001652044"
+    name: "Alphabet Inc."
+    fiscal_year_end_month: 12       # calendar fiscal year
+    periods:
+      - { fiscal: "FY2025-Q1", form: "10-Q" }
+      - { fiscal: "FY2025-Q2", form: "10-Q" }
+      - { fiscal: "FY2025-Q3", form: "10-Q" }
+      - { fiscal: "FY2025-Q4", form: "10-K" }
+      - { fiscal: "FY2026-Q1", form: "10-Q" }
+
+  - ticker: META
+    cik: "0001326801"
+    name: "Meta Platforms, Inc."
+    fiscal_year_end_month: 12       # calendar fiscal year
+    periods:
+      - { fiscal: "FY2025-Q1", form: "10-Q" }
+      - { fiscal: "FY2025-Q2", form: "10-Q" }
+      - { fiscal: "FY2025-Q3", form: "10-Q" }
+      - { fiscal: "FY2025-Q4", form: "10-K" }
+      - { fiscal: "FY2026-Q1", form: "10-Q" }
+
+# ---------------------------------------------------------------------------
+# FISCAL NOTE (flagged, not silently resolved):
+# Only GOOGL and META are on a calendar fiscal year. AAPL, MSFT, NVDA each end
+# their fiscal year in a different month, so:
+#   - A given "FYxxxx-Qn" maps to a DIFFERENT calendar period per company.
+#   - transcript_fetcher.py must map fiscal period -> calendar quarter using
+#     fiscal_year_end_month before querying the transcript API (which is usually
+#     keyed by calendar year/quarter).
+#   - The Comparison Agent must compare within a company's own fiscal sequence,
+#     never across companies by fiscal label.
+# The per-company `periods` windows above target the 5 most recently COMPLETED
+# fiscal quarters as of mid-2026; the downloader confirms actual availability.
+# ---------------------------------------------------------------------------

@@ -1,25 +1,3 @@
-"""Earnings-call transcript ingestion with a pluggable provider interface.
-
-Why pluggable: transcript sources (FMP, Roic, etc.) differ in pricing, keys, rate
-limits, and response shape. Isolating each behind TranscriptProvider means swapping
-vendors touches one class, not the pipeline. A MockProvider lets the loop/mapping/
-manifest logic run and be tested with no key and no network.
-
-Providers:
-  - roic  : Roic AI. Earnings-call transcripts on the FREE tier (5 req/min, 2yr
-            history). Recommended $0 source. Keyed by fiscal year/quarter.
-  - fmp   : FinancialModelingPrep. Transcripts are Ultimate-tier only ($99/mo).
-  - mock  : offline stub for tests/CI.
-
-Fiscal mapping: both real providers key transcripts by the company's *fiscal*
-quarter numbering (e.g. Apple's "Q1 FY2026" call -> year=2026, quarter=1), which is
-exactly what the fiscal labels in companies.yaml already encode. So the label maps
-directly. A calendar-keyed provider would convert using fiscal_year_end_month.
-
-Output: data/raw/transcripts/{TICKER}/{fiscal_label}.json + a transcripts manifest,
-parallel to the filings manifest produced by edgar_downloader.py.
-"""
-
 from __future__ import annotations
 
 import argparse

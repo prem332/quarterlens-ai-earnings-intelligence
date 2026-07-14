@@ -31,10 +31,8 @@ _INSERT_COLUMNS = (
 
 
 def _require(key: str) -> str:
-    val = os.getenv(key)
-    if not val:
-        raise RuntimeError(f"Missing required environment variable: {key}")
-    return val
+    from azure_clients.key_vault_client import kv
+    return kv.get_secret(key)
 
 
 class SQLClient:
@@ -160,3 +158,4 @@ class SQLClient:
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM dbo.financial_facts")
             return int(cur.fetchone()[0])
+sql_client = SQLClient()

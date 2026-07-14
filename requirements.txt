@@ -28,3 +28,4 @@ tqdm==4.68.4
 typing-inspection==0.4.2
 typing_extensions==4.16.0
 urllib3==2.7.0
+pyodbc==5.3.0

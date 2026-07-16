@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 
 const COMPANIES = ["AAPL", "MSFT", "NVDA", "GOOGL", "META"];
-const QUARTERS  = ["Q1_2025","Q2_2025","Q3_2025","Q4_2024","Q1_2024","Q2_2024","Q3_2024","Q4_2023","Q1_2023"];
+const QUARTERS = ["FY2026-Q2","FY2026-Q1","FY2025-Q4","FY2025-Q3","FY2025-Q2","FY2025-Q1","FY2027-Q1","FY2026-Q4","FY2026-Q3"];
 
 const AGENTS = ["retrieval","comparison","sentiment","numeric_validation","report"];
 

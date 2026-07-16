@@ -17,6 +17,17 @@ CONTAINER = "raw-documents"
 REPORTS_PREFIX = "reports"
 
 
+def _to_fiscal_label(quarter: str) -> str:
+    """Convert 'Q2_2025' → 'FY2025-Q2' to match index fiscal_label format."""
+    if quarter.startswith("FY"):
+        return quarter  # already in correct format
+    # expect Q{n}_{yyyy}
+    parts = quarter.split("_")
+    if len(parts) == 2 and parts[0].startswith("Q") and parts[1].isdigit():
+        return f"FY{parts[1]}-{parts[0]}"
+    return quarter  # passthrough if unrecognised
+
+
 def _blob_path(run_id: str) -> str:
     return f"{REPORTS_PREFIX}/{run_id}.json"
 
@@ -56,9 +67,9 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
 
         state = GraphState(
             company=req.company,
-            quarter=req.quarter,
+            quarter=_to_fiscal_label(req.quarter),
             query=req.query,
-            comparison_quarters=req.comparison_quarters,
+            comparison_quarters=[_to_fiscal_label(q) for q in req.comparison_quarters],
         )
         result: dict = await compiled_graph.ainvoke(state)
         result["created_at"] = created_at

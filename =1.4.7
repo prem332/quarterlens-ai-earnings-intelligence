@@ -1,0 +1,112 @@
+Collecting langchain==1.3.13
+  Using cached langchain-1.3.13-py3-none-any.whl.metadata (6.1 kB)
+Collecting langchain-community==0.4.2
+  Using cached langchain_community-0.4.2-py3-none-any.whl.metadata (3.4 kB)
+Requirement already satisfied: langchain-core in .\.venv\lib\site-packages (0.2.43)
+Collecting langchain-openai==1.3.5
+  Using cached langchain_openai-1.3.5-py3-none-any.whl.metadata (3.4 kB)
+Collecting langchain-core
+  Downloading langchain_core-1.4.9-py3-none-any.whl.metadata (4.7 kB)
+Requirement already satisfied: langgraph<1.3.0,>=1.2.5 in .\.venv\lib\site-packages (from langchain==1.3.13) (1.2.9)
+Requirement already satisfied: pydantic<3.0.0,>=2.7.4 in .\.venv\lib\site-packages (from langchain==1.3.13) (2.13.4)
+Requirement already satisfied: aiohttp<4.0.0,>=3.8.3 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (3.14.1)
+Requirement already satisfied: httpx-sse<1.0.0,>=0.4.0 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (0.4.3)
+Requirement already satisfied: langchain-classic<2.0.0,>=1.0.7 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (1.0.8)
+Requirement already satisfied: langsmith<1.0.0,>=0.1.125 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (0.1.147)
+Requirement already satisfied: numpy>=1.26.2 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (1.26.4)
+Requirement already satisfied: pydantic-settings<3.0.0,>=2.10.1 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (2.14.2)
+Requirement already satisfied: pyyaml<7.0.0,>=5.3.0 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (6.0.3)
+Requirement already satisfied: requests<3.0.0,>=2.32.5 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (2.34.2)
+Requirement already satisfied: sqlalchemy<3.0.0,>=1.4.0 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (2.0.51)
+Requirement already satisfied: tenacity!=8.4.0,<10.0.0,>=8.1.0 in .\.venv\lib\site-packages (from langchain-community==0.4.2) (8.5.0)
+Collecting openai<3.0.0,>=2.45.0 (from langchain-openai==1.3.5)
+  Downloading openai-2.45.0-py3-none-any.whl.metadata (34 kB)
+Requirement already satisfied: tiktoken<1.0.0,>=0.7.0 in .\.venv\lib\site-packages (from langchain-openai==1.3.5) (0.13.0)
+Requirement already satisfied: jsonpatch<2.0.0,>=1.33.0 in .\.venv\lib\site-packages (from langchain-core) (1.33)
+Requirement already satisfied: langchain-protocol>=0.0.17 in .\.venv\lib\site-packages (from langchain-core) (0.0.18)
+Collecting langsmith<1.0.0,>=0.1.125 (from langchain-community==0.4.2)
+  Downloading langsmith-0.10.5-py3-none-any.whl.metadata (22 kB)
+Requirement already satisfied: packaging>=23.2.0 in .\.venv\lib\site-packages (from langchain-core) (24.2)
+Requirement already satisfied: typing-extensions<5.0.0,>=4.7.0 in .\.venv\lib\site-packages (from langchain-core) (4.16.0)
+Requirement already satisfied: uuid-utils<1.0,>=0.12.0 in .\.venv\lib\site-packages (from langchain-core) (0.17.0)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (2.7.1)
+Requirement already satisfied: aiosignal>=1.4.0 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (1.4.0)
+Requirement already satisfied: async-timeout<6.0,>=4.0 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (4.0.3)
+Requirement already satisfied: attrs>=17.3.0 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (26.1.0)
+Requirement already satisfied: frozenlist>=1.1.1 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (6.7.1)
+Requirement already satisfied: propcache>=0.2.0 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (0.5.2)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in .\.venv\lib\site-packages (from aiohttp<4.0.0,>=3.8.3->langchain-community==0.4.2) (1.24.2)
+Requirement already satisfied: jsonpointer>=1.9 in .\.venv\lib\site-packages (from jsonpatch<2.0.0,>=1.33.0->langchain-core) (3.1.1)
+Collecting langchain-text-splitters<2.0.0,>=1.1.2 (from langchain-classic<2.0.0,>=1.0.7->langchain-community==0.4.2)
+  Using cached langchain_text_splitters-1.1.2-py3-none-any.whl.metadata (3.3 kB)
+Requirement already satisfied: langgraph-checkpoint<5.0.0,>=4.1.0 in .\.venv\lib\site-packages (from langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (4.1.1)
+Requirement already satisfied: langgraph-prebuilt<1.2.0,>=1.1.0 in .\.venv\lib\site-packages (from langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (1.1.0)
+Requirement already satisfied: langgraph-sdk<0.5.0,>=0.4.2 in .\.venv\lib\site-packages (from langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (0.4.2)
+Requirement already satisfied: xxhash>=3.5.0 in .\.venv\lib\site-packages (from langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (3.8.1)
+Requirement already satisfied: ormsgpack>=1.12.0 in .\.venv\lib\site-packages (from langgraph-checkpoint<5.0.0,>=4.1.0->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (1.12.2)
+Requirement already satisfied: httpx>=0.25.2 in .\.venv\lib\site-packages (from langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (0.28.1)
+Requirement already satisfied: orjson>=3.11.5 in .\.venv\lib\site-packages (from langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (3.11.9)
+Requirement already satisfied: websockets<16,>=14 in .\.venv\lib\site-packages (from langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (15.0.1)
+Requirement already satisfied: anyio>=3.5.0 in .\.venv\lib\site-packages (from langsmith<1.0.0,>=0.1.125->langchain-community==0.4.2) (4.14.2)
+Requirement already satisfied: distro>=1.7.0 in .\.venv\lib\site-packages (from langsmith<1.0.0,>=0.1.125->langchain-community==0.4.2) (1.9.0)
+Requirement already satisfied: requests-toolbelt>=1.0.0 in .\.venv\lib\site-packages (from langsmith<1.0.0,>=0.1.125->langchain-community==0.4.2) (1.0.0)
+Requirement already satisfied: sniffio>=1.1 in .\.venv\lib\site-packages (from langsmith<1.0.0,>=0.1.125->langchain-community==0.4.2) (1.3.1)
+Requirement already satisfied: zstandard>=0.23.0 in .\.venv\lib\site-packages (from langsmith<1.0.0,>=0.1.125->langchain-community==0.4.2) (0.25.0)
+Requirement already satisfied: certifi in .\.venv\lib\site-packages (from httpx>=0.25.2->langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (2026.6.17)
+Requirement already satisfied: httpcore==1.* in .\.venv\lib\site-packages (from httpx>=0.25.2->langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (1.0.9)
+Requirement already satisfied: idna in .\.venv\lib\site-packages (from httpx>=0.25.2->langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (3.18)
+Requirement already satisfied: h11>=0.16 in .\.venv\lib\site-packages (from httpcore==1.*->httpx>=0.25.2->langgraph-sdk<0.5.0,>=0.4.2->langgraph<1.3.0,>=1.2.5->langchain==1.3.13) (0.16.0)
+Requirement already satisfied: jiter<1,>=0.10.0 in .\.venv\lib\site-packages (from openai<3.0.0,>=2.45.0->langchain-openai==1.3.5) (0.14.0)
+Requirement already satisfied: tqdm>4 in .\.venv\lib\site-packages (from openai<3.0.0,>=2.45.0->langchain-openai==1.3.5) (4.68.4)
+Requirement already satisfied: exceptiongroup>=1.0.2 in .\.venv\lib\site-packages (from anyio>=3.5.0->langsmith<1.0.0,>=0.1.125->langchain-community==0.4.2) (1.3.1)
+Requirement already satisfied: annotated-types>=0.6.0 in .\.venv\lib\site-packages (from pydantic<3.0.0,>=2.7.4->langchain==1.3.13) (0.7.0)
+Requirement already satisfied: pydantic-core==2.46.4 in .\.venv\lib\site-packages (from pydantic<3.0.0,>=2.7.4->langchain==1.3.13) (2.46.4)
+Requirement already satisfied: typing-inspection>=0.4.2 in .\.venv\lib\site-packages (from pydantic<3.0.0,>=2.7.4->langchain==1.3.13) (0.4.2)
+Requirement already satisfied: python-dotenv>=0.21.0 in .\.venv\lib\site-packages (from pydantic-settings<3.0.0,>=2.10.1->langchain-community==0.4.2) (1.2.2)
+Requirement already satisfied: charset_normalizer<4,>=2 in .\.venv\lib\site-packages (from requests<3.0.0,>=2.32.5->langchain-community==0.4.2) (3.4.9)
+Requirement already satisfied: urllib3<3,>=1.26 in .\.venv\lib\site-packages (from requests<3.0.0,>=2.32.5->langchain-community==0.4.2) (2.7.0)
+Requirement already satisfied: greenlet>=1 in .\.venv\lib\site-packages (from sqlalchemy<3.0.0,>=1.4.0->langchain-community==0.4.2) (3.5.3)
+Requirement already satisfied: regex in .\.venv\lib\site-packages (from tiktoken<1.0.0,>=0.7.0->langchain-openai==1.3.5) (2026.7.10)
+Requirement already satisfied: colorama in .\.venv\lib\site-packages (from tqdm>4->openai<3.0.0,>=2.45.0->langchain-openai==1.3.5) (0.4.6)
+Using cached langchain-1.3.13-py3-none-any.whl (136 kB)
+Using cached langchain_community-0.4.2-py3-none-any.whl (2.4 MB)
+Using cached langchain_openai-1.3.5-py3-none-any.whl (121 kB)
+Downloading langchain_core-1.4.9-py3-none-any.whl (558 kB)
+   ---------------------------------------- 558.3/558.3 kB 2.4 MB/s  0:00:00
+Using cached langchain_text_splitters-1.1.2-py3-none-any.whl (35 kB)
+Downloading langsmith-0.10.5-py3-none-any.whl (657 kB)
+   ---------------------------------------- 657.9/657.9 kB 905.6 kB/s  0:00:00
+Downloading openai-2.45.0-py3-none-any.whl (1.6 MB)
+   ---------------------------------------- 1.6/1.6 MB 1.1 MB/s  0:00:01
+Installing collected packages: openai, langsmith, langchain-core, langchain-text-splitters, langchain-openai, langchain-community, langchain
+  Attempting uninstall: openai
+    Found existing installation: openai 1.109.1
+    Uninstalling openai-1.109.1:
+      Successfully uninstalled openai-1.109.1
+  Attempting uninstall: langsmith
+    Found existing installation: langsmith 0.1.147
+    Uninstalling langsmith-0.1.147:
+      Successfully uninstalled langsmith-0.1.147
+  Attempting uninstall: langchain-core
+    Found existing installation: langchain-core 0.2.43
+    Uninstalling langchain-core-0.2.43:
+      Successfully uninstalled langchain-core-0.2.43
+  Attempting uninstall: langchain-text-splitters
+    Found existing installation: langchain-text-splitters 0.2.4
+    Uninstalling langchain-text-splitters-0.2.4:
+      Successfully uninstalled langchain-text-splitters-0.2.4
+  Attempting uninstall: langchain-openai
+    Found existing installation: langchain-openai 0.1.25
+    Uninstalling langchain-openai-0.1.25:
+      Successfully uninstalled langchain-openai-0.1.25
+  Attempting uninstall: langchain-community
+    Found existing installation: langchain-community 0.2.19
+    Uninstalling langchain-community-0.2.19:
+      Successfully uninstalled langchain-community-0.2.19
+  Attempting uninstall: langchain
+    Found existing installation: langchain 0.2.17
+    Uninstalling langchain-0.2.17:
+      Successfully uninstalled langchain-0.2.17
+
+Successfully installed langchain-1.3.13 langchain-community-0.4.2 langchain-core-1.4.9 langchain-openai-1.3.5 langchain-text-splitters-1.1.2 langsmith-0.10.5 openai-2.45.0

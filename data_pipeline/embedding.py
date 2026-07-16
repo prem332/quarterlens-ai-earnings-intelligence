@@ -1,15 +1,17 @@
 from __future__ import annotations
-
 import argparse
 import json
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from dotenv import load_dotenv
 from openai import AzureOpenAI
-
+from azure_clients.key_vault_client import kv
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -23,18 +25,13 @@ RETRY_BACKOFF = 2.0             # seconds, doubled per retry
 
 
 def make_client() -> AzureOpenAI:
-    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
-    key = os.environ.get("AZURE_OPENAI_KEY")
-    if not endpoint or not key:
-        raise RuntimeError(
-            "AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY must be set (see .env)."
-        )
+    endpoint = kv.get_secret("AZURE-OPENAI-ENDPOINT")
+    key = kv.get_secret("AZURE-OPENAI-KEY")
     return AzureOpenAI(
         azure_endpoint=endpoint,
         api_key=key,
         api_version=API_VERSION,
     )
-
 
 def _embed_batch(
     client: AzureOpenAI, deployment: str, texts: list[str]
@@ -78,9 +75,8 @@ def run(chunk_manifest_path: str, out_root: str) -> None:
     if not manifest_p.exists():
         raise FileNotFoundError(f"Chunk manifest not found: {chunk_manifest_path}")
 
-    deployment = os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
-    if not deployment:
-        raise RuntimeError("AZURE_OPENAI_EMBEDDING_DEPLOYMENT must be set (see .env).")
+
+    deployment = kv.get_secret("AZURE-OPENAI-EMBEDDING-DEPLOYMENT")
 
     chunk_manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
     out_root_p = Path(out_root)

@@ -1,0 +1,408 @@
+[
+  {
+    "_comment": "=== NUMERIC CLAIMS — META FY2025-Q3 ===",
+    "claim_id": "META_FY2025-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Total revenue stated as '$51.2 billion' on call; filed is $51,242M. Diff $42M — rounding match.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "Q3 total revenue was $51.2 billion, up 26% or 25% on a constant currency basis",
+      "metric": "total consolidated revenue Q3 FY2025",
+      "stated_value": "$51.2 billion"
+    },
+    "ground_truth": {
+      "filed_value": "51242",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001628280-25-047240",
+        "detail": "Three Months Ended September 30, 2025; consolidated revenue table in MDA"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=50M; exec rounded to nearest $0.1B",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001326801",
+        "company": "META",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Susan Li",
+          "quote_span": "Q3 total revenue was $51.2 billion, up 26% or 25% on a constant currency basis"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "EPS stated as $1.05 on call; filed diluted EPS is $1.05. Exact match. Note: this is the GAAP EPS depressed by the one-time $15.93B tax charge. Adjusted EPS would be $7.25 — the system must use the filed GAAP figure, not the adjusted one.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "Net income was $2.7 billion or $1.05 per share",
+      "metric": "diluted EPS Q3 FY2025",
+      "stated_value": "$1.05"
+    },
+    "ground_truth": {
+      "filed_value": "1.05",
+      "unit": "USD per share",
+      "source": {
+        "xbrl_tag": "us-gaap:EarningsPerShareDiluted",
+        "accession": "0001628280-25-047240",
+        "detail": "Three Months Ended September 30, 2025; MDA summary: diluted EPS $1.05. This is GAAP EPS including the one-time $15.93B tax charge from the One Big Beautiful Bill Act."
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001326801",
+        "company": "META",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Susan Li",
+          "quote_span": "Net income was $2.7 billion or $1.05 per share"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_003",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "MISMATCH via floor statement: Zuckerberg states '3.5 billion people using at least one of our apps every day'. Filed DAP is 3.54 billion. '3.5 billion' is a floor statement (rounded down) that understates the filed metric by 40 million people. Same pattern as MSFT 'exceeded $54B' — the stated value is a deliberate understatement for accessibility, not rounding to nearest 0.1B. A system treating 3.5B as equivalent to 3.54B misses a 1.1% understatement.",
+    "edge_case": "mismatch_true",
+    "payload": {
+      "verbal_claim": "3.5 billion people using at least one of our apps every day",
+      "metric": "Family daily active people (DAP) September 2025",
+      "stated_value": "3.5 billion"
+    },
+    "ground_truth": {
+      "filed_value": "3.54",
+      "unit": "billion people",
+      "source": {
+        "xbrl_tag": null,
+        "accession": "0001628280-25-047240",
+        "detail": "MDA Family of Apps Metrics: 'Family daily active people (DAP) was 3.54 billion on average for September 2025, an increase of 8% year-over-year.'"
+      },
+      "verdict": "mismatch",
+      "tolerance_rule": "exact; '3.5 billion' is a floor statement not a rounded figure. Filed value is 3.54 billion. A system accepting 3.5B as equivalent to 3.54B is inferring beyond what was stated.",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001326801",
+        "company": "META",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Mark Zuckerberg",
+          "quote_span": "3.5 billion people using at least one of our apps every day"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_004",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Tax rate exact match but requires period clarity. Susan states '87%' tax rate, filed is 87%. However the MDA explains this is abnormal due to a one-time $15.93B non-cash tax charge from the One Big Beautiful Bill Act. The system must surface the filed 87% AND note the one-time nature — a plain '87% tax rate' answer without context is misleading. Tests whether the numeric agent retrieves context alongside the number.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "Our tax rate for the quarter was 87%, which was unfavorably impacted by a onetime noncash reduction in deferred tax assets",
+      "metric": "effective tax rate Q3 FY2025",
+      "stated_value": "87%"
+    },
+    "ground_truth": {
+      "filed_value": "87",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:EffectiveIncomeTaxRateContinuingOperations",
+        "accession": "0001628280-25-047240",
+        "detail": "MDA: 'Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time income tax charge of $15.93 billion accrued in the third quarter of 2025 related to the implementation as of the enactment date of the One Big Beautiful Bill Act.'"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001326801",
+        "company": "META",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Susan Li",
+          "quote_span": "Our tax rate for the quarter was 87%, which was unfavorably impacted by a onetime noncash reduction"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_005",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Total revenue YoY derived: ($51,242 - $40,589) / $40,589 = 26.2%, exec states 26%. Valid rounding.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "Q3 total revenue was $51.2 billion, up 26%",
+      "metric": "total consolidated revenue YoY growth Q3 FY2025",
+      "stated_value": "26%"
+    },
+    "ground_truth": {
+      "filed_value": "26.2",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001628280-25-047240",
+        "detail": "Consolidated revenue table: $51,242M (Q3 2025) vs $40,589M (Q3 2024)"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated 26% rounds from 26.2%",
+      "derived_inputs": [
+        "Total revenue Q3 FY2025: $51,242M (filed, three months ended September 30, 2025)",
+        "Total revenue Q3 FY2024: $40,589M (filed, three months ended September 30, 2024)",
+        "YoY = (51242 - 40589) / 40589 = 26.2%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001326801",
+        "company": "META",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Susan Li",
+          "quote_span": "Q3 total revenue was $51.2 billion, up 26%"
+        }
+      }
+    }
+  },
+  {
+    "_comment": "=== RETRIEVAL CLAIMS — META FY2025-Q3 ===",
+    "claim_id": "META_FY2025-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Temporal disambiguation: META's corpus has five quarters indexed. Query asks about 'Q3 2025 ad impressions growth' — must return the FY2025-Q3 filing (14% growth), not Q3 FY2024 or any other quarter. The ad impressions metric appears across multiple quarters with different figures; the retrieval agent must resolve the correct period.",
+    "edge_case": "temporal_disambiguation",
+    "payload": {
+      "query": "what was Meta's ad impressions growth in Q3 2025",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "ad impressions delivered across Family of Apps increased 14% year-over-year in Q3 2025"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001326801",
+          "accession": "0001628280-25-047240",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Ad impressions delivered across our Family of Apps in the third quarter of 2025 increased 14%"
+          }
+        }
+      ],
+      "distractor_note": "The same ad impressions metric appears in every META quarter with a different figure. Temporal disambiguation is critical — retrieving Q2 FY2025 (which has a different impressions growth figure) would give a plausible-sounding but wrong answer."
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Cross-document: fully answering 'what drove META's Q3 operating cost acceleration' requires BOTH the filing (MDA states costs grew 32% YoY, driven by legal, headcount, and infrastructure) AND the transcript (Susan Li provides specific quantification: 'legal-related expense growth was higher than in Q2', 'employee compensation growth accelerated, driven by technical hires, particularly AI talent', 'growth in infrastructure costs accelerated'). The filing gives the aggregate and attribution; the transcript gives the prioritization and detail.",
+    "edge_case": "cross_document",
+    "payload": {
+      "query": "what drove Meta's operating cost acceleration in Q3 FY2025",
+      "doc_type": "transcript",
+      "expected_answer_gist": "three factors: legal expense growth higher than Q2, accelerated employee compensation from AI talent hiring, and accelerated infrastructure costs from expanded data center fleet depreciation and third-party cloud spend"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001326801",
+          "accession": "0001628280-25-047240",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "increase in costs and expenses was primarily due to increase in employee compensation and benefits"
+          }
+        },
+        {
+          "source_type": "transcript",
+          "cik": "0001326801",
+          "company": "META",
+          "fiscal_label": "FY2025-Q3",
+          "locator": {
+            "speaker": "Susan Li",
+            "quote_span": "Year-over-year expense growth accelerated 20 percentage points from Q2 due primarily to 3 factors"
+          }
+        }
+      ],
+      "distractor_note": "Filing-only retrieval gives the cost categories but not the prioritization or the 'accelerated 20pp from Q2' context. Transcript-only retrieval gives the three-factor explanation but not the filed dollar figures ($30.7B total costs, up 32%). Both required for a complete answer."
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_ret_003",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Direct: single-chunk answer for Reality Labs revenue. Tests baseline retrieval on a less-prominent segment — RL is often overshadowed by FoA in retrieval rankings.",
+    "edge_case": "direct",
+    "payload": {
+      "query": "what was Meta Reality Labs revenue in Q3 FY2025",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "Reality Labs revenue was $470 million in Q3 FY2025, up 74% year-over-year"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001326801",
+          "accession": "0001628280-25-047240",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Revenue $470 $270 74% Reality Labs"
+          }
+        }
+      ],
+      "distractor_note": null
+    }
+  },
+  {
+    "_comment": "=== COMPARISON CLAIMS — META FY2025-Q3 ===",
+    "claim_id": "META_FY2025-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Real shift: META Q3 MDA introduces a specific named legislation ('One Big Beautiful Bill Act') as a one-time tax driver — a materially new disclosure. Prior quarters did not reference this legislation. The operating margin narrative also shifted from a positive story in Q2 to a mixed story in Q3 where a 40% operating margin coexists with an 87% tax rate anomaly. The tax law disclosure is a genuine new risk factor addition unique to Q3.",
+    "edge_case": "risk_factor_added",
+    "payload": {
+      "current_quarter_lang": "Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time income tax charge of $15.93 billion accrued in the third quarter of 2025 related to the implementation as of the enactment date of the One Big Beautiful Bill Act.",
+      "prior_quarter_lang": "[One Big Beautiful Bill Act not enacted or disclosed in Q2 FY2025 — legislation signed and enacted in Q3 2025]",
+      "shift_description": "New one-time tax legislation risk disclosed in Q3: the One Big Beautiful Bill Act created a $15.93B non-cash charge that cannot have appeared in Q2 because the law was not yet enacted. This is a verifiable new risk: the filing explicitly states it was 'accrued in the third quarter of 2025 related to the implementation as of the enactment date.'"
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001326801",
+        "accession": "0001628280-25-047240",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "one-time income tax charge of $15.93 billion One Big Beautiful Bill Act"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001326801",
+        "accession": "0001628280-25-036791",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "effective tax rate"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_cmp_002",
+    "claim_type": "comparison",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "False positive: META's ad impressions and price per ad attribution language is structurally identical quarter to quarter — 'increased X% year-over-year' with the same causal factors named (advertiser demand, ad performance, impression growth from lower monetizing regions). Only the percentages change. A comparison agent flagging this as a language shift is confusing numeric update with qualitative change.",
+    "edge_case": "numeric_only_update",
+    "payload": {
+      "current_quarter_lang": "Ad impressions delivered across our Family of Apps in the third quarter of 2025 increased 14% year-over-year, and our average price per ad in the third quarter of 2025 increased 10% year-over-year.",
+      "prior_quarter_lang": "Ad impressions delivered across our Family of Apps in the second quarter of 2025 increased 7% year-over-year, and our average price per ad in the second quarter of 2025 increased 14% year-over-year.",
+      "why_not": "The sentence structure and causal attribution are identical — only the percentages changed (14% impressions vs 7% prior; 10% price vs 14% prior). This reflects the underlying business dynamics (impressions accelerated, price decelerated) but the qualitative language framework is unchanged. A shift detector reading these as different characterizations would be over-flagging."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001326801",
+        "accession": "0001628280-25-047240",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Ad impressions delivered across our Family of Apps third quarter 2025 increased 14%"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001326801",
+        "accession": "0001628280-25-036791",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Ad impressions delivered across our Family of Apps second quarter 2025 increased 7%"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "_comment": "=== OUT_OF_SCOPE CLAIMS — META ===",
+    "claim_id": "META_FY2025-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Unanswerable: the adjusted EPS of $7.25 (excluding the one-time tax charge) is disclosed on the call but does NOT appear in the 10-Q as a filed GAAP figure. The 10-Q files GAAP EPS of $1.05 only. A system retrieving the $7.25 from the filing would be hallucinating — the only filing reference is to the GAAP figure. The $7.25 is a non-GAAP measure disclosed verbally only.",
+    "edge_case": "unanswerable",
+    "payload": {
+      "query": "what was Meta's adjusted EPS excluding the one-time tax charge in Q3 FY2025 as filed in the 10-Q"
+    },
+    "ground_truth": {
+      "expected_behavior": "refuse",
+      "refusal_reason": "The adjusted EPS of $7.25 is a non-GAAP measure disclosed on the earnings call only. The 10-Q files GAAP EPS of $1.05. The adjusted figure does not appear in the 10-Q financial statements — a system retrieving $7.25 from the filing would be hallucinating.",
+      "anchor": {
+        "source_type": "filing",
+        "cik": "0001326801",
+        "accession": "0001628280-25-047240",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "diluted earnings per share of $1.05 three months ended September 30 2025"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "META_FY2025-Q3_oos_002",
+    "claim_type": "out_of_scope",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Advice bait: META's strong ad revenue growth solicits a buy recommendation.",
+    "edge_case": "advice_bait",
+    "payload": {
+      "query": "Meta's ad revenue is growing 26% and DAP is 3.5 billion — is META stock a buy right now"
+    },
+    "ground_truth": {
+      "expected_behavior": "decline_advice",
+      "refusal_reason": "QuarterLens provides earnings intelligence, not investment recommendations (ARCH §1). The system can confirm the 26% revenue growth and DAP figures but cannot advise on whether to buy META stock.",
+      "anchor": null
+    }
+  }
+]

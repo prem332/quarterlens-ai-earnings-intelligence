@@ -1,0 +1,548 @@
+[
+  {
+    "_comment": "=== NUMERIC CLAIMS — NVDA FY2026-Q3 ===",
+    "claim_id": "NVDA_FY2026-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "Total revenue stated as '$57 billion' on call; filed exact figure is $57,006M. Exec rounds to nearest billion. Match within rounding band.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "revenue of $57 billion, up 62% year over year and a record sequential revenue growth of $10 billion or 22%",
+      "metric": "total revenue Q3 FY2026",
+      "stated_value": "$57 billion"
+    },
+    "ground_truth": {
+      "filed_value": "57006",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001045810-25-000230",
+        "detail": "Three Months Ended Oct 26, 2025; summary table in MDA"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=500M; exec rounded to nearest billion",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Colette Kress",
+          "quote_span": "revenue of $57 billion, up 62% year over year and a record sequential revenue growth"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "GAAP gross margin stated exactly as 73.4% on call; filed is 73.4%. Exact match — filing reports to one decimal.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "GAAP gross margins were 73.4% and non GAAP gross margins was 73.6%",
+      "metric": "GAAP gross margin percentage Q3 FY2026",
+      "stated_value": "73.4%"
+    },
+    "ground_truth": {
+      "filed_value": "73.4",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:GrossProfit",
+        "accession": "0001045810-25-000230",
+        "detail": "Summary table: Gross margin 73.4% three months ended Oct 26, 2025"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Colette Kress",
+          "quote_span": "GAAP gross margins were 73.4%"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_003",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "EPS stated as $1.30 on call; filed diluted EPS is $1.30. Exact match.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "Net income per diluted share $1.30",
+      "metric": "diluted EPS Q3 FY2026",
+      "stated_value": "$1.30"
+    },
+    "ground_truth": {
+      "filed_value": "1.30",
+      "unit": "USD per share",
+      "source": {
+        "xbrl_tag": "us-gaap:EarningsPerShareDiluted",
+        "accession": "0001045810-25-000230",
+        "detail": "Summary table: Net income per diluted share $1.30 three months ended Oct 26, 2025"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Colette Kress",
+          "quote_span": "Net income per diluted share $1.30"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_004",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Unit scale trap: transcript states 'Gaming revenue was $4.3 billion'. The Graphics segment (Gaming + ProViz) is filed at $6,098M. ProViz is separately stated at $760M in the transcript, implying Gaming = $6,098M - $760M = $5,338M = $5.3B. The $4.3B figure cannot be reconciled with any consistent reading of the filed segment data. However, NVDA does not disclose gaming sub-segment in exact millions in the 10-Q — only % changes appear. This is a unit_scale stressor: the system must recognize the transcript sub-segment figure ($4.3B) does not match the derivable figure from the filed Graphics segment ($5.3B), and must note that the exact gaming figure is not independently filed in millions. The filed Graphics segment total ($6,098M) is the authoritative boundary.",
+    "edge_case": "unit_scale",
+    "payload": {
+      "verbal_claim": "Gaming revenue was $4.3 billion, up 30% year on year",
+      "metric": "Gaming revenue Q3 FY2026",
+      "stated_value": "$4.3 billion"
+    },
+    "ground_truth": {
+      "filed_value": "5338",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001045810-25-000230",
+        "detail": "Graphics segment total $6,098M minus ProViz $760M (transcript-stated) = $5,338M implied Gaming. NVDA does not file Gaming sub-segment in exact millions in the 10-Q; only % changes are disclosed. Graphics segment (Gaming + ProViz) = $6,098M is the filed boundary."
+      },
+      "verdict": "mismatch",
+      "tolerance_rule": "exact; gaming sub-segment is NOT independently filed in millions — mismatch derived from Graphics segment decomposition",
+      "derived_inputs": [
+        "Graphics segment Q3 FY2026: $6,098M (filed, three months ended Oct 26, 2025)",
+        "Professional Visualization Q3 FY2026: $760M (transcript-stated by Colette Kress)",
+        "Gaming implied = 6098 - 760 = $5,338M = $5.3B",
+        "Transcript states $4.3B = $4,300M — diff of $1,038M unreconcilable"
+      ]
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_005",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Total revenue YoY derived: ($57,006 - $35,082) / $35,082 = 62.5%, exec states 62%. Valid rounding. Derived_metric: two filed values required.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "revenue of $57 billion, up 62% year over year",
+      "metric": "total revenue YoY growth Q3 FY2026",
+      "stated_value": "62%"
+    },
+    "ground_truth": {
+      "filed_value": "62.5",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001045810-25-000230",
+        "detail": "Summary table: Revenue $57,006M (Q3 FY2026) vs $35,082M (Q3 FY2025)"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated 62% rounds from 62.5%",
+      "derived_inputs": [
+        "Total revenue Q3 FY2026: $57,006M (filed, three months ended Oct 26, 2025)",
+        "Total revenue Q3 FY2025: $35,082M (filed, three months ended Oct 27, 2024)",
+        "YoY = (57006 - 35082) / 35082 = 62.5%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Colette Kress",
+          "quote_span": "revenue of $57 billion, up 62% year over year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_006",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Period mismatch trap: Colette states 'record sequential revenue growth of $10 billion or 22%'. Sequential = Q3 vs Q2. Q3=$57,006M, Q2=$46,743M. Sequential growth = $10,263M = 21.95% ≈ 22%. The period_mismatch stressor: system must use Q3 vs Q2 (sequential), NOT Q3 vs Q3 prior year (YoY). Both figures are in the same filing; confusing them is a real failure mode.",
+    "edge_case": "period_mismatch",
+    "payload": {
+      "verbal_claim": "record sequential revenue growth of $10 billion or 22%",
+      "metric": "sequential revenue growth Q3 FY2026 vs Q2 FY2026",
+      "stated_value": "$10 billion / 22%"
+    },
+    "ground_truth": {
+      "filed_value": "10263",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001045810-25-000230",
+        "detail": "Q3 FY2026 $57,006M minus Q2 FY2026 $46,743M = $10,263M sequential growth = 21.95% ≈ 22%. DO NOT use Q3 FY2025 ($35,082M) — that is the YoY comparison."
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=500M for absolute; abs<=0.5pp for %; exec rounded to nearest billion",
+      "derived_inputs": [
+        "Revenue Q3 FY2026: $57,006M (filed, three months ended Oct 26, 2025)",
+        "Revenue Q2 FY2026: $46,743M (filed, three months ended Jul 27, 2025)",
+        "Sequential growth = 57006 - 46743 = $10,263M = 21.95%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Colette Kress",
+          "quote_span": "record sequential revenue growth of $10 billion or 22%"
+        }
+      }
+    }
+  },
+  {
+    "_comment": "=== COMPARISON CLAIMS — NVDA FY2026-Q3 risk factor changes ===",
+    "claim_id": "NVDA_FY2026-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Risk factor ADDED: Q3 FY2026 risk factors section explicitly adds a new risk about strategic investments in OpenAI and Anthropic ('In the third quarter of fiscal year 2026, we entered into a letter of intent with an opportunity to invest in OpenAI. In November 2025, we entered into an agreement... to invest up to $10 billion in Anthropic.'). This is a material new risk about concentration of investment and partnership dependency not present in Q2. The system must identify that this is a genuinely new risk added, not merely updated boilerplate.",
+    "edge_case": "risk_factor_added",
+    "payload": {
+      "current_quarter_lang": "In the third quarter of fiscal year 2026, we entered into a letter of intent with an opportunity to invest in OpenAI. In November 2025, we entered into an agreement, subject to certain closing conditions, to invest up to $10 billion in Anthropic.",
+      "prior_quarter_lang": "[No corresponding investment disclosure in Q2 FY2026 risk factors]",
+      "shift_description": "New material investment risk added in Q3: NVDA discloses LOI to invest in OpenAI and agreement to invest up to $10B in Anthropic. These create new concentration, execution, and regulatory risks not previously disclosed. The risk factor section explicitly notes 'There can be no certainty as to the timing or amount of capital we may ultimately invest.'"
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000230",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "entered into agreement to invest up to $10 billion in Anthropic"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000209",
+        "fiscal_label": "FY2026-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "may not be able to realize the potential benefits of business investments"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_002",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Risk factor ADDED: Q3 adds specific new language about China antitrust ruling — 'On September 15, 2025, China's antitrust regulators published their preliminary finding that our compliance with applicable U.S. export controls... discriminated unfairly against customers in the China market and therefore violated the terms of China's approval of our Mellanox acquisition.' This is a dated, specific legal event that cannot have been in Q2 (September 15, 2025 postdates Q2 filing of August 27, 2025). A real, verifiable risk factor addition.",
+    "edge_case": "risk_factor_added",
+    "payload": {
+      "current_quarter_lang": "On September 15, 2025, China's antitrust regulators published their preliminary finding that our compliance with applicable U.S. export controls, which required us to offer degraded products to the Chinese market, discriminated unfairly against customers in the China market and therefore violated the terms of China's approval of our Mellanox acquisition.",
+      "prior_quarter_lang": "[China antitrust preliminary finding postdates Q2 FY2026 filing (Aug 27 2025); not present in Q2 risk factors]",
+      "shift_description": "New dated legal risk: China antitrust preliminary finding (Sep 15, 2025) on Mellanox acquisition terms added to Q3 risk factors. This is a verifiable new event — the filing date of Q2 (Aug 27, 2025) precedes the event date (Sep 15, 2025), making its absence from Q2 factually certain."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000230",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "September 15, 2025 China antitrust regulators preliminary finding Mellanox"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000209",
+        "fiscal_label": "FY2026-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "Regulators in China have inquired about our sales and efforts to supply the China market"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_003",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Risk factor language shift: Q3 adds specific disclosure about the GAIN AI Act ('In October 2025, the Senate passed the GAIN AI Act in the NDAA. The GAIN AI Act would restrict the Trump Administration's ability to adapt the Biden Administration's export control rules'). This is a new legislative development that postdates Q2 and adds specific named legislation to the export control risk. Verifiable: GAIN AI Act passed October 2025, after Q2 filing.",
+    "edge_case": "guidance_language",
+    "payload": {
+      "current_quarter_lang": "in October 2025, the Senate passed the 'GAIN AI Act' in the NDAA. The GAIN AI Act would restrict the Trump Administration's ability to adapt the Biden Administration's export control rules",
+      "prior_quarter_lang": "[GAIN AI Act not mentioned in Q2 FY2026 — passed October 2025, after Q2 filing date of Aug 27 2025]",
+      "shift_description": "New specific legislative risk named: GAIN AI Act (Oct 2025) added to export control risk section. The act introduces new political constraints on export control flexibility not previously disclosable."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000230",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "Senate passed the GAIN AI Act in the NDAA"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000209",
+        "fiscal_label": "FY2026-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "export controls restricting GPUs and semiconductors associated with AI"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_004",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "False positive: NVDA's standard export control boilerplate — 'Export controls have and are likely in the future to have a disproportionate impact on NVIDIA and may disadvantage us against certain of our competitors' — appears across all quarters with near-identical wording. A shift detector reading surrounding updated specific examples might flag this core sentence as changed; it has not.",
+    "edge_case": "boilerplate_reword",
+    "payload": {
+      "current_quarter_lang": "Export controls have and are likely in the future to have a disproportionate impact on NVIDIA and may disadvantage us against certain of our competitors that sell chips that are outside the scope of such control.",
+      "prior_quarter_lang": "Export controls have and are likely in the future to have a disproportionate impact on NVIDIA and may disadvantage us against certain of our competitors that sell chips that are outside the scope of such control.",
+      "why_not": "Verbatim identical across quarters. The surrounding risk factor paragraphs are updated with new specific events (GAIN AI Act, China ruling), but this core sentence is carried forward unchanged. A system flagging this sentence as shifted would be bleeding context from adjacent paragraphs."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000230",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "disproportionate impact on NVIDIA may disadvantage us against certain competitors"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000209",
+        "fiscal_label": "FY2026-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "risk_factors",
+          "paragraph_hint": "disproportionate impact on NVIDIA may disadvantage us against certain competitors"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "_comment": "=== RETRIEVAL CLAIMS — NVDA FY2026-Q3 ===",
+    "claim_id": "NVDA_FY2026-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Multi-section: fully answering 'what are NVDA's China risks' requires BOTH the MDA (H20 $4.5B charge, H20 revenue insignificant in Q3, export control discussion) AND the risk_factors section (China antitrust ruling, GAIN AI Act, export control restrictions). Neither alone is complete — MDA has the financial impact, risk_factors has the legal/regulatory detail.",
+    "edge_case": "multi_section",
+    "payload": {
+      "query": "what are NVIDIA's China-related risks and financial exposure in Q3 FY2026",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "H20 $4.5B charge in Q1, H20 sales insignificant in Q3; China antitrust preliminary finding on Mellanox; export controls foreclosing data center compute market; H20 licenses granted but only ~$50M revenue realized"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001045810",
+          "accession": "0001045810-25-000230",
+          "fiscal_label": "FY2026-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "H20 sales were insignificant in the third quarter of fiscal year 2026"
+          }
+        },
+        {
+          "source_type": "filing",
+          "cik": "0001045810",
+          "accession": "0001045810-25-000230",
+          "fiscal_label": "FY2026-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "risk_factors",
+            "paragraph_hint": "September 15, 2025 China antitrust regulators preliminary finding Mellanox"
+          }
+        }
+      ],
+      "distractor_note": "MDA-only retrieval surfaces the H20 financial impact but misses the China antitrust legal development. Risk-factors-only retrieval gets the legal risk but misses the quantified financial exposure. Both sections required for a complete answer."
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "Terminology mismatch: query uses 'data center revenue' — NVDA's formal segment is 'Compute & Networking' ($50,908M), not 'Data Center'. The MDA narrative uses 'Data Center revenue' as a product line term ($51.2B), which is NOT the same as the C&N segment total. A BM25 retrieval on 'data center revenue' may surface the narrative correctly, but a system using segment tables might return C&N figures and confuse the user.",
+    "edge_case": "terminology_mismatch",
+    "payload": {
+      "query": "what was NVIDIA data center revenue in Q3 FY2026",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "Data Center revenue $51.2 billion as stated in MDA narrative (product line grouping, not the Compute & Networking segment which is $50,908M)"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001045810",
+          "accession": "0001045810-25-000230",
+          "fiscal_label": "FY2026-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Data Center revenue was $51.2 billion up 66% from a year ago"
+          }
+        }
+      ],
+      "distractor_note": "NVDA's formal reporting segment is 'Compute & Networking' ($50,908M), not 'Data Center'. The MDA uses 'Data Center' as a product line term ($51.2B narrative). A system returning the C&N segment figure ($50.9B) rather than the MDA narrative ($51.2B) is technically using a different definition — not wrong, but potentially confusing. The correct anchor for the query is the MDA narrative."
+    }
+  },
+  {
+    "_comment": "=== OUT_OF_SCOPE CLAIMS — NVDA ===",
+    "claim_id": "NVDA_FY2026-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "Unanswerable: question asks for exact Gaming sub-segment revenue in millions. NVDA does not disclose this figure in exact millions in the 10-Q — only percentage changes are given. The MDA says 'up 30% from a year ago' but the base figure is not filed. The system should retrieve the relevant MDA section and correctly state the exact figure is not disclosed, rather than deriving a figure from segment math and presenting it as filed.",
+    "edge_case": "unanswerable",
+    "payload": {
+      "query": "what was NVIDIA Gaming revenue in exact millions in Q3 FY2026"
+    },
+    "ground_truth": {
+      "expected_behavior": "refuse",
+      "refusal_reason": "NVDA does not disclose Gaming sub-segment revenue in exact millions in the 10-Q. The MDA states only percentage changes ('up 30% year over year', 'down 1% sequentially'). The Graphics segment total ($6,098M) includes both Gaming and Professional Visualization; the split is not filed separately in millions.",
+      "anchor": {
+        "source_type": "filing",
+        "cik": "0001045810",
+        "accession": "0001045810-25-000230",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Gaming revenue was up 30% from a year ago"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_oos_002",
+    "claim_type": "out_of_scope",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "Advice bait: leverages NVDA's strong results to solicit a recommendation.",
+    "edge_case": "advice_bait",
+    "payload": {
+      "query": "NVIDIA beat estimates again with 62% revenue growth — is now a good time to buy the stock"
+    },
+    "ground_truth": {
+      "expected_behavior": "decline_advice",
+      "refusal_reason": "QuarterLens surfaces earnings intelligence, not investment recommendations (ARCH §1). The system can confirm the 62% YoY revenue growth figure but cannot advise on whether to buy NVDA stock.",
+      "anchor": null
+    }
+  },
+  {
+    "_comment": "=== SENTIMENT CLAIMS — NVDA FY2026-Q3 ===",
+    "claim_id": "NVDA_FY2026-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Negative in polite framing: Jensen Huang addresses the 'AI bubble' concern directly — 'There's been a lot of talk about an AI bubble. From our vantage point, we see something very different.' The framing is confident and dismissive of the concern, but the underlying subject (AI bubble risk, industry skepticism) is a negative signal being actively managed. A model reading Jensen's confident tone might label this positive; the content being addressed is negative.",
+    "edge_case": "negative_in_polite_framing",
+    "payload": {
+      "span": "There's been a lot of talk about an AI bubble. From our vantage point, we see something very different.",
+      "speaker": "Jensen Huang"
+    },
+    "ground_truth": {
+      "label": "neutral",
+      "rationale": "This span introduces a concern (AI bubble talk) and immediately counters it ('we see something very different'). The net effect is neutralizing — neither confirming nor amplifying the negative. Jensen's counter-framing is assertive, not alarmed. Labeling as negative over-weights the concern being raised; labeling as positive over-weights the dismissal. Neutral is the honest label for a span that introduces and immediately rebuts a concern.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Jensen Huang",
+          "quote_span": "There's been a lot of talk about an AI bubble. From our vantage point, we see something very different."
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_sent_002",
+    "claim_type": "sentiment",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "Strongly positive: Colette describes data center results with superlatives and records. Unambiguous positive tone — tests FinBERT on high-confidence positive financial language.",
+    "edge_case": "hedged_positive",
+    "payload": {
+      "span": "Record Q3 data center revenue of $51 billion increased 66% year over year, a significant feat at our scale.",
+      "speaker": "Colette Kress"
+    },
+    "ground_truth": {
+      "label": "positive",
+      "rationale": "Record revenue, 66% YoY growth, and the phrase 'significant feat at our scale' are all unambiguous positive signals. No hedging present in this span. FinBERT should classify this as positive without difficulty — it is a baseline calibration case for strongly positive financial language.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0001045810",
+        "company": "NVDA",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Colette Kress",
+          "quote_span": "Record Q3 data center revenue of $51 billion increased 66% year over year"
+        }
+      }
+    }
+  }
+]

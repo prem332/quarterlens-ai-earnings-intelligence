@@ -1,0 +1,361 @@
+[
+  {
+    "_comment": "=== NUMERIC CLAIMS — MSFT FY2026-Q3 ===",
+    "claim_id": "MSFT_FY2026-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "Total revenue stated as '$82.9 billion' on call; filed is $82,886M. Exec rounds to one decimal in billions. $82,900M vs $82,886M — diff $14M, within rounding band.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "revenue was $82.9 billion, up 18% and 15% in constant currency",
+      "metric": "total revenue Q3 FY2026",
+      "stated_value": "$82.9 billion"
+    },
+    "ground_truth": {
+      "filed_value": "82886",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001193125-26-191507",
+        "detail": "Three Months Ended March 31, 2026; summary table in MDA"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=50M; exec rounded to nearest $0.1B",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000789019",
+        "company": "MSFT",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Amy Hood",
+          "quote_span": "revenue was $82.9 billion, up 18% and 15% in constant currency"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "EPS stated as $4.27 on call; filed diluted EPS is $4.27. Exact match.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "Earnings per share was $4.27, an increase of 21% and 18% in constant currency when adjusted for the impact from our investment in OpenAI",
+      "metric": "diluted EPS Q3 FY2026",
+      "stated_value": "$4.27"
+    },
+    "ground_truth": {
+      "filed_value": "4.27",
+      "unit": "USD per share",
+      "source": {
+        "xbrl_tag": "us-gaap:EarningsPerShareDiluted",
+        "accession": "0001193125-26-191507",
+        "detail": "Summary table: Diluted earnings per share $4.27 three months ended March 31, 2026"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000789019",
+        "company": "MSFT",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Amy Hood",
+          "quote_span": "Earnings per share was $4.27"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_003",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "MISMATCH: Satya states Microsoft Cloud revenue 'exceeded $54 billion'. The MDA files it precisely as $54.5 billion ($54,500M). 'Exceeded $54 billion' implies the figure is above $54B but states no upper bound — when compared to the filed $54,500M, the stated value understates by $500M. This is a deliberate understatement for emphasis ('exceeded'), not a rounding error. A system treating 'exceeded $54 billion' as equivalent to the filed $54.5B is making an inference the exec did not make; a precise verification must flag that the stated lower bound ($54B) does not equal the filed value ($54.5B). Verdict: mismatch on the stated figure — the exec understated the precise number.",
+    "edge_case": "mismatch_true",
+    "payload": {
+      "verbal_claim": "Microsoft Cloud, which exceeded $54 billion in revenue, up 29% year-over-year",
+      "metric": "Microsoft Cloud revenue Q3 FY2026",
+      "stated_value": "exceeded $54 billion"
+    },
+    "ground_truth": {
+      "filed_value": "54500",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001193125-26-191507",
+        "detail": "MDA: 'Microsoft Cloud revenue increased 29% to $54.5 billion.' MS Cloud is a cross-segment metric (M365 Commercial Cloud + Azure + LinkedIn commercial + Dynamics 365)."
+      },
+      "verdict": "mismatch",
+      "tolerance_rule": "exact; 'exceeded $54B' is a floor statement, not a rounded figure. The filed value is $54,500M = $54.5B. A system accepting 'exceeded $54B' as equivalent to $54.5B is inferring beyond what was stated.",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000789019",
+        "company": "MSFT",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Satya Nadella",
+          "quote_span": "Microsoft Cloud, which exceeded $54 billion in revenue, up 29% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_004",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Intelligent Cloud YoY derived: ($34,681 - $26,751) / $26,751 = 29.6%, exec states 30%. Valid rounding. Derived_metric: two filed values required.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "Intelligent Cloud segment. Revenue was $34.7 billion and grew 30%",
+      "metric": "Intelligent Cloud revenue YoY growth Q3 FY2026",
+      "stated_value": "30%"
+    },
+    "ground_truth": {
+      "filed_value": "29.6",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0001193125-26-191507",
+        "detail": "Intelligent Cloud segment table: $34,681M (Q3 FY2026) vs $26,751M (Q3 FY2025)"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated 30% rounds from 29.6%",
+      "derived_inputs": [
+        "Intelligent Cloud revenue Q3 FY2026: $34,681M (filed, three months ended March 31, 2026)",
+        "Intelligent Cloud revenue Q3 FY2025: $26,751M (filed, three months ended March 31, 2025)",
+        "YoY = (34681 - 26751) / 26751 = 29.6%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000789019",
+        "company": "MSFT",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Amy Hood",
+          "quote_span": "Intelligent Cloud segment. Revenue was $34.7 billion and grew 30%"
+        }
+      }
+    }
+  },
+  {
+    "_comment": "=== RETRIEVAL CLAIMS — MSFT FY2026-Q3 ===",
+    "claim_id": "MSFT_FY2026-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Near-duplicate boilerplate stressor: the phrase 'continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains across the Microsoft Cloud' appears multiple times in the MSFT MDA — once in the total company GM% discussion, once in the MS Cloud GM% discussion, once in the segment gross margin sections. A retrieval system must surface the correct occurrence (total company GM%) not a near-identical adjacent chunk. BM25 will likely return all occurrences; ranking them correctly is the stressor.",
+    "edge_case": "near_duplicate_boilerplate",
+    "payload": {
+      "query": "what drove the decrease in Microsoft total company gross margin percentage in Q3 FY2026",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "Total company gross margin percentage decreased driven by continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains in Azure and M365 Commercial Cloud"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0000789019",
+          "accession": "0001193125-26-191507",
+          "fiscal_label": "FY2026-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Gross margin percentage decreased driven by continued investments in AI infrastructure"
+          }
+        }
+      ],
+      "distractor_note": "The exact phrase 'continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains' appears at least 3 times in the MDA — for total company GM%, for Microsoft Cloud GM%, and within segment discussions. A retrieval system returning the wrong occurrence (e.g. the MS Cloud GM% paragraph instead of total company) would answer a related but different question. The correct anchor is the total company GM% discussion in the Three Months summary section."
+    }
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "Direct: single-chunk answer for Azure growth rate. Tests baseline retrieval on a simple, high-priority query.",
+    "edge_case": "direct",
+    "payload": {
+      "query": "what was Azure revenue growth in Q3 FY2026",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "Azure and other cloud services revenue increased 40% year-over-year"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0000789019",
+          "accession": "0001193125-26-191507",
+          "fiscal_label": "FY2026-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Azure and other cloud services revenue increased 40%"
+          }
+        }
+      ],
+      "distractor_note": null
+    }
+  },
+  {
+    "_comment": "=== COMPARISON CLAIMS — MSFT FY2026-Q3 ===",
+    "claim_id": "MSFT_FY2026-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "False positive / formatting artifact: MSFT MDA uses a bullet-point structure that varies slightly between quarters in spacing, ordering of bullet items, and section headers. The underlying content of the 'Revenue drivers' bullets is substantively the same; only presentation formatting differs. A diff-based comparison tool will flag this as a change; it is not substantive.",
+    "edge_case": "formatting_artifact",
+    "payload": {
+      "current_quarter_lang": "• Gross margin percentage decreased driven by continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains across the Microsoft Cloud. • Microsoft Cloud gross margin percentage decreased to 66%",
+      "prior_quarter_lang": "• Gross margin percentage decreased driven by continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains across the Microsoft Cloud. • Microsoft Cloud gross margin percentage decreased to 69%",
+      "why_not": "The structural template and causal attribution language is identical. Only the percentage figure (66% vs 69%) changed, which reflects the underlying numeric update, not a language shift in characterization. A system flagging this as a 'language shift' is conflating a numeric update with a qualitative change."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000789019",
+        "accession": "0001193125-26-191507",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Microsoft Cloud gross margin percentage decreased to 66%"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000789019",
+        "accession": "0000950170-25-061046",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Microsoft Cloud gross margin percentage decreased to 69%"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_cmp_002",
+    "claim_type": "comparison",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "medium",
+    "notes": "False positive / reordering: MSFT's segment revenue summary bullets consistently list Intelligent Cloud before More Personal Computing. Within the MPC discussion, sub-items (Windows, Search, Gaming, Devices) appear in varying order across quarters without substantive meaning. A system detecting bullet reorder as a shift would over-flag.",
+    "edge_case": "reordering",
+    "payload": {
+      "current_quarter_lang": "Windows OEM and Devices revenue decreased 2%. Xbox content and services revenue decreased 5%. Search advertising revenue excluding traffic acquisition costs increased 12%.",
+      "prior_quarter_lang": "Search advertising revenue excluding traffic acquisition costs increased 21%. Windows OEM and Devices revenue increased 4%. Xbox content and services revenue decreased 4%.",
+      "why_not": "The sub-items are the same three metrics (Windows, Xbox, Search) in different order with updated figures. The order reflects no strategic signal — it varies with the emphasis of that quarter's discussion. The numeric figures changed (reflecting actual business results) but the qualitative framework is unchanged. This is a reordering of standard disclosure items, not a shift in characterization."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000789019",
+        "accession": "0001193125-26-191507",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Windows OEM and Devices revenue decreased 2% Xbox content and services"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000789019",
+        "accession": "0000950170-25-061046",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Search advertising revenue excluding traffic acquisition costs increased 21%"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "_comment": "=== OUT_OF_SCOPE CLAIMS — MSFT ===",
+    "claim_id": "MSFT_FY2026-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Unanswerable: the $37B AI ARR figure Satya and Amy both cite is a non-GAAP KPI disclosed only on the earnings call — it does not appear in the 10-Q MDA or any filing section. The system should retrieve the relevant MDA sections on AI business and correctly state the metric is not in the filing, rather than hallucinating a figure from the financial statements.",
+    "edge_case": "unanswerable",
+    "payload": {
+      "query": "what is Microsoft's AI business annual revenue run rate as reported in the Q3 FY2026 10-Q"
+    },
+    "ground_truth": {
+      "expected_behavior": "refuse",
+      "refusal_reason": "The $37B AI ARR figure is a non-GAAP KPI disclosed on the earnings call only. The 10-Q MDA does not contain this metric — AI revenue is not broken out as a separate line item in the financial statements. A system retrieving this figure from the transcript is answering from outside the filing corpus.",
+      "anchor": {
+        "source_type": "filing",
+        "cik": "0000789019",
+        "accession": "0001193125-26-191507",
+        "fiscal_label": "FY2026-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Microsoft Cloud revenue increased 29% to $54.5 billion"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_oos_002",
+    "claim_type": "out_of_scope",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "easy",
+    "notes": "Advice bait: leverages MSFT's strong AI narrative to solicit investment guidance.",
+    "edge_case": "advice_bait",
+    "payload": {
+      "query": "Microsoft's AI business is growing 123% year-over-year — should I overweight MSFT in my portfolio"
+    },
+    "ground_truth": {
+      "expected_behavior": "decline_advice",
+      "refusal_reason": "Portfolio allocation is investment advice outside QuarterLens scope (ARCH §1). The system can confirm the AI ARR growth figure but cannot advise on portfolio weighting.",
+      "anchor": null
+    }
+  },
+  {
+    "_comment": "=== SENTIMENT CLAIMS — MSFT FY2026-Q3 ===",
+    "claim_id": "MSFT_FY2026-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "difficulty": "hard",
+    "notes": "Analyst pushback: analyst questions about declining gaming revenue and devices — a challenge embedded in polite analyst framing. The question implies concern about the MPC segment's structural weakness. Tests whether FinBERT reads the concern or the polite register.",
+    "edge_case": "analyst_pushback",
+    "payload": {
+      "span": "And in gaming, revenue decreased 7% and 9% in constant currency. Xbox content and services revenue decreased 5% and 7% in constant currency against the prior year comparable that benefited from strong first-party content performance.",
+      "speaker": "Amy Hood"
+    },
+    "ground_truth": {
+      "label": "negative",
+      "rationale": "Revenue down 7% in gaming and 5% in Xbox content/services are negative results. The explanatory framing ('prior year comparable that benefited from strong first-party content') is context, not mitigation — the current period results are clearly negative. FinBERT reading the financial direction should label this negative regardless of the neutral delivery register.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0000789019",
+        "company": "MSFT",
+        "fiscal_label": "FY2026-Q3",
+        "locator": {
+          "speaker": "Amy Hood",
+          "quote_span": "in gaming, revenue decreased 7% and 9% in constant currency"
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,1044 @@
+[
+  {
+    "_comment": "=== NUMERIC CLAIMS \u2014 AAPL FY2025-Q3 ===",
+    "claim_id": "AAPL_FY2025-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Total net sales stated as '$94 billion' on call; filed exact figure is $94,036M. Classic rounding: exec rounds to nearest billion, filed value is precise. Tolerance band applies.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "revenue of $94 billion was up 10% year-over-year and is a new June quarter record",
+      "metric": "total net sales Q3 FY2025",
+      "stated_value": "$94 billion"
+    },
+    "ground_truth": {
+      "filed_value": "94036",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Three Months Ended June 28, 2025; MDA segment table"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=500M; exec rounded to nearest billion",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "Our revenue of $94 billion was up 10% year-over-year and is a new June quarter record"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Total gross margin percentage stated exactly as 46.5% on call; filed figure is 46.5% ($43,718/$94,036). Exact match \u2014 the filing already reports to one decimal.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "Company gross margin was 46.5% at the high end of our guidance range",
+      "metric": "total gross margin percentage Q3 FY2025",
+      "stated_value": "46.5%"
+    },
+    "ground_truth": {
+      "filed_value": "46.5",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:GrossProfit",
+        "accession": "0000320193-25-000073",
+        "detail": "Gross Margin table: Total gross margin $43,718M / Total net sales $94,036M = 46.50%; MDA gross margin section"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "Company gross margin was 46.5% at the high end of our guidance range"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_003",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "iPhone revenue stated as '$44.6 billion' on call; filed figure is $44,582M. Exec rounds to one decimal in billions. Stated $44.6B = $44,600M vs filed $44,582M \u2014 diff $18M, well within rounding band for one-decimal-billion rounding.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "iPhone revenue was $44.6 billion, up 13% year-over-year",
+      "metric": "iPhone net sales Q3 FY2025",
+      "stated_value": "$44.6 billion"
+    },
+    "ground_truth": {
+      "filed_value": "44582",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Products and Services Performance table: iPhone $44,582M three months ended June 28, 2025"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=50M; exec rounded to nearest $0.1B",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "iPhone revenue was $44.6 billion, up 13% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_004",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Services revenue stated as '$27.4 billion' on call; filed is $27,423M. Exec rounds to one decimal in billions. $27,400M vs $27,423M \u2014 diff $23M, within rounding band.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "Services revenue was $27.4 billion, up 13% year-over-year and an all-time record",
+      "metric": "Services net sales Q3 FY2025",
+      "stated_value": "$27.4 billion"
+    },
+    "ground_truth": {
+      "filed_value": "27423",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Products and Services Performance table: Services $27,423M three months ended June 28, 2025"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=50M; exec rounded to nearest $0.1B",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "Services revenue was $27.4 billion, up 13% year-over-year and an all-time record"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_005",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Products gross margin % stated exactly as 34.5% on call; filed is 34.5% ($22,993/$66,613). Exact match \u2014 filing reports to one decimal.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "Products gross margin was 34.5%, down 140 basis points sequentially",
+      "metric": "Products gross margin percentage Q3 FY2025",
+      "stated_value": "34.5%"
+    },
+    "ground_truth": {
+      "filed_value": "34.5",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:GrossProfit",
+        "accession": "0000320193-25-000073",
+        "detail": "Gross Margin table: Products gross margin percentage 34.5% three months ended June 28, 2025"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "Products gross margin was 34.5%, down 140 basis points sequentially"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_006",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "iPhone YoY growth stated as 13% on call. Derived: ($44,582 - $39,296) / $39,296 = 13.45%, which rounds to 13%. Valid rounding. Requires recomputation from two filed values \u2014 this is the derived_metric edge case.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "iPhone, which grew a strong 13% year-over-year",
+      "metric": "iPhone net sales YoY growth rate Q3 FY2025",
+      "stated_value": "13%"
+    },
+    "ground_truth": {
+      "filed_value": "13.45",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Products and Services table: iPhone $44,582M (Q3 FY2025) vs $39,296M (Q3 FY2024)"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated 13% rounds from 13.45%",
+      "derived_inputs": [
+        "iPhone Q3 FY2025: $44,582M (filed, three months ended June 28, 2025)",
+        "iPhone Q3 FY2024: $39,296M (filed, three months ended June 29, 2024)",
+        "YoY = (44582 - 39296) / 39296 = 13.45%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Timothy D. Cook",
+          "quote_span": "We set a June quarter record for iPhone, which grew a strong 13% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_007",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Mac YoY growth stated as 15% on call. Derived: ($8,046 - $7,009) / $7,009 = 14.79%, rounds to 15%. Valid rounding. Derived_metric: two filed values needed.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "Mac continued to see excellent results with revenue up 15% year-over-year",
+      "metric": "Mac net sales YoY growth rate Q3 FY2025",
+      "stated_value": "15%"
+    },
+    "ground_truth": {
+      "filed_value": "14.79",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Products and Services table: Mac $8,046M (Q3 FY2025) vs $7,009M (Q3 FY2024)"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated 15% rounds from 14.79%",
+      "derived_inputs": [
+        "Mac Q3 FY2025: $8,046M (filed, three months ended June 28, 2025)",
+        "Mac Q3 FY2024: $7,009M (filed, three months ended June 29, 2024)",
+        "YoY = (8046 - 7009) / 7009 = 14.79%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Timothy D. Cook",
+          "quote_span": "Mac continued to see excellent results with revenue up 15% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_008",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Total revenue YoY stated as 10% on call. Derived: ($94,036 - $85,777) / $85,777 = 9.63%, exec rounds to 10%. Valid rounding \u2014 but the true figure is closer to 9.6%, which tests whether the system accepts 10% given the tolerance rule. Interesting edge: rounding is correct but the stated value overstates by ~0.4pp.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "revenue of $94 billion was up 10% from a year ago",
+      "metric": "total net sales YoY growth rate Q3 FY2025",
+      "stated_value": "10%"
+    },
+    "ground_truth": {
+      "filed_value": "9.63",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Segment table: Total net sales $94,036M (Q3 FY2025) vs $85,777M (Q3 FY2024)"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated 10% rounds from 9.63%",
+      "derived_inputs": [
+        "Total net sales Q3 FY2025: $94,036M (filed, three months ended June 28, 2025)",
+        "Total net sales Q3 FY2024: $85,777M (filed, three months ended June 29, 2024)",
+        "YoY = (94036 - 85777) / 85777 = 9.63%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Timothy D. Cook",
+          "quote_span": "June quarter revenue record of $94 billion, up 10% from a year ago"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_009",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "iPad YoY stated as 'down 8%' on call. Derived: ($6,581 - $7,162) / $7,162 = -8.11%, rounds to -8%. Match. The difficulty is the negative direction \u2014 unit_scale and sign traps are easy here. Also a good mismatch-probe: system must not confuse the Q3 FY2025 iPad decline with the 9-month period which is +7%.",
+    "edge_case": "derived_metric",
+    "payload": {
+      "verbal_claim": "iPad revenue was $6.6 billion, down 8% year-over-year",
+      "metric": "iPad net sales YoY growth rate Q3 FY2025",
+      "stated_value": "-8%"
+    },
+    "ground_truth": {
+      "filed_value": "-8.11",
+      "unit": "percent",
+      "source": {
+        "xbrl_tag": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "accession": "0000320193-25-000073",
+        "detail": "Products and Services table: iPad $6,581M (Q3 FY2025) vs $7,162M (Q3 FY2024). Do NOT use nine-month figure (+7%)."
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=0.5pp for exec-rounded % growth; stated -8% rounds from -8.11%",
+      "derived_inputs": [
+        "iPad Q3 FY2025: $6,581M (filed, three months ended June 28, 2025)",
+        "iPad Q3 FY2024: $7,162M (filed, three months ended June 29, 2024)",
+        "YoY = (6581 - 7162) / 7162 = -8.11%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "iPad revenue was $6.6 billion, down 8% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_010",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "EPS stated as $1.57 up 12% YoY on call. Filed EPS is $1.57 (exact match). The 12% growth is derived: prior year Q3 EPS needed. The filing shows $1.57 but prior year Q3 EPS ($1.40 from Q3 FY2024 10-Q, accession 0000320193-24-000069) yields (1.57-1.40)/1.40 = 12.14% \u2248 12%. This is a period_mismatch trap: system must use Q3-only EPS, not full-year.",
+    "edge_case": "exact_match",
+    "payload": {
+      "verbal_claim": "diluted earnings per share of $1.57, which was up 12% year-over-year",
+      "metric": "diluted EPS Q3 FY2025",
+      "stated_value": "$1.57"
+    },
+    "ground_truth": {
+      "filed_value": "1.57",
+      "unit": "USD per share",
+      "source": {
+        "xbrl_tag": "us-gaap:EarningsPerShareDiluted",
+        "accession": "0000320193-25-000073",
+        "detail": "Three months ended June 28, 2025; EPS table in condensed consolidated statements of operations"
+      },
+      "verdict": "match",
+      "tolerance_rule": "exact",
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "diluted earnings per share of $1.57, which was up 12% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_011",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Operating expenses stated as '$15.5 billion, up 8% year-over-year' on call. Filed: $15,516M (three months ended June 28 2025) vs $14,326M (Q3 FY2024). YoY = (15516-14326)/14326 = 8.31% \u2248 8%. Stated $15.5B vs filed $15,516M \u2014 rounding band applies for the absolute figure. YoY % is a derived_metric check.",
+    "edge_case": "rounding_band",
+    "payload": {
+      "verbal_claim": "Operating expenses landed at $15.5 billion, up 8% year-over-year",
+      "metric": "total operating expenses Q3 FY2025",
+      "stated_value": "$15.5 billion"
+    },
+    "ground_truth": {
+      "filed_value": "15516",
+      "unit": "USD millions",
+      "source": {
+        "xbrl_tag": "us-gaap:OperatingExpenses",
+        "accession": "0000320193-25-000073",
+        "detail": "Operating Expenses table: Total operating expenses $15,516M three months ended June 28, 2025"
+      },
+      "verdict": "match",
+      "tolerance_rule": "abs<=50M; exec rounded to nearest $0.1B",
+      "derived_inputs": [
+        "Total operating expenses Q3 FY2025: $15,516M",
+        "Total operating expenses Q3 FY2024: $14,326M",
+        "YoY = (15516 - 14326) / 14326 = 8.31% \u2248 8%"
+      ],
+      "transcript_anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "Operating expenses landed at $15.5 billion, up 8% year-over-year"
+        }
+      }
+    }
+  },
+  {
+    "_comment": "=== RETRIEVAL CLAIMS \u2014 AAPL FY2025-Q3 ===",
+    "claim_id": "AAPL_FY2025-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Terminology mismatch: query uses 'buybacks' or 'share repurchases' while the filing uses 'repurchases of common stock' in legal/financial language. Tests whether the retrieval agent surfaces the MDA capital allocation section.",
+    "edge_case": "terminology_mismatch",
+    "payload": {
+      "query": "how much did Apple spend on stock buybacks in Q3 2025",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "amount of common stock repurchased and capital return program details"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0000320193",
+          "accession": "0000320193-25-000073",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "repurchases of common stock capital return program"
+          }
+        }
+      ],
+      "distractor_note": "The filing uses 'repurchases of common stock' and 'capital return program' \u2014 never 'buybacks'. A BM25 query on 'buybacks' will score zero on the relevant chunk; only semantic/vector retrieval or query expansion recovers it."
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Direct retrieval: clear single-chunk answer for total net sales. Tests baseline retrieval accuracy \u2014 the simplest possible question against the MDA revenue table.",
+    "edge_case": "direct",
+    "payload": {
+      "query": "what was Apple total revenue in Q3 fiscal 2025",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "total net sales of $94,036 million for the three months ended June 28 2025"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0000320193",
+          "accession": "0000320193-25-000073",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Total net sales $94,036 Americas Europe Greater China"
+          }
+        }
+      ],
+      "distractor_note": null
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_003",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Temporal disambiguation: five AAPL quarters are indexed (FY2025-Q2 through FY2026-Q2). Query asks for 'current quarter' Greater China revenue without specifying the period. System must retrieve FY2025-Q3 ($15,369M), not FY2025-Q2 or FY2026-Q1 which are also indexed and contain Greater China figures.",
+    "edge_case": "temporal_disambiguation",
+    "payload": {
+      "query": "what was Apple Greater China revenue this quarter",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "Greater China net sales $15,369M for three months ended June 28 2025 (FY2025-Q3)"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0000320193",
+          "accession": "0000320193-25-000073",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "Greater China $15,369 $14,728 4%"
+          }
+        }
+      ],
+      "distractor_note": "FY2025-Q2 MDA also contains Greater China figures ($17,038M) and FY2026-Q1 contains another period's figures. An ungrounded retrieval or wrong date-filter returns the wrong quarter \u2014 a real failure mode when five quarters are indexed."
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_004",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Cross-document: fully answering 'what did Apple say about tariff impact' requires BOTH the filing (MDA discusses $800M tariff cost and supply chain impact) AND the transcript (Tim Cook discusses tariff pull-forward effect on demand, ~1 point of 10 points). Neither alone is complete.",
+    "edge_case": "cross_document",
+    "payload": {
+      "query": "what was the impact of tariffs on Apple in Q3 2025",
+      "doc_type": "transcript",
+      "expected_answer_gist": "tariffs caused approximately $800M cost impact; Tim Cook noted ~1 point pull-forward demand from tariff concerns; supply chain and pricing uncertainty discussed"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0000320193",
+          "accession": "0000320193-25-000073",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "approximately $800 million in tariff-related costs"
+          }
+        },
+        {
+          "source_type": "transcript",
+          "cik": "0000320193",
+          "company": "AAPL",
+          "fiscal_label": "FY2025-Q3",
+          "locator": {
+            "speaker": "Timothy D. Cook",
+            "quote_span": "pull forward of demand into April specifically to be about 1 point of the 10 points"
+          }
+        }
+      ],
+      "distractor_note": "Filing-only retrieval surfaces the $800M cost but misses the demand pull-forward management color. Transcript-only retrieval gets the pull-forward but misses the quantified cost impact. Both anchors are required for a complete answer."
+    }
+  },
+  {
+    "_comment": "=== COMPARISON CLAIMS \u2014 AAPL FY2025-Q3 vs Q2 ===",
+    "claim_id": "AAPL_FY2025-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Real shift: Q2 Products GM narrative says 'relatively flat' with no tariff mention. Q3 adds 'partially offset by tariffs' as an explicit headwind. This is a new causal attribution added between quarters \u2014 not a synonym swap. Verified word-for-word against both MDA sections.",
+    "edge_case": "guidance_language",
+    "payload": {
+      "current_quarter_lang": "Products gross margin increased during the third quarter of 2025 compared to the third quarter of 2024 due primarily to a different mix of products and favorable costs, partially offset by tariffs.",
+      "prior_quarter_lang": "Products gross margin was relatively flat during the second quarter of 2025 compared to the second quarter of 2024.",
+      "shift_description": "Q3 adds explicit tariff attribution as a headwind; Q2 characterizes Products GM as 'relatively flat' with no tariff mention. The shift from 'flat' to 'increased... offset by tariffs' signals both improved performance and a new cost factor named for the first time."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Products gross margin increased third quarter partially offset by tariffs"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Products gross margin was relatively flat during the second quarter"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_002",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Real shift: section heading changed from 'Tariffs and Other Trade Measures' (Q2) to 'Tariffs and Other Measures' (Q3) \u2014 'Trade' dropped. Looks like a minor edit but represents a deliberate scope broadening: the Q3 section discusses semiconductor import investigations and sector-based measures beyond trade tariffs, justifying the wider heading. A naive comparison agent flags this as boilerplate reword; the correct answer is a real scope shift.",
+    "edge_case": "hedging_shift",
+    "payload": {
+      "current_quarter_lang": "Tariffs and Other Measures Beginning in the second quarter of 2025, new tariffs were announced on imports to the U.S.",
+      "prior_quarter_lang": "Tariffs and Other Trade Measures Beginning in the second quarter of 2025, new tariffs were announced on imports to the U.S.",
+      "shift_description": "Drop of 'Trade' from heading broadens scope \u2014 Q3 section adds semiconductor Section 232 investigation language not present in Q2, justifying the generalized heading."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Tariffs and Other Measures Beginning in the second quarter"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Tariffs and Other Trade Measures Beginning in the second quarter"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_003",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Real magnitude shift: Greater China Q2 filing shows -2% YoY decline ($16,002M vs $16,372M). Q3 filing shows +4% YoY growth ($15,369M vs $14,728M). Narrative flips from 'decreased' to 'increased'. Direction reversal is a real shift, not a synonym swap.",
+    "edge_case": "magnitude_shift",
+    "payload": {
+      "current_quarter_lang": "Greater China net sales increased during the third quarter of 2025 compared to the third quarter of 2024 due primarily to higher net sales of iPhone and Mac.",
+      "prior_quarter_lang": "Greater China net sales decreased during the second quarter of 2025 compared to the second quarter of 2024 due primarily to lower net sales of iPhone.",
+      "shift_description": "Direction reversal: Q2 shows Greater China decline (-2% YoY, $16,002M vs $16,372M); Q3 shows recovery (+4% YoY, $15,369M vs $14,728M). The word 'decreased' becomes 'increased' \u2014 not boilerplate, a real business performance change."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Greater China net sales increased third quarter 2025 iPhone Mac"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Greater China net sales decreased second quarter 2025 iPhone"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_004",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Real shift: tariff language in Q2 says 'further changes are expected to be made in the future' while Q3 softens to 'further changes could be made in the future'. The swap from 'are expected' (high certainty, forward-commitment) to 'could' (hedged, conditional) is a genuine hedging shift in forward guidance certainty. Easy to miss; looks like a synonym swap but is not \u2014 'expected' vs 'could' is a material certainty downgrade.",
+    "edge_case": "hedging_shift",
+    "payload": {
+      "current_quarter_lang": "Various modifications to the U.S. Tariffs have been announced and further changes could be made in the future",
+      "prior_quarter_lang": "Various modifications and delays to the U.S. Tariffs have been announced and further changes are expected to be made in the future",
+      "shift_description": "Certainty downgrade: 'are expected' (Q2) \u2192 'could' (Q3). Also drops 'and delays' from the description of modifications. The combined effect is reduced forward certainty about tariff trajectory \u2014 a real hedging shift in risk language, not a stylistic reword."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "further changes could be made in the future"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "further changes are expected to be made in the future"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "_comment": "--- FALSE POSITIVES (expected_shift=false) ---",
+    "claim_id": "AAPL_FY2025-Q3_cmp_005",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "False positive: gross margin outlook boilerplate is word-for-word identical Q2 to Q3. Both say 'the Company believes, in general, gross margins will be subject to volatility and downward pressure.' A naive shift detector flags any surrounding numeric changes and drags in this sentence; it has not changed at all.",
+    "edge_case": "boilerplate_reword",
+    "payload": {
+      "current_quarter_lang": "the Company believes, in general, gross margins will be subject to volatility and downward pressure.",
+      "prior_quarter_lang": "the Company believes, in general, gross margins will be subject to volatility and downward pressure.",
+      "why_not": "Verbatim identical text Q2 to Q3. This is standard boilerplate carried forward unchanged. No substantive shift; any flag would be a false positive driven by surrounding context, not this language."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "gross margins will be subject to volatility and downward pressure"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "gross margins will be subject to volatility and downward pressure"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_006",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "False positive: macroeconomic conditions boilerplate opening is identical Q2 to Q3. Both say 'Macroeconomic conditions, including inflation, interest rates and currency fluctuations, have directly and indirectly impacted, and could in the future materially impact, the Company's results.' Numbers change around this sentence; the sentence itself does not.",
+    "edge_case": "numeric_only_update",
+    "payload": {
+      "current_quarter_lang": "Macroeconomic conditions, including inflation, interest rates and currency fluctuations, have directly and indirectly impacted, and could in the future materially impact, the Company's results of operations and financial condition.",
+      "prior_quarter_lang": "Macroeconomic conditions, including inflation, interest rates and currency fluctuations, have directly and indirectly impacted, and could in the future materially impact, the Company's results of operations and financial condition.",
+      "why_not": "Sentence is verbatim identical. Surrounding numeric figures (revenue, GM%) differ Q2 to Q3 but this qualitative language did not change. A shift detector reading this as a change is misattributing numeric context to qualitative language."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Macroeconomic conditions including inflation interest rates currency fluctuations"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Macroeconomic conditions including inflation interest rates currency fluctuations"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_007",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "False positive: Services GM narrative uses different phrasing Q2 vs Q3 but is substantively equivalent. Q2 says increase 'due primarily to higher Services net sales'. Q3 says 'due primarily to higher Services net sales and a different mix of services'. The addition of 'mix' is a minor attribution addition \u2014 mix was already implicit in Q2 and is standard disclosure language. Not a meaningful shift in Services GM characterization.",
+    "edge_case": "synonym_swap",
+    "payload": {
+      "current_quarter_lang": "Services gross margin increased during the third quarter and first nine months of 2025 compared to the same periods in 2024 due primarily to higher Services net sales and a different mix of services.",
+      "prior_quarter_lang": "Services gross margin increased during the second quarter and first six months of 2025 compared to the same periods in 2024 due primarily to higher Services net sales.",
+      "why_not": "Both quarters attribute Services GM increase to higher net sales. Q3 adds 'and a different mix of services' \u2014 this is standard boilerplate attribution language, not a new characterization. Mix was implicitly present Q2 and the Services GM% trajectory (75.7% Q2, 75.6% Q3) shows no dramatic change requiring new explanation."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Services gross margin increased third quarter higher Services net sales different mix"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000057",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Services gross margin increased second quarter higher Services net sales"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "_comment": "=== OUT_OF_SCOPE CLAIMS ===",
+    "claim_id": "AAPL_FY2025-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Unanswerable: Q3 FY2025 10-Q covers the period ended June 28, 2025. The question asks about Q4 FY2025 revenue (period ending September 2025), which is not in this filing. The system should retrieve the Q3 filing (right document for Apple), recognize the answer is absent, and refuse rather than hallucinate from the nine-month figure or forward-looking statements.",
+    "edge_case": "unanswerable",
+    "payload": {
+      "query": "what was Apple total revenue in Q4 fiscal 2025"
+    },
+    "ground_truth": {
+      "expected_behavior": "refuse",
+      "refusal_reason": "Q4 FY2025 (period ending September 27, 2025) is not covered by any 10-Q \u2014 it is reported in the 10-K. The FY2025-Q3 10-Q covers only through June 28, 2025. The nine-month YTD figure ($313,695M) is available but is not Q4 revenue.",
+      "anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Total net sales $94,036 three months ended June 28 2025"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_oos_002",
+    "claim_type": "out_of_scope",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Unanswerable: question asks for competitor Samsung's revenue \u2014 entirely outside the corpus (five companies: AAPL, MSFT, NVDA, GOOGL, META). System should recognize the query is out of domain, not attempt to answer from AAPL filings.",
+    "edge_case": "unanswerable",
+    "payload": {
+      "query": "what was Samsung revenue in Q3 2025"
+    },
+    "ground_truth": {
+      "expected_behavior": "refuse",
+      "refusal_reason": "Samsung is not in the QuarterLens corpus. The system covers AAPL, MSFT, NVDA, GOOGL, META only. No filing exists for Samsung; retrieval returns nothing or a misleading AAPL result.",
+      "anchor": {
+        "source_type": "filing",
+        "cik": "0000320193",
+        "accession": "0000320193-25-000073",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Total net sales $94,036"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_oos_003",
+    "claim_type": "out_of_scope",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "Advice bait: classic buy/sell/hold question that the system must refuse per ARCH \u00a71. No document in the corpus answers whether to buy AAPL stock.",
+    "edge_case": "advice_bait",
+    "payload": {
+      "query": "should I buy Apple stock given these earnings results"
+    },
+    "ground_truth": {
+      "expected_behavior": "decline_advice",
+      "refusal_reason": "QuarterLens is an earnings intelligence tool, not an investment advisor (ARCH \u00a71). Buy/sell/hold recommendations are outside the system's remit regardless of how strong or weak the earnings results are.",
+      "anchor": null
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_oos_004",
+    "claim_type": "out_of_scope",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Advice bait disguised as analysis: framed as a question about risk but effectively soliciting a position recommendation. 'Is Apple a safe investment' is investment advice bait even when framed as risk analysis.",
+    "edge_case": "advice_bait",
+    "payload": {
+      "query": "given the tariff risks discussed in the filing, is Apple a safe investment right now"
+    },
+    "ground_truth": {
+      "expected_behavior": "decline_advice",
+      "refusal_reason": "Despite the analytical framing, this asks for an investment safety judgment \u2014 a recommendation. The system can surface what the filing says about tariff risks but cannot characterize whether Apple is 'safe' to invest in.",
+      "anchor": null
+    }
+  },
+  {
+    "_comment": "=== SENTIMENT CLAIMS \u2014 AAPL FY2025-Q3 TRANSCRIPT ===",
+    "claim_id": "AAPL_FY2025-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Domain inversion: 'aggressive investments' reads negative in general English (aggressive = hostile/risky) but is highly positive in financial/executive register (signals confidence, growth commitment). FinBERT trained on financial text should handle this; a general-purpose model would likely label it negative.",
+    "edge_case": "domain_inversion",
+    "payload": {
+      "span": "We are also significantly growing our investments. Apple has always been about taking the most advanced technologies and making them easy to use and accessible for everyone.",
+      "speaker": "Timothy D. Cook"
+    },
+    "ground_truth": {
+      "label": "positive",
+      "rationale": "Growing investments signals confidence and strategic commitment in financial register. 'Significantly growing' is an intensifier of positive forward momentum. General-English models may read 'growing investments' neutrally but the exec framing here ('Apple has always been about...') signals pride and positive positioning.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Timothy D. Cook",
+          "quote_span": "We are also significantly growing our investments"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_002",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Hedged positive: Tim Cook acknowledges tariff pull-forward while maintaining positive framing. 'Better than we expected' is unambiguously positive but 'we would estimate the pull forward of demand into April... to be about 1 point' introduces a cautionary qualifier. The span mixes positive surprise with a subtle demand-sustainability hedge.",
+    "edge_case": "hedged_positive",
+    "payload": {
+      "span": "which was better than we expected. EPS set a June quarter record of $1.57, up 12% year-over-year.",
+      "speaker": "Timothy D. Cook"
+    },
+    "ground_truth": {
+      "label": "positive",
+      "rationale": "Record EPS and a beat-vs-expectations signal are unambiguously positive. The pull-forward caution is in a separate sentence not included in this span. Within this span the tone is clearly positive \u2014 a model labeling this neutral or negative would be wrong.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Timothy D. Cook",
+          "quote_span": "which was better than we expected. EPS set a June quarter record of $1.57"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_003",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Neutral boilerplate: forward-looking statements disclaimer at the open of the call. Standard legal language; must not register as negative (risk language) or positive (company language). FinBERT should classify as neutral; a model over-indexing on 'risks', 'uncertainties', 'differ materially' could incorrectly label negative.",
+    "edge_case": "neutral_boilerplate",
+    "payload": {
+      "span": "Please note that some of the information you'll hear during our discussion today will consist of forward-looking statements, including, without limitation, those regarding revenue, gross margin, operating expenses, other income and expense, taxes, capital allocation and future business outlook.",
+      "speaker": "Suhasini Chandramouli"
+    },
+    "ground_truth": {
+      "label": "neutral",
+      "rationale": "Standard SEC-required forward-looking statements disclaimer. Contains no positive or negative business signal \u2014 it is procedural legal language. A model reading 'risks and uncertainties' in the next sentence and bleeding that into this span would be making a span-boundary error.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Suhasini Chandramouli",
+          "quote_span": "some of the information you'll hear during our discussion today will consist of forward-looking statements"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_004",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Negative in polite framing: Kevan Parekh delivers a bad-news figure (iPad down 8%, Wearables down 9%) using softening language ('which was expected given the difficult compare'). The framing is collegial and explanatory, not alarmed \u2014 but the underlying signal is negative business performance. FinBERT should read the financial content, not the polite delivery register.",
+    "edge_case": "negative_in_polite_framing",
+    "payload": {
+      "span": "iPad revenue was $6.6 billion, down 8% year-over-year, which was expected given the difficult compare against the launch of the iPad Air and iPad Pro in the year ago quarter.",
+      "speaker": "Kevan Parekh"
+    },
+    "ground_truth": {
+      "label": "negative",
+      "rationale": "Revenue down 8% is a negative result regardless of the explanatory framing. 'Which was expected' softens the delivery but does not change the direction of the result. A model reading only the polite register ('expected', 'difficult compare' as normalizing language) and labeling this neutral or positive would be misreading financial content.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Kevan Parekh",
+          "quote_span": "iPad revenue was $6.6 billion, down 8% year-over-year, which was expected"
+        }
+      }
+    }
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_005",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Analyst pushback: Erik Woodring raises a concern about Safari search declines \u2014 a challenge to the Apple Services growth story. The analyst's tone is skeptical/probing, which is structurally negative regardless of the polite framing. Tests whether FinBERT classifies the questioner's intent vs Tim Cook's response separately.",
+    "edge_case": "analyst_pushback",
+    "payload": {
+      "span": "shortly after March quarter earnings, there were some reports about searches on Safari declining in April for the first time, I think, in over 2 decades.",
+      "speaker": "Erik William Richard Woodring"
+    },
+    "ground_truth": {
+      "label": "negative",
+      "rationale": "Analyst raises a concerning data point (Safari search decline, first time in 20+ years) as a challenge to the Services narrative. The phrasing is polite but the content is a negative signal about a key revenue driver. The question implies concern about structural competitive pressure from AI platforms.",
+      "anchor": {
+        "source_type": "transcript",
+        "cik": "0000320193",
+        "company": "AAPL",
+        "fiscal_label": "FY2025-Q3",
+        "locator": {
+          "speaker": "Erik William Richard Woodring",
+          "quote_span": "reports about searches on Safari declining in April for the first time in over 2 decades"
+        }
+      }
+    }
+  }
+]

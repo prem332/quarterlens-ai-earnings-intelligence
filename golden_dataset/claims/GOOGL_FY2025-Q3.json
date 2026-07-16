@@ -1,0 +1,192 @@
+[
+  {
+    "_comment": "=== COMPARISON CLAIMS — GOOGL FY2025-Q3 vs Q2 ===",
+    "claim_id": "GOOGL_FY2025-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "GOOGL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Real magnitude shift: Q3 operating expenses grew 28% YoY vs Q2 14% YoY — a doubling of the growth rate. Q3 MDA explicitly names 'legal and other matters' as a new driver not present in Q2 opex narrative. The shift from 14% to 28% opex growth with a new legal expense attribution is a substantive change in cost characterization, not a numeric-only update.",
+    "edge_case": "magnitude_shift",
+    "payload": {
+      "current_quarter_lang": "Operating expenses $29,749M increased 28% year over year, primarily driven by increases in expenses related to legal and other matters, employee compensation expenses, and depreciation expense.",
+      "prior_quarter_lang": "Operating expenses $26,118M increased 20% year over year from the six months ended June 30, 2024 to the six months ended June 30, 2025.",
+      "shift_description": "Opex growth rate accelerated from ~14% quarterly (Q2) to 28% (Q3) and a new cost driver — 'legal and other matters' — was named as a primary contributor in Q3 but absent from Q2 opex discussion. Both the magnitude and the causal attribution shifted."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001652044",
+        "accession": "0001652044-25-000091",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "28% year over year primarily driven by increases in expenses related to legal and other matters"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001652044",
+        "accession": "0001652044-25-000062",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Operating expenses 14% as a percentage of revenues"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "claim_id": "GOOGL_FY2025-Q3_cmp_002",
+    "claim_type": "comparison",
+    "company": "GOOGL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "easy",
+    "notes": "False positive: Google Cloud revenue narrative is structurally identical Q2 to Q3 — 'primarily driven by growth in Google Cloud Platform largely from infrastructure services.' Only the dollar amounts and period references changed. A comparison agent reading this as a language shift is confusing numeric update with qualitative change.",
+    "edge_case": "numeric_only_update",
+    "payload": {
+      "current_quarter_lang": "Google Cloud revenues increased $3.8 billion and $9.8 billion from the three and nine months ended September 30, 2024 to the three and nine months ended September 30, 2025 primarily driven by growth in Google Cloud Platform largely from infrastructure services.",
+      "prior_quarter_lang": "Google Cloud revenues increased $3.3 billion and $6.0 billion from the three and six months ended June 30, 2024 to the three and six months ended June 30, 2025 primarily driven by growth in Google Cloud Platform largely from infrastructure services.",
+      "why_not": "The causal attribution ('primarily driven by growth in Google Cloud Platform largely from infrastructure services') is word-for-word identical. Only the dollar amounts ($3.3B vs $3.8B quarterly) and period references (six months vs nine months) differ. This is a numeric update within a fixed template, not a qualitative language shift."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001652044",
+        "accession": "0001652044-25-000091",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Google Cloud revenues increased $3.8 billion primarily driven by growth in Google Cloud Platform"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001652044",
+        "accession": "0001652044-25-000062",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "Google Cloud revenues increased $3.3 billion primarily driven by growth in Google Cloud Platform"
+        }
+      },
+      "expected_shift": false
+    }
+  },
+  {
+    "claim_id": "GOOGL_FY2025-Q3_cmp_003",
+    "claim_type": "comparison",
+    "company": "GOOGL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Risk factor DROPPED: GOOGL's Q2 risk factors section references legal proceedings explicitly ('For additional information about the ongoing material legal proceedings to which we are subject, see Legal Proceedings in Part II, Item 1'). Both Q2 and Q3 carry this cross-reference, so this is NOT a drop. However, the Q2 MDA contained a specific forward-looking statement about the DOJ antitrust remedies hearing scheduled for April 2025 — by Q3 (September 2025) this has concluded, and the language shifts from anticipatory to resolved. The risk of an upcoming hearing was present in Q2 and absent as a forward risk in Q3 because the event passed.",
+    "edge_case": "risk_factor_dropped",
+    "payload": {
+      "current_quarter_lang": "Other Information: On September 5, 2025, a Revised Proposed Final Judgment was submitted in the U.S. v. Google LLC antitrust case relating to Google search.",
+      "prior_quarter_lang": "The remedies hearing in the U.S. v. Google LLC antitrust case relating to Google Search is currently scheduled to begin on April 21, 2025.",
+      "shift_description": "Q2 MDA named the DOJ remedies hearing as a scheduled upcoming event (April 21, 2025). By Q3, the hearing has concluded and the language shifts to reporting its outcome (Revised Proposed Final Judgment submitted September 5, 2025). The forward-looking risk of the hearing was present in Q2 and is absent in Q3 — replaced by the post-event disclosure. This is a real risk drop: the anticipatory legal risk became a settled disclosure."
+    },
+    "ground_truth": {
+      "current_anchor": {
+        "source_type": "filing",
+        "cik": "0001652044",
+        "accession": "0001652044-25-000091",
+        "fiscal_label": "FY2025-Q3",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "September 5, 2025 Revised Proposed Final Judgment submitted U.S. v. Google"
+        }
+      },
+      "prior_anchor": {
+        "source_type": "filing",
+        "cik": "0001652044",
+        "accession": "0001652044-25-000062",
+        "fiscal_label": "FY2025-Q2",
+        "form": "10-Q",
+        "locator": {
+          "section": "mda",
+          "paragraph_hint": "remedies hearing U.S. v. Google LLC scheduled to begin April 21, 2025"
+        }
+      },
+      "expected_shift": true
+    }
+  },
+  {
+    "_comment": "=== RETRIEVAL CLAIMS — GOOGL FY2025-Q3 ===",
+    "claim_id": "GOOGL_FY2025-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "GOOGL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "medium",
+    "notes": "Terminology mismatch: query uses 'YouTube revenue' — the filing uses 'YouTube ads' as a sub-line within Google Services. A BM25 query on 'YouTube revenue' will score on the correct section, but a semantic query might confuse 'YouTube ads' with the broader Google Services revenue. Tests retrieval precision on a named sub-segment.",
+    "edge_case": "terminology_mismatch",
+    "payload": {
+      "query": "what was Google YouTube revenue in Q3 2025",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "YouTube ads revenue as reported in the Google Services revenue breakdown for three months ended September 30 2025"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001652044",
+          "accession": "0001652044-25-000091",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "YouTube ads revenues increased from the three months ended September 30 2024"
+          }
+        }
+      ],
+      "distractor_note": "The filing uses 'YouTube ads' not 'YouTube revenue'. A query on 'YouTube revenue' may retrieve the broader Google Services total or Google advertising total instead of the YouTube-specific line. The correct chunk is the YouTube ads sub-section within the Google Services revenue discussion."
+    }
+  },
+  {
+    "claim_id": "GOOGL_FY2025-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "GOOGL",
+    "fiscal_label": "FY2025-Q3",
+    "difficulty": "hard",
+    "notes": "Multi-section: answering 'what is Google's total AI-related financial exposure' requires the MDA (Google Cloud growth driven by AI infrastructure, operating margin compression from AI investment) AND the risk_factors (which references the 10-K for AI-specific risk disclosures). The MDA has the financial impact; the risk_factors section has the risk framework. Neither alone is complete.",
+    "edge_case": "multi_section",
+    "payload": {
+      "query": "what is Alphabet's financial exposure to AI infrastructure investment in Q3 FY2025",
+      "doc_type": "10-Q",
+      "expected_answer_gist": "AI investment drove operating margin compression (32% to 31%), Google Cloud growth of 34% partly from AI infrastructure, and R&D expense increases driven by depreciation and employee compensation for AI; risk factors reference 10-K for full AI risk disclosure"
+    },
+    "ground_truth": {
+      "relevant_anchors": [
+        {
+          "source_type": "filing",
+          "cik": "0001652044",
+          "accession": "0001652044-25-000091",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "mda",
+            "paragraph_hint": "R&D expenses increased $2.7 billion depreciation expense employee compensation"
+          }
+        },
+        {
+          "source_type": "filing",
+          "cik": "0001652044",
+          "accession": "0001652044-25-000091",
+          "fiscal_label": "FY2025-Q3",
+          "form": "10-Q",
+          "locator": {
+            "section": "risk_factors",
+            "paragraph_hint": "risks and uncertainties including those described in Part I Item 1A Risk Factors in our Annual Report"
+          }
+        }
+      ],
+      "distractor_note": "MDA-only retrieval captures the financial impact (Cloud growth, margin compression, R&D increases) but misses the risk framework. Risk-factors-only retrieval gets the pointer to the 10-K AI risks but misses the quantified Q3 financial impact. Both sections required."
+    }
+  }
+]

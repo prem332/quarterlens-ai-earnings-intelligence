@@ -1,11 +1,11 @@
 """
+agents/report_agent.py
 
 Two-step:
   1. Draft: LLM synthesises all agent outputs into an analyst-tone briefing.
   2. Verify: LLM checks every factual claim in the draft traces back to a
      retrieved chunk or a validated numeric fact. Claims that can't be
      grounded are flagged or removed.
-
 """
 
 import json
@@ -95,20 +95,17 @@ def _build_draft_prompt(state: GraphState) -> str:
     company = state["company"]
     quarter = state["quarter"]
 
-    # Retrieval context
     chunks = state.get("retrieval_results") or []
     chunk_text = "\n\n".join(
         f"[{r['doc_type'].upper()}] {r['content']}" for r in chunks[:8]
     )
 
-    # Comparison findings
     findings: list[ComparisonFinding] = state.get("comparison_findings") or []
     findings_text = "\n".join(
         f"- {f['topic']}: shift={'YES' if f['shift_detected'] else 'no'} — {f.get('shift_description') or 'no change'}"
         for f in findings
     ) or "None detected."
 
-    # Sentiment summary
     scores: list[SentimentScore] = state.get("sentiment_scores") or []
     if scores:
         pos = sum(1 for s in scores if s["label"] == "positive")
@@ -118,7 +115,6 @@ def _build_draft_prompt(state: GraphState) -> str:
     else:
         sentiment_summary = "Not available."
 
-    # Numeric validations
     validations: list[NumericValidation] = state.get("numeric_validations") or []
     val_lines = []
     for v in validations:
@@ -164,20 +160,22 @@ def _build_evidence_summary(state: GraphState) -> str:
 # ── LLM wrapper ───────────────────────────────────────────────────────────────
 
 def _llm_call(system: str, user: str, max_tokens: int) -> tuple[str, int]:
+    """
+    Call the OpenAI wrapper and return (text, token_count).
+    openai_client.chat() returns the full response object.
+    """
     try:
-        response = openai_client.chat.completions.create(
-            model=openai_client._deployment,
+        response = openai_client.chat(
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0.2,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
         )
         text = response.choices[0].message.content or ""
         tokens = response.usage.total_tokens if response.usage else 0
         return text, tokens
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[report_agent] LLM call failed: {exc}")
         return "", 0
 

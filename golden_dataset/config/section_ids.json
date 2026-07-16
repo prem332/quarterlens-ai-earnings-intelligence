@@ -1,0 +1,30 @@
+{
+  "_note": "Canonical narrative section keys emitted by data_pipeline/document_parser.py, form-scoped. Financial-statement tables are intentionally excluded (numeric facts flow through financials_fetcher.py -> XBRL -> Azure SQL). The Part I/Part II parser fix corrected the TEXT filed under each key, not the key vocabulary itself, so this list is unchanged post-fix. Regenerate if the parser's section map changes: python -c \"import json,glob; keys=set(s['section'] for f in glob.glob('data/parsed/**/*_10Q.json',recursive=True) for s in json.load(open(f,encoding='utf-8'))); print(sorted(keys))\"",
+  "10-Q": [
+    "mda",
+    "quantitative_qualitative_disclosures",
+    "controls_and_procedures",
+    "risk_factors",
+    "other_information"
+  ],
+  "10-K": [
+    "business",
+    "risk_factors",
+    "unresolved_staff_comments",
+    "properties",
+    "legal_proceedings",
+    "market_for_registrant_equity",
+    "mda",
+    "quantitative_qualitative_disclosures",
+    "controls_and_procedures",
+    "cybersecurity",
+    "changes_in_disagreements_accountants",
+    "other_information",
+    "disclosure_re_foreign_jurisdictions",
+    "directors_executive_officers",
+    "executive_compensation",
+    "security_ownership",
+    "certain_relationships",
+    "principal_accountant_fees"
+  ]
+}

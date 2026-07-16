@@ -4,7 +4,10 @@ import argparse
 import json
 import logging
 import os
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 from azure.core.credentials import AzureKeyCredential
@@ -22,13 +25,14 @@ from azure.search.documents.indexes.models import (
     VectorSearchProfile,
     VectorSearchAlgorithmMetric,
 )
+from azure_clients.key_vault_client import kv
 
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("indexer")
 
-INDEX_NAME = os.environ.get("AZURE_SEARCH_INDEX", "quarterlens-filings")
+INDEX_NAME = kv.get_secret("AZURE-SEARCH-INDEX")
 EMBED_DIM = 1536
 UPLOAD_BATCH = 500                     # docs per upload request
 HNSW_ALGO = "hnsw-cosine"
@@ -36,12 +40,8 @@ VECTOR_PROFILE = "vector-profile"
 
 
 def make_index_client() -> SearchIndexClient:
-    endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT")
-    key = os.environ.get("AZURE_SEARCH_ADMIN_KEY")
-    if not endpoint or not key:
-        raise RuntimeError(
-            "AZURE_SEARCH_ENDPOINT and AZURE_SEARCH_ADMIN_KEY must be set (see .env)."
-        )
+    endpoint = kv.get_secret("AZURE-SEARCH-ENDPOINT")
+    key = kv.get_secret("AZURE-SEARCH-ADMIN-KEY")
     return SearchIndexClient(endpoint=endpoint, credential=AzureKeyCredential(key))
 
 
@@ -150,8 +150,8 @@ def run(embedding_manifest_path: str) -> None:
     if not manifest_p.exists():
         raise FileNotFoundError(f"Embedding manifest not found: {embedding_manifest_path}")
 
-    endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
-    key = os.environ["AZURE_SEARCH_ADMIN_KEY"]
+    endpoint = kv.get_secret("AZURE-SEARCH-ENDPOINT")
+    key = kv.get_secret("AZURE-SEARCH-ADMIN-KEY")
 
     embedding_manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
 

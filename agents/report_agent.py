@@ -6,13 +6,16 @@ Two-step:
   2. Verify: LLM checks every factual claim in the draft traces back to a
      retrieved chunk or a validated numeric fact. Claims that can't be
      grounded are flagged or removed.
+
+gpt-5-mini note: reasoning model — max_completion_tokens must be >= 2000
+or the model produces empty output (reasoning tokens exhaust the budget).
+The openai_client wrapper enforces a minimum of 2000 automatically.
 """
 
-import json
 import time
 from graph.state import (
     GraphState, DecisionLogEntry,
-    RetrievalResult, ComparisonFinding, SentimentScore, NumericValidation,
+    ComparisonFinding, SentimentScore, NumericValidation,
 )
 from azure_clients.openai_client import openai_client
 
@@ -51,7 +54,7 @@ def report_agent(state: GraphState) -> dict:
 
     # ── Step 1: Draft ─────────────────────────────────────────────────────
     draft_prompt = _build_draft_prompt(state)
-    draft, tokens = _llm_call(_DRAFT_SYSTEM, draft_prompt, max_tokens=1500)
+    draft, tokens = _llm_call(_DRAFT_SYSTEM, draft_prompt)
     total_tokens += tokens
 
     if not draft:
@@ -63,7 +66,7 @@ def report_agent(state: GraphState) -> dict:
         f"DRAFT REPORT:\n{draft}\n\n"
         f"SOURCE EVIDENCE:\n{evidence_summary}"
     )
-    verified_report, tokens = _llm_call(_VERIFY_SYSTEM, verify_prompt, max_tokens=1500)
+    verified_report, tokens = _llm_call(_VERIFY_SYSTEM, verify_prompt)
     total_tokens += tokens
 
     final_report = verified_report or draft  # fall back to draft if verify fails
@@ -159,10 +162,11 @@ def _build_evidence_summary(state: GraphState) -> str:
 
 # ── LLM wrapper ───────────────────────────────────────────────────────────────
 
-def _llm_call(system: str, user: str, max_tokens: int) -> tuple[str, int]:
+def _llm_call(system: str, user: str) -> tuple[str, int]:
     """
     Call the OpenAI wrapper and return (text, token_count).
-    openai_client.chat() returns the full response object.
+    No max_completion_tokens passed — let the wrapper default (8000) apply,
+    which is safe for gpt-5-mini's reasoning token budget.
     """
     try:
         response = openai_client.chat(
@@ -170,7 +174,6 @@ def _llm_call(system: str, user: str, max_tokens: int) -> tuple[str, int]:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            max_completion_tokens=max_tokens,
         )
         text = response.choices[0].message.content or ""
         tokens = response.usage.total_tokens if response.usage else 0

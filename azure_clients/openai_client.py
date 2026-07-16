@@ -7,8 +7,12 @@ Azure OpenAI client for:
 
 Secrets sourced from Key Vault via the kv singleton.
 
-Note: gpt-5-mini does not support temperature or max_tokens parameters.
-      Uses max_completion_tokens instead, and omits temperature entirely.
+gpt-5-mini behaviour notes (from Azure portal sample code):
+  - api_version must be "2024-12-01-preview" (not 2024-08-01-preview)
+  - max_completion_tokens should be 16384 (Azure recommended value)
+  - Does NOT support temperature parameter
+  - IS a reasoning model — uses internal reasoning tokens before output
+  - Minimum safe max_completion_tokens: 4096 to avoid empty responses
 """
 
 import logging
@@ -20,6 +24,12 @@ from openai import AzureOpenAI
 from azure_clients.key_vault_client import kv
 
 logger = logging.getLogger(__name__)
+
+# Minimum token budget — below this, reasoning model produces empty responses
+_MIN_SAFE_TOKENS = 4096
+
+# Azure-recommended max for gpt-5-mini
+_DEFAULT_MAX_TOKENS = 16384
 
 # Embedding dimensionality — must match the AI Search index schema
 EMBEDDING_DIMENSIONS = 1536
@@ -40,7 +50,7 @@ class OpenAIClient:
         self._client = AzureOpenAI(
             azure_endpoint=endpoint,
             api_key=api_key,
-            api_version="2024-08-01-preview",
+            api_version="2024-12-01-preview",  # required for gpt-5-mini
         )
         logger.info(
             "OpenAIClient: connected — chat=%s, embedding=%s",
@@ -57,8 +67,8 @@ class OpenAIClient:
         messages: list[dict],
         tools: Optional[list[dict]] = None,
         tool_choice: Optional[str] = None,
-        temperature: float = 1.0,       # kept for API compat; not passed to gpt-5-mini
-        max_tokens: int = 2048,         # kept for API compat; maps to max_completion_tokens
+        temperature: float = 1.0,               # kept for API compat; not passed to model
+        max_tokens: int = _DEFAULT_MAX_TOKENS,  # kept for API compat
         max_completion_tokens: Optional[int] = None,
     ) -> object:
         """
@@ -70,12 +80,15 @@ class OpenAIClient:
             tool_choice:            "auto" | "none" | specific tool name (optional).
             temperature:            Ignored — gpt-5-mini does not support this parameter.
             max_tokens:             Alias for max_completion_tokens (kept for compat).
-            max_completion_tokens:  Max tokens in the response. Takes precedence over max_tokens.
+            max_completion_tokens:  Max tokens. Takes precedence over max_tokens.
+                                    Must be >= 4096 for gpt-5-mini reasoning model.
 
         Returns:
             The full ChatCompletion response object.
         """
         limit = max_completion_tokens or max_tokens
+        limit = max(limit, _MIN_SAFE_TOKENS)  # enforce minimum for reasoning model
+
         kwargs = dict(
             model=self._chat_deployment,
             messages=messages,
@@ -97,8 +110,8 @@ class OpenAIClient:
     def chat_stream(
         self,
         messages: list[dict],
-        temperature: float = 1.0,   # ignored for gpt-5-mini
-        max_tokens: int = 2048,
+        temperature: float = 1.0,
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
     ) -> Iterator[str]:
         """
         Streaming chat completion — yields text deltas as they arrive.
@@ -106,15 +119,16 @@ class OpenAIClient:
         Args:
             messages:    OpenAI message list.
             temperature: Ignored — gpt-5-mini does not support this parameter.
-            max_tokens:  Max tokens in the response.
+            max_tokens:  Max tokens. Enforced minimum of 4096.
 
         Yields:
             Text delta strings as they stream from the API.
         """
+        limit = max(max_tokens, _MIN_SAFE_TOKENS)
         stream = self._client.chat.completions.create(
             model=self._chat_deployment,
             messages=messages,
-            max_completion_tokens=max_tokens,
+            max_completion_tokens=limit,
             stream=True,
         )
         for chunk in stream:
@@ -130,9 +144,6 @@ class OpenAIClient:
         """
         Embed a single string.
 
-        Args:
-            text: Input text to embed.
-
         Returns:
             1536-dim embedding vector.
         """
@@ -146,10 +157,6 @@ class OpenAIClient:
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """
         Embed a batch of strings in one API call.
-        Azure OpenAI supports up to 2048 inputs per request.
-
-        Args:
-            texts: List of strings to embed.
 
         Returns:
             List of 1536-dim embedding vectors, order-preserving.

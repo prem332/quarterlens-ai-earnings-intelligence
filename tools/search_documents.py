@@ -9,7 +9,7 @@ from azure_clients.openai_client import openai_client
 _FILTER_MAP = {
     "doc_type": "form",
     "company": "ticker",
-    "quarter": "fiscal_label",
+    "quarter": "fiscal_label",   # index field is fiscal_label, not quarter
 }
 
 

@@ -304,6 +304,7 @@ def run_eval(
         pipeline_out = _run_pipeline(query, company, fiscal_label)
         latency_ms = int((time.time() - t0) * 1000)
 
+        time.sleep(3)  # Rate limit headroom between pipeline calls
         answer = pipeline_out["answer"]
         contexts = pipeline_out["contexts"]
         chunks = pipeline_out["chunks"]

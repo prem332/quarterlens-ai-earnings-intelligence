@@ -6,6 +6,9 @@ Azure OpenAI client for:
   - Embeddings (text-embedding-3-small)
 
 Secrets sourced from Key Vault via the kv singleton.
+
+Note: gpt-5-mini does not support temperature or max_tokens parameters.
+      Uses max_completion_tokens instead, and omits temperature entirely.
 """
 
 import logging
@@ -54,27 +57,29 @@ class OpenAIClient:
         messages: list[dict],
         tools: Optional[list[dict]] = None,
         tool_choice: Optional[str] = None,
-        temperature: float = 0.0,
-        max_tokens: int = 2048,
-    ) -> dict:
+        temperature: float = 1.0,       # kept for API compat; not passed to gpt-5-mini
+        max_tokens: int = 2048,         # kept for API compat; maps to max_completion_tokens
+        max_completion_tokens: Optional[int] = None,
+    ) -> object:
         """
         Non-streaming chat completion.
 
         Args:
-            messages:     OpenAI message list [{"role": ..., "content": ...}, ...]
-            tools:        Tool schemas for function calling (optional).
-            tool_choice:  "auto" | "none" | specific tool name (optional).
-            temperature:  Sampling temperature. Default 0.0 for deterministic agent reasoning.
-            max_tokens:   Max tokens in the response.
+            messages:               OpenAI message list.
+            tools:                  Tool schemas for function calling (optional).
+            tool_choice:            "auto" | "none" | specific tool name (optional).
+            temperature:            Ignored — gpt-5-mini does not support this parameter.
+            max_tokens:             Alias for max_completion_tokens (kept for compat).
+            max_completion_tokens:  Max tokens in the response. Takes precedence over max_tokens.
 
         Returns:
-            The full ChatCompletion response object (caller reads .choices[0].message).
+            The full ChatCompletion response object.
         """
+        limit = max_completion_tokens or max_tokens
         kwargs = dict(
             model=self._chat_deployment,
             messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            max_completion_tokens=limit,
         )
         if tools:
             kwargs["tools"] = tools
@@ -92,16 +97,15 @@ class OpenAIClient:
     def chat_stream(
         self,
         messages: list[dict],
-        temperature: float = 0.0,
+        temperature: float = 1.0,   # ignored for gpt-5-mini
         max_tokens: int = 2048,
     ) -> Iterator[str]:
         """
         Streaming chat completion — yields text deltas as they arrive.
-        Used by the frontend's live agent progress view.
 
         Args:
             messages:    OpenAI message list.
-            temperature: Sampling temperature.
+            temperature: Ignored — gpt-5-mini does not support this parameter.
             max_tokens:  Max tokens in the response.
 
         Yields:
@@ -110,8 +114,7 @@ class OpenAIClient:
         stream = self._client.chat.completions.create(
             model=self._chat_deployment,
             messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
             stream=True,
         )
         for chunk in stream:
@@ -159,7 +162,6 @@ class OpenAIClient:
             input=texts,
             dimensions=EMBEDDING_DIMENSIONS,
         )
-        # API guarantees order is preserved but sort by index to be safe
         sorted_data = sorted(response.data, key=lambda d: d.index)
         logger.debug(
             "OpenAIClient.embed_batch: %d texts embedded", len(sorted_data)

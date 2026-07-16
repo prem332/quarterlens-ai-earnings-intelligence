@@ -44,7 +44,7 @@ def retrieval_agent(state: GraphState) -> dict:
     entry: DecisionLogEntry = {
         "agent": "retrieval_agent",
         "tool_called": "search_documents",
-        "input_summary": f"company={company} quarter={quarter} top_k={_TOP_K}",
+        "input_summary": f"company={company} quarter={quarter} top={_TOP_K}",
         "output_summary": f"{len(results)} chunks retrieved "
                           f"({len(filing_hits)} filing, {len(transcript_hits)} transcript)",
         "confidence": None,
@@ -74,10 +74,10 @@ def _safe_search(
     try:
         hits = search_documents(
             query=query,
-            doc_type=doc_type_filter,
+            doc_type=None,  # index uses form field with 10-Q/10-K/transcript values
             company=company,
             quarter=quarter,
-            top_k=top_k,
+            top=top_k,
         )
         return [
             RetrievalResult(
@@ -89,7 +89,7 @@ def _safe_search(
                 fiscal_label=h.get("fiscal_label", quarter),
                 score=float(h.get("@search.score", h.get("score", 0.0))),
             )
-            for h in (hits or [])
+            for h in (hits.get("results", []) if isinstance(hits, dict) else hits or [])
         ]
     except Exception as exc:  # noqa: BLE001
         print(f"[retrieval_agent] search_documents failed ({doc_type_filter}): {exc}")

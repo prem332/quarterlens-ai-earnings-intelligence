@@ -12,10 +12,10 @@ routing is a static DAG:
 The supervisor owns two nodes:
   - supervisor_init: validates input, sets defaults, writes initial log entry
   - supervisor_finalize: checks for errors, writes Decision Log to Cosmos DB
-
 """
 
 import time
+import uuid
 from graph.state import GraphState, DecisionLogEntry
 from azure_clients.cosmos_client import cosmos_decision_log
 
@@ -71,6 +71,7 @@ def supervisor_finalize(state: GraphState) -> dict:
 
     if state.get("error"):
         summary = f"pipeline FAILED: {state['error']}"
+        status = "error"
     else:
         summary = (
             f"pipeline complete — "
@@ -79,6 +80,7 @@ def supervisor_finalize(state: GraphState) -> dict:
             f"{len(state.get('numeric_validations', []))} validations, "
             f"report_len={len(state.get('report', ''))}"
         )
+        status = "success"
 
     final_entry: DecisionLogEntry = _log_entry(
         agent="supervisor_finalize",
@@ -90,19 +92,23 @@ def supervisor_finalize(state: GraphState) -> dict:
         latency_ms=_ms(t0),
     )
 
-    all_entries = list(state.get("decision_log_entries", [])) + [final_entry]
-
-    # Persist audit trail to Cosmos DB (fire-and-forget; failure is logged, not fatal)
+    # Persist audit trail to Cosmos DB using the correct log() method.
+    # fire-and-forget — failure is logged, not fatal.
     try:
-        cosmos_decision_log.upsert_item({
-            "id": f"{state['company']}_{state['quarter']}_{int(time.time())}",
-            "company": state["company"],
-            "quarter": state["quarter"],
-            "query": state["query"],
-            "status": "failed" if state.get("error") else "success",
-            "entries": all_entries,
-        })
-    except Exception as exc:  # noqa: BLE001
+        run_id = f"{state['company']}_{state['quarter']}_{int(time.time())}"
+        cosmos_decision_log.log(
+            run_id=run_id,
+            agent="supervisor_finalize",
+            tool_called="pipeline_complete",
+            result_summary=summary,
+            status=status,
+            tool_args={
+                "company": state["company"],
+                "quarter": state["quarter"],
+                "query": state.get("query", ""),
+            },
+        )
+    except Exception as exc:
         print(f"[supervisor_finalize] Cosmos write failed (non-fatal): {exc}")
 
     return {"decision_log_entries": [final_entry]}

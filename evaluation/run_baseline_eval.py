@@ -356,7 +356,7 @@ def run_eval(
     # ── Score aggregation ─────────────────────────────────────────────────────
     log.info("Scoring %d samples...", len(ragas_samples))
 
-    ragas_scores = run_ragas_eval(ragas_samples) if ragas_samples else {}
+    ragas_scores = run_ragas_eval(ragas_samples, metrics=["faithfulness", "answer_relevancy"]) if ragas_samples else {}
     retrieval_scores = (
         compute_batch_retrieval_metrics(retrieval_batch, k=k)
         if retrieval_batch else {}

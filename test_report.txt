@@ -1,37 +1,27 @@
 ## Executive Summary
-- Apple reported nine‑month net sales of $313,695 million, up 6% year-to-date [FILING].  
-- The filing attributes growth in several regions to higher net sales of iPhone (driven by higher net sales of Pro models) and Services during the third quarter and first nine months of 2025 [FILING].  
-- Products gross margin percentage for the third quarter was 46.5%, up from 46.3% a year earlier; products gross margin increased during the third quarter of 2025 compared to the third quarter of 2024 due primarily to a different mix of products and favorable costs, partially offset by tariffs [FILING].  
-- [UNVERIFIED] Apple reported total net sales of $94,036 million for FY2025 Q3, up 10% year-over-year.  
-- [UNVERIFIED] iPhone net sales rose 13% to $44,582 million and Services rose 13% to $27,423 million for the quarter.  
-- [UNVERIFIED] Mac sales increased 15% to $8,046 million; iPad and Wearables, Home and Accessories declined (‑8% and ‑9%, respectively) for the quarter.  
-- [UNVERIFIED] Total gross margin improved to $43,718 million (46.5% of sales) versus $39,678 million (46.3%) a year earlier; product gross margin percentage declined modestly while services margin expanded.
+Apple reported FY2025 Q3 total net sales of $94.0 billion, up 10% year over year, with nine-month sales up 6% to $313.7 billion [FILING]. Growth was led by iPhone (+13% in the quarter), Services (+13%), and Mac (+15%), while iPad and Wearables, Home and Accessories declined in the quarter [FILING]. Gross margin remained resilient at 46.5% in the quarter, slightly above 46.3% a year ago, despite tariff pressure on product margins [FILING]. Regional performance was broad-based, with Europe and Greater China up in the quarter [FILING]. [UNVERIFIED]
 
 ## Key Financial Metrics (verified)
-- Total net sales: $313,695M, +6% YTD (9 months) [FILING].  
-- The filing states that iPhone and Services net sales increased during the third quarter and first nine months of 2025 compared to the same periods in 2024, with iPhone increases driven by higher net sales of Pro models; Mac net sales increased during the third quarter and first nine months of 2025 compared to the same periods in 2024 [FILING].  
-- Gross margin (Q3): Total gross margin percentage 46.5% (46.3% prior year); products gross margin increased in the quarter due primarily to a different mix of products and favorable costs, partially offset by tariffs [FILING].  
-- [UNVERIFIED] By category (Q3): iPhone $44,582M (+13%), Mac $8,046M (+15%), iPad $6,581M (‑8%), Wearables $7,404M (‑9%), Services $27,423M (+13%).  
-- [UNVERIFIED] Gross margin (Q3) dollar breakdown: Products $22,993M; Services $20,725M; Total $43,718M. Gross margin %: Products 34.5% (prior 35.3%), Services 75.6% (prior 74.0%).  
-- [UNVERIFIED] Operating expenses (Q3): R&D $8,866M; SG&A $6,650M.  
-- [UNVERIFIED] Cash deployment and obligations: manufacturing purchase obligations $44.1B ($43.8B due within 12 months); released €14.2B (~$15.4B) to Ireland to settle State Aid Decision; repurchased $21.0B of stock and paid $3.9B in dividends in the quarter; quarterly cash dividend $0.26/share and company intends annual increases subject to Board declaration.  
-- The Company’s effective tax rate for the third quarter of 2025 was higher compared to the third quarter of 2024 [FILING]. [UNVERIFIED] The filing attributes the higher Q3 rate primarily to foreign currency revaluations of unrecognized tax benefits; [UNVERIFIED] the filing states the nine-month effective tax rate was lower year‑over‑year primarily due to changes in unrecognized tax benefits, partially offset by a higher effective rate on foreign earnings.
+- Total net sales: $94,036 million, +10% YoY in the quarter; $313,695 million, +6% in the first nine months [FILING].
+- iPhone net sales: $44,582 million, +13% quarterly; $160,561 million, +4% YTD [FILING].
+- Mac net sales: $8,046 million, +15% quarterly; $24,982 million, +12% YTD [FILING].
+- iPad net sales: $6,581 million, -8% quarterly; $21,071 million, +7% YTD [FILING].
+- Wearables, Home and Accessories: $7,404 million, -9% quarterly; $26,673 million, -5% YTD [FILING].
+- Services net sales: $27,423 million, +13% quarterly; $80,408 million, +13% YTD [FILING].
+- Total gross margin: $43,718 million, up from $39,678 million; gross margin rate 46.5% versus 46.3% [FILING].
+- Products gross margin rate: 34.5%, down from 35.3%; Services gross margin rate: 75.6%, up from 74.0% [FILING].
+- Quarterly R&D expense: $8,866 million, versus $8,006 million a year ago [FILING].
+- Quarterly SG&A expense: $6,650 million, versus $6,320 million a year ago [FILING].
+- Capital return: $21.0 billion of common stock repurchased and $3.9 billion paid in dividends/dividend equivalents in the quarter [FILING].
 
 ## Guidance & Language Shifts
-- [UNVERIFIED] The Form 10‑Q does not provide updated forward-looking financial guidance for FY2025 in the filing text.  
-- The filing includes a Business Seasonality and Product Introductions discussion, emphasizing seasonality and timing of product introductions as drivers of variability [FILING].  
-- The filing reiterates risks (including tariffs and supply-related risks) that could affect future results and contains risk-factor language about impacts to supply chain, component availability, pricing and gross margin [FILING].
+Management did not provide formal revenue or EPS guidance in the cited filing excerpts [FILING]. The company reiterated that cash, cash equivalents, marketable securities, operating cash flow, and debt-market access should be sufficient to fund cash requirements and the capital return program “over the next 12 months and beyond” [FILING]. Apple also highlighted ongoing seasonality and launch timing effects, noting that new product and service introductions can materially affect sales, costs, and channel inventory [FILING]. The quarter included announcements of iOS 26, macOS Tahoe 26, iPadOS 26, watchOS 26, visionOS 26, and tvOS 26 [FILING].
 
 ## Risk Factor Changes
-- The filing highlights tariffs and related risks and notes that tariffs and related measures can affect the Company’s supply chain, the availability of raw materials and components, pricing and gross margin [FILING]. [UNVERIFIED] Specific new U.S. tariffs announced beginning in Q2 2025 and potential reciprocal measures are identified in the filing text.  
-- The filing states that gross margins are subject to variability and that margins can be impacted by product mix, costs and tariffs, reiterating risk from these factors [FILING].  
-- [UNVERIFIED] Manufacturing purchase obligations of $44.1B (almost all due within 12 months) are presented as near-term cash commitments in the filing. [UNVERIFIED] The filing’s specific statements that cash, marketable securities, operating cash flow and access to debt markets will cover cash needs and capital returns over the next 12 months are not included in the provided evidence excerpts.  
-- [UNVERIFIED] The filing notes the release of €14.2B from escrow to settle the State Aid Decision as fully settling that obligation. Tax-related variability (unrecognized tax benefits and related revaluations) affected the quarter’s tax rate, per the filing excerpts [FILING].
+Apple emphasized tariffs as a key operating risk, stating that new U.S. tariffs and reciprocal measures could materially affect business, results, supply chain, raw materials availability, pricing, and gross margin [FILING]. The filing also expanded macro risk framing around inflation, interest rates, and currency fluctuations, which “have directly and indirectly impacted, and could in the future materially impact” operations and financial condition [FILING]. Trade and other international disputes were cited as potential drivers of weaker consumer spending and sentiment [FILING]. Gross margin commentary explicitly noted that product margin was partially offset by tariffs in both the quarter and first nine months [FILING].
 
 ## Sentiment Overview
-- The 10‑Q presents a constructive tone around product and Services momentum (iPhone and Services growth are highlighted) while remaining cautious on external risks such as tariffs, macroeconomic conditions and currency [FILING].  
-- [UNVERIFIED] The filing reports continued large-scale capital return activity (Q3 repurchases $21.0B; dividends $3.9B) and states an intention to increase the dividend annually (subject to Board), alongside investment in R&D (R&D expense $8,866M in Q3).  
-- Product narrative: the filing attributes iPhone strength to higher Pro model sales; the filing also highlights Services growth (the filing links Services increases to several components of the services business) [FILING]. [UNVERIFIED] Specific attribution of Services growth to advertising, the App Store and cloud services is not present in the provided excerpts.
+Operational tone was constructive, with broad-based revenue growth, stable consolidated gross margin, and double-digit Services expansion [FILING]. Mix remains supportive: Services grew faster than total company sales and continued to carry structurally higher margins than Products [FILING]. Counterbalancing that strength, Apple’s disclosure language remains cautious on tariffs, FX, and macro demand sensitivity, and Greater China was softer on a nine-month basis despite a better quarter [FILING]. The effective tax rate increased in the quarter due primarily to foreign currency revaluations of unrecognized tax benefits, adding another source of earnings variability [FILING].
 
 ## Source Citations
-- Apple Inc., Form 10‑Q for quarter ended June 28, 2025 (product/category sales, margins, segment performance, operating expenses, tax discussion, liquidity, manufacturing obligations, State Aid Decision, capital return program, seasonality and tariffs) [FILING].
+Primary source used: Apple Inc. Q3 2025 Form 10-Q excerpts covering segment performance, product and services performance, gross margin, operating expenses, liquidity, capital return, and risk disclosures [FILING].

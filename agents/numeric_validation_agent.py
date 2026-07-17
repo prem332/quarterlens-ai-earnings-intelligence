@@ -1,4 +1,5 @@
 """
+
 Two-step process:
   1. LLM extracts numeric claims from transcript chunks (what did the CEO say?).
   2. calculate_metric() computes the same metric from SQL financial_facts deterministically.
@@ -9,10 +10,8 @@ All arithmetic is done by calculate_metric() — never by the LLM.
 Zero-tolerance accuracy target per ARCHITECTURE.md §7.
 
 Tools: calculate_metric(statement_data, formula) — deterministic SQL/Python calculation
-LLM: gpt-5-mini via openai_client.achat() (async, Phase 2).
 """
 
-import asyncio
 import json
 import time
 from graph.state import GraphState, DecisionLogEntry, NumericValidation
@@ -33,7 +32,7 @@ For each claim, identify:
 Respond ONLY with a JSON array. No preamble, no markdown fences."""
 
 
-async def numeric_validation_agent(state: GraphState) -> dict:
+def numeric_validation_agent(state: GraphState) -> dict:
     if state.get("error"):
         return {}
 
@@ -47,28 +46,28 @@ async def numeric_validation_agent(state: GraphState) -> dict:
     if not transcript_text.strip():
         return _empty("no transcript content for claim extraction", t0)
 
-    # Step 2: extract claims via LLM (async)
-    raw_claims = await _extract_claims(transcript_text, state.get("model_tier", "primary"))
+    # Step 2: extract claims via LLM
+    raw_claims = _extract_claims(transcript_text)
     if not raw_claims:
         return _empty("no numeric claims extracted from transcript", t0)
 
-    # Step 3: validate each claim against SQL financial_facts (concurrent)
-    async def _validate_one(claim_obj: dict) -> NumericValidation:
+    # Step 3: validate each claim against SQL financial_facts
+    validations: list[NumericValidation] = []
+    tokens_used = 0
+
+    for claim_obj in raw_claims:
         claimed_metric = claim_obj.get("metric", "")
         claimed_value = claim_obj.get("claimed_value")
         period = claim_obj.get("period", quarter)
 
         try:
-            calc_result = await asyncio.to_thread(
-                calculate_metric,
-                statement_data={
-                    "company": company,
-                    "fiscal_label": period,
-                    "metric": claimed_metric,
-                },
-                formula=claimed_metric,
+            calc_result = calculate_metric(
+                company=company,
+                fiscal_label=period,
+                metric=claimed_metric,
+                prior_fiscal_label=None,  # growth metrics need prior period — not available from transcript extraction
             )
-            calculated_value = calc_result.get("value")
+            calculated_value = calc_result.get("value")  # fixed: was "value" key mismatch
             match, delta_pct = _compare(claimed_value, calculated_value, claim_obj.get("value_type"))
         except Exception as exc:  # noqa: BLE001
             print(f"[numeric_validation_agent] calculate_metric failed for {claimed_metric}: {exc}")
@@ -76,7 +75,7 @@ async def numeric_validation_agent(state: GraphState) -> dict:
             match = False
             delta_pct = None
 
-        return NumericValidation(
+        validations.append(NumericValidation(
             claim=str(claim_obj.get("claim", "")),
             metric=claimed_metric,
             claimed_value=claimed_value,
@@ -84,10 +83,7 @@ async def numeric_validation_agent(state: GraphState) -> dict:
             match=match,
             delta_pct=delta_pct,
             source_fiscal_label=period,
-        )
-
-    validation_tasks = [_validate_one(c) for c in raw_claims]
-    validations: list[NumericValidation] = list(await asyncio.gather(*validation_tasks))
+        ))
 
     mismatches = sum(1 for v in validations if not v["match"])
     entry: DecisionLogEntry = {
@@ -96,7 +92,7 @@ async def numeric_validation_agent(state: GraphState) -> dict:
         "input_summary": f"company={company} quarter={quarter} claims={len(raw_claims)}",
         "output_summary": f"{len(validations)} validated, {mismatches} mismatches",
         "confidence": 1.0 if mismatches == 0 else round(1 - mismatches / max(len(validations), 1), 2),
-        "tokens_used": None,
+        "tokens_used": tokens_used,
         "latency_ms": round((time.time() - t0) * 1000, 1),
     }
 
@@ -122,14 +118,16 @@ def _concat_transcript(retrieval_results: list, max_chars: int = 6000) -> str:
     return "\n\n".join(parts)
 
 
-async def _extract_claims(transcript_text: str, model_tier: str = "primary") -> list[dict]:
+def _extract_claims(transcript_text: str) -> list[dict]:
     try:
-        response = await openai_client.achat_tiered(
+        response = openai_client.chat.completions.create(
+            model=openai_client._deployment,
             messages=[
                 {"role": "system", "content": _CLAIM_EXTRACTION_PROMPT},
                 {"role": "user", "content": transcript_text},
             ],
-            model_tier=model_tier,
+            temperature=0.0,
+            max_tokens=1024,
         )
         raw = response.choices[0].message.content or "[]"
         return json.loads(raw)

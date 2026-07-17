@@ -1,142 +1,168 @@
 """
+tools/calculate_metric.py
 
 Deterministic numeric verification for the Numeric Validation Agent.
-Never uses LLM arithmetic — fetches typed facts from Azure SQL `financial_facts`
+Never uses LLM arithmetic — fetches typed facts from Azure SQL financial_facts
 and computes a registered formula in Python.
 
 financial_facts schema:
-    cik, accession, company, fiscal_label, concept, value, unit, period_start, period_end
+    ticker, cik, accession, form, fiscal_label,
+    concept, xbrl_tag, value, unit, period_start, period_end, fy, fp
 
-Supported formulas:
-    yoy_growth      — (current - prior_year) / |prior_year| * 100
-    qoq_growth      — (current - prior_quarter) / |prior_quarter| * 100
-    gross_margin    — (revenue - cogs) / revenue * 100
-    operating_margin — operating_income / revenue * 100
-    net_margin      — net_income / revenue * 100
-    ratio           — numerator_concept / denominator_concept
+Supported formulas (auto-detected from metric name via alias map):
+    revenue / revenues / total_revenue     → fetch Revenues
+    gross_profit / gross_margin            → GrossProfit or (Revenues - CostOfRevenue) / Revenues
+    operating_income / operating_margin    → OperatingIncomeLoss (margin = / Revenues)
+    net_income / net_margin                → NetIncomeLoss (margin = / Revenues)
+    eps / eps_diluted                      → EarningsPerShareDiluted
+    eps_basic                              → EarningsPerShareBasic
+    r_and_d / research_and_development     → ResearchAndDevelopmentExpense
+    sga                                    → SellingGeneralAndAdministrativeExpense
+    cash                                   → CashAndCashEquivalentsAtCarryingValue
+    total_assets / assets                  → Assets
+    total_liabilities / liabilities        → Liabilities
+    stockholders_equity / equity           → StockholdersEquity
+    yoy_growth / qoq_growth                → growth formula on resolved concept
 
-Tool signature (matches tool_registry.py):
-    calculate_metric(
-        formula,
-        company,
-        fiscal_label,
-        concept,                        # primary concept (all single-concept formulas)
-        prior_fiscal_label=None,        # required for yoy_growth / qoq_growth
-        denominator_concept=None,       # required for ratio
-        cogs_concept=None,              # required for gross_margin (default: CostOfRevenue)
-        operating_income_concept=None,  # required for operating_margin (default: OperatingIncomeLoss)
-        net_income_concept=None,        # required for net_margin (default: NetIncomeLoss)
-    )
+Tool signature (called by numeric_validation_agent):
+    calculate_metric(company, fiscal_label, metric, prior_fiscal_label=None)
 
 Returns:
     {
-        "formula": str,
-        "company": str,
-        "fiscal_label": str,
-        "concept": str,
-        "result": float | None,
-        "unit": str,
-        "inputs": dict,      # raw values used in computation
-        "error": str | None  # populated if a fact is missing or divide-by-zero
+        "metric":        str,
+        "company":       str,
+        "fiscal_label":  str,
+        "concept":       str,   # resolved SQL concept name
+        "value":         float | None,
+        "unit":          str,
+        "inputs":        dict,
+        "error":         str | None
     }
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from azure_clients.sql_client import sql_client
 
-# ---------------------------------------------------------------------------
-# Default us-gaap concept names for common metrics
-# ---------------------------------------------------------------------------
-_DEFAULT_REVENUE_CONCEPT = "Revenues"          # or RevenueFromContractWithCustomerExcludingAssessedTax
-_DEFAULT_COGS_CONCEPT = "CostOfRevenue"
-_DEFAULT_OPERATING_INCOME_CONCEPT = "OperatingIncomeLoss"
-_DEFAULT_NET_INCOME_CONCEPT = "NetIncomeLoss"
+log = logging.getLogger(__name__)
 
-_SUPPORTED_FORMULAS = {
-    "yoy_growth",
-    "qoq_growth",
-    "gross_margin",
-    "operating_margin",
-    "net_margin",
-    "ratio",
+# ---------------------------------------------------------------------------
+# Alias map: LLM-extracted metric name → SQL concept name
+# ---------------------------------------------------------------------------
+_CONCEPT_ALIASES: dict[str, str] = {
+    # Revenue
+    "revenue":                              "Revenues",
+    "revenues":                             "Revenues",
+    "total_revenue":                        "Revenues",
+    "net_revenue":                          "Revenues",
+    "revenue_growth_yoy":                   "Revenues",
+    "revenue_growth_qoq":                   "Revenues",
+    "revenue_yoy":                          "Revenues",
+    "revenue_qoq":                          "Revenues",
+    # Cost
+    "cost_of_revenue":                      "CostOfRevenue",
+    "cogs":                                 "CostOfRevenue",
+    "cost_of_goods_sold":                   "CostOfRevenue",
+    # Gross
+    "gross_profit":                         "GrossProfit",
+    "gross_margin":                         "GrossProfit",   # margin computed separately
+    # Operating
+    "operating_income":                     "OperatingIncomeLoss",
+    "operating_income_loss":                "OperatingIncomeLoss",
+    "operating_margin":                     "OperatingIncomeLoss",  # margin computed separately
+    "operating_expenses":                   "OperatingExpenses",
+    # Net income
+    "net_income":                           "NetIncomeLoss",
+    "net_income_loss":                      "NetIncomeLoss",
+    "net_margin":                           "NetIncomeLoss",  # margin computed separately
+    "net_profit":                           "NetIncomeLoss",
+    # EPS
+    "eps":                                  "EarningsPerShareDiluted",
+    "eps_diluted":                          "EarningsPerShareDiluted",
+    "earnings_per_share":                   "EarningsPerShareDiluted",
+    "earnings_per_share_diluted":           "EarningsPerShareDiluted",
+    "eps_basic":                            "EarningsPerShareBasic",
+    "earnings_per_share_basic":             "EarningsPerShareBasic",
+    # R&D
+    "r_and_d":                              "ResearchAndDevelopmentExpense",
+    "research_and_development":             "ResearchAndDevelopmentExpense",
+    "rd_expense":                           "ResearchAndDevelopmentExpense",
+    # SG&A
+    "sga":                                  "SellingGeneralAndAdministrativeExpense",
+    "selling_general_administrative":       "SellingGeneralAndAdministrativeExpense",
+    "sg_and_a":                             "SellingGeneralAndAdministrativeExpense",
+    # Balance sheet
+    "cash":                                 "CashAndCashEquivalentsAtCarryingValue",
+    "cash_and_equivalents":                 "CashAndCashEquivalentsAtCarryingValue",
+    "total_assets":                         "Assets",
+    "assets":                               "Assets",
+    "total_liabilities":                    "Liabilities",
+    "liabilities":                          "Liabilities",
+    "stockholders_equity":                  "StockholdersEquity",
+    "equity":                               "StockholdersEquity",
+    "shareholders_equity":                  "StockholdersEquity",
+    # Shares
+    "shares_outstanding":                   "WeightedAverageNumberOfSharesOutstandingBasic",
+    "diluted_shares":                       "WeightedAverageNumberOfDilutedSharesOutstanding",
+}
+
+# Metrics that represent margin (%) — value / Revenues * 100
+_MARGIN_METRICS = {
+    "gross_margin", "operating_margin", "net_margin",
+}
+
+# Metrics that represent YoY growth
+_YOY_METRICS = {
+    "revenue_growth_yoy", "revenue_yoy",
+}
+
+# Metrics that represent QoQ growth
+_QOQ_METRICS = {
+    "revenue_growth_qoq", "revenue_qoq",
 }
 
 
 # ---------------------------------------------------------------------------
-# SQL helpers
+# SQL helpers — use 'ticker' column (not 'company')
 # ---------------------------------------------------------------------------
 
-def _fetch_value(company: str, fiscal_label: str, concept: str) -> tuple[Optional[float], Optional[str]]:
+def _fetch_value(
+    ticker: str,
+    fiscal_label: str,
+    concept: str,
+) -> tuple[Optional[float], Optional[str]]:
     """
-    Fetch a single (value, unit) for a company + fiscal_label + concept.
+    Fetch a single (value, unit) for a ticker + fiscal_label + concept.
+    Uses 'ticker' column — matches financial_facts schema.
     Returns (None, None) if not found.
     """
-    query = """
+    sql = """
         SELECT TOP 1 value, unit
-        FROM financial_facts
-        WHERE company = ?
+        FROM dbo.financial_facts
+        WHERE ticker = ?
           AND fiscal_label = ?
           AND concept = ?
         ORDER BY period_end DESC
     """
-    rows = sql_client.execute_query(query, (company, fiscal_label, concept))
-    if not rows:
+    try:
+        with sql_client.connection() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, ticker, fiscal_label, concept)
+            row = cur.fetchone()
+            if row is None:
+                return None, None
+            return float(row[0]), row[1]
+    except Exception as exc:
+        log.warning("SQL fetch failed for %s/%s/%s: %s", ticker, fiscal_label, concept, exc)
         return None, None
-    return float(rows[0]["value"]), rows[0].get("unit", "")
 
 
-# ---------------------------------------------------------------------------
-# Formula implementations
-# ---------------------------------------------------------------------------
-
-def _safe_pct_change(current: float, prior: float) -> Optional[float]:
-    if prior == 0:
-        return None
-    return round((current - prior) / abs(prior) * 100, 4)
-
-
-def _growth(company: str, current_label: str, prior_label: str, concept: str) -> dict:
-    cur_val, unit = _fetch_value(company, current_label, concept)
-    pri_val, _ = _fetch_value(company, prior_label, concept)
-
-    inputs = {
-        f"{current_label}_{concept}": cur_val,
-        f"{prior_label}_{concept}": pri_val,
-    }
-
-    if cur_val is None:
-        return {"result": None, "unit": unit or "", "inputs": inputs,
-                "error": f"No fact found: {concept} / {current_label}"}
-    if pri_val is None:
-        return {"result": None, "unit": unit or "", "inputs": inputs,
-                "error": f"No fact found: {concept} / {prior_label}"}
-    if pri_val == 0:
-        return {"result": None, "unit": "%", "inputs": inputs,
-                "error": "Divide-by-zero: prior period value is 0"}
-
-    return {"result": _safe_pct_change(cur_val, pri_val), "unit": "%", "inputs": inputs, "error": None}
-
-
-def _margin(company: str, fiscal_label: str, numerator_concept: str, revenue_concept: str) -> dict:
-    num_val, unit = _fetch_value(company, fiscal_label, numerator_concept)
-    rev_val, _ = _fetch_value(company, fiscal_label, revenue_concept)
-
-    inputs = {numerator_concept: num_val, revenue_concept: rev_val}
-
-    if num_val is None:
-        return {"result": None, "unit": "%", "inputs": inputs,
-                "error": f"No fact found: {numerator_concept} / {fiscal_label}"}
-    if rev_val is None:
-        return {"result": None, "unit": "%", "inputs": inputs,
-                "error": f"No fact found: {revenue_concept} / {fiscal_label}"}
-    if rev_val == 0:
-        return {"result": None, "unit": "%", "inputs": inputs,
-                "error": "Divide-by-zero: revenue is 0"}
-
-    return {"result": round(num_val / rev_val * 100, 4), "unit": "%", "inputs": inputs, "error": None}
+def _resolve_concept(metric: str) -> Optional[str]:
+    """Map LLM-extracted metric name to SQL concept. Case-insensitive."""
+    return _CONCEPT_ALIASES.get(metric.lower().strip())
 
 
 # ---------------------------------------------------------------------------
@@ -144,98 +170,109 @@ def _margin(company: str, fiscal_label: str, numerator_concept: str, revenue_con
 # ---------------------------------------------------------------------------
 
 def calculate_metric(
-    formula: str,
     company: str,
     fiscal_label: str,
-    concept: str,
+    metric: str,
     prior_fiscal_label: Optional[str] = None,
-    denominator_concept: Optional[str] = None,
-    cogs_concept: Optional[str] = None,
-    operating_income_concept: Optional[str] = None,
-    net_income_concept: Optional[str] = None,
 ) -> dict:
     """
     Deterministically verify a numeric claim using filed financial_facts.
 
     Args:
-        formula:                  One of the _SUPPORTED_FORMULAS.
-        company:                  Ticker e.g. 'AAPL'.
-        fiscal_label:             Primary period e.g. 'Q2_FY2025'.
-        concept:                  Primary us-gaap concept e.g. 'Revenues'.
-        prior_fiscal_label:       Required for yoy_growth / qoq_growth.
-        denominator_concept:      Required for 'ratio'.
-        cogs_concept:             For gross_margin (default: CostOfRevenue).
-        operating_income_concept: For operating_margin (default: OperatingIncomeLoss).
-        net_income_concept:       For net_margin (default: NetIncomeLoss).
+        company:             Ticker e.g. 'AAPL'.
+        fiscal_label:        Period e.g. 'FY2025-Q3'.
+        metric:              LLM-extracted metric name e.g. 'revenue_growth_yoy'.
+        prior_fiscal_label:  Prior period for growth calculations (optional).
 
     Returns:
-        dict with 'result', 'unit', 'inputs', and 'error'.
+        dict with 'value', 'unit', 'concept', 'inputs', 'error'.
     """
-    base = {"formula": formula, "company": company, "fiscal_label": fiscal_label, "concept": concept}
+    base = {
+        "metric": metric,
+        "company": company,
+        "fiscal_label": fiscal_label,
+        "concept": None,
+        "value": None,
+        "unit": "",
+        "inputs": {},
+        "error": None,
+    }
 
-    if formula not in _SUPPORTED_FORMULAS:
-        return {**base, "result": None, "unit": "", "inputs": {},
-                "error": f"Unknown formula '{formula}'. Supported: {sorted(_SUPPORTED_FORMULAS)}"}
+    metric_lower = metric.lower().strip()
+    concept = _resolve_concept(metric_lower)
 
-    # --- yoy_growth / qoq_growth ---
-    if formula in ("yoy_growth", "qoq_growth"):
+    if concept is None:
+        # Try treating the metric as a direct concept name
+        concept = metric
+        log.warning("No alias for metric '%s' — trying as direct concept name", metric)
+
+    base["concept"] = concept
+
+    # ── Margin metrics ────────────────────────────────────────────────────
+    if metric_lower in _MARGIN_METRICS:
+        val, unit = _fetch_value(company, fiscal_label, concept)
+        rev_val, _ = _fetch_value(company, fiscal_label, "Revenues")
+        base["inputs"] = {concept: val, "Revenues": rev_val}
+
+        if val is None:
+            base["error"] = f"No fact found: {concept} / {fiscal_label}"
+            return base
+        if rev_val is None or rev_val == 0:
+            base["error"] = "No revenue fact found or revenue is zero"
+            return base
+
+        base["value"] = round(val / rev_val * 100, 4)
+        base["unit"] = "%"
+        return base
+
+    # ── YoY growth ────────────────────────────────────────────────────────
+    if metric_lower in _YOY_METRICS or "yoy" in metric_lower:
         if not prior_fiscal_label:
-            return {**base, "result": None, "unit": "%", "inputs": {},
-                    "error": "prior_fiscal_label is required for growth formulas"}
-        result = _growth(company, fiscal_label, prior_fiscal_label, concept)
-        return {**base, **result}
+            base["error"] = "prior_fiscal_label required for YoY growth"
+            return base
+        cur_val, unit = _fetch_value(company, fiscal_label, concept)
+        pri_val, _ = _fetch_value(company, prior_fiscal_label, concept)
+        base["inputs"] = {fiscal_label: cur_val, prior_fiscal_label: pri_val}
 
-    # --- gross_margin ---
-    if formula == "gross_margin":
-        cogs = cogs_concept or _DEFAULT_COGS_CONCEPT
-        revenue = concept or _DEFAULT_REVENUE_CONCEPT
-        cur_rev, unit = _fetch_value(company, fiscal_label, revenue)
-        cur_cogs, _ = _fetch_value(company, fiscal_label, cogs)
-        inputs = {revenue: cur_rev, cogs: cur_cogs}
-        if cur_rev is None or cur_cogs is None:
-            missing = revenue if cur_rev is None else cogs
-            return {**base, "result": None, "unit": "%", "inputs": inputs,
-                    "error": f"No fact found: {missing} / {fiscal_label}"}
-        if cur_rev == 0:
-            return {**base, "result": None, "unit": "%", "inputs": inputs,
-                    "error": "Divide-by-zero: revenue is 0"}
-        gross_profit = cur_rev - cur_cogs
-        return {**base, "result": round(gross_profit / cur_rev * 100, 4), "unit": "%",
-                "inputs": inputs, "error": None}
+        if cur_val is None or pri_val is None:
+            base["error"] = f"Missing fact for growth calculation"
+            return base
+        if pri_val == 0:
+            base["error"] = "Prior period value is zero"
+            return base
 
-    # --- operating_margin ---
-    if formula == "operating_margin":
-        op_concept = operating_income_concept or _DEFAULT_OPERATING_INCOME_CONCEPT
-        rev_concept = concept or _DEFAULT_REVENUE_CONCEPT
-        result = _margin(company, fiscal_label, op_concept, rev_concept)
-        return {**base, **result}
+        base["value"] = round((cur_val - pri_val) / abs(pri_val) * 100, 4)
+        base["unit"] = "%"
+        return base
 
-    # --- net_margin ---
-    if formula == "net_margin":
-        ni_concept = net_income_concept or _DEFAULT_NET_INCOME_CONCEPT
-        rev_concept = concept or _DEFAULT_REVENUE_CONCEPT
-        result = _margin(company, fiscal_label, ni_concept, rev_concept)
-        return {**base, **result}
+    # ── QoQ growth ────────────────────────────────────────────────────────
+    if metric_lower in _QOQ_METRICS or "qoq" in metric_lower:
+        if not prior_fiscal_label:
+            base["error"] = "prior_fiscal_label required for QoQ growth"
+            return base
+        cur_val, unit = _fetch_value(company, fiscal_label, concept)
+        pri_val, _ = _fetch_value(company, prior_fiscal_label, concept)
+        base["inputs"] = {fiscal_label: cur_val, prior_fiscal_label: pri_val}
 
-    # --- ratio ---
-    if formula == "ratio":
-        if not denominator_concept:
-            return {**base, "result": None, "unit": "", "inputs": {},
-                    "error": "denominator_concept is required for 'ratio'"}
-        num_val, unit = _fetch_value(company, fiscal_label, concept)
-        den_val, _ = _fetch_value(company, fiscal_label, denominator_concept)
-        inputs = {concept: num_val, denominator_concept: den_val}
-        if num_val is None:
-            return {**base, "result": None, "unit": unit or "", "inputs": inputs,
-                    "error": f"No fact found: {concept} / {fiscal_label}"}
-        if den_val is None:
-            return {**base, "result": None, "unit": unit or "", "inputs": inputs,
-                    "error": f"No fact found: {denominator_concept} / {fiscal_label}"}
-        if den_val == 0:
-            return {**base, "result": None, "unit": "", "inputs": inputs,
-                    "error": "Divide-by-zero: denominator is 0"}
-        return {**base, "result": round(num_val / den_val, 6), "unit": f"{concept}/{denominator_concept}",
-                "inputs": inputs, "error": None}
+        if cur_val is None or pri_val is None:
+            base["error"] = "Missing fact for growth calculation"
+            return base
+        if pri_val == 0:
+            base["error"] = "Prior period value is zero"
+            return base
 
-    # Should be unreachable given the guard above
-    return {**base, "result": None, "unit": "", "inputs": {}, "error": "Unhandled formula path"}
+        base["value"] = round((cur_val - pri_val) / abs(pri_val) * 100, 4)
+        base["unit"] = "%"
+        return base
+
+    # ── Direct value lookup (default) ─────────────────────────────────────
+    val, unit = _fetch_value(company, fiscal_label, concept)
+    base["inputs"] = {concept: val}
+
+    if val is None:
+        base["error"] = f"No fact found: {concept} / {fiscal_label}"
+        return base
+
+    base["value"] = round(float(val), 4)
+    base["unit"] = unit or ""
+    return base

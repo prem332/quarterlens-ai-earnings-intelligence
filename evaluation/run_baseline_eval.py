@@ -164,19 +164,33 @@ def _extract_ground_truth_anchors(claim: dict) -> list[dict]:
 async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]:
     """
     Invoke the compiled LangGraph graph for one claim (async — Phase 2).
+    L3 cache: returns cached report if available, skipping full pipeline.
 
     Returns dict with:
         answer:   str — the pipeline's final answer
         contexts: list[str] — retrieved chunk texts
         chunks:   list[dict] — full chunk dicts (for precision/recall@k)
         error:    str | None
+        cache_hit: bool — True if served from L3 report cache
     """
     from graph.build_graph import compiled_graph
     from graph.state import GraphState
+    from azure_clients.redis_client import get_report_cached, set_report_cached
+
+    # ── L3 cache check — skip full pipeline if report cached ──────────────
+    cached_report = get_report_cached(query, company, fiscal_label)
+    if cached_report:
+        return {
+            "answer": cached_report,
+            "contexts": [],
+            "chunks": [],
+            "error": None,
+            "cache_hit": True,
+        }
 
     initial_state: GraphState = {
         "company": company,
-        "quarter": fiscal_label,          # GraphState uses 'quarter', not 'fiscal_label'
+        "quarter": fiscal_label,
         "query": query,
         "comparison_quarters": [],
         "retrieval_results": [],
@@ -185,7 +199,7 @@ async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str
         "numeric_validations": [],
         "report": "",
         "decision_log_entries": [],
-        "model_tier": "primary",          # supervisor_init overwrites via classify_query
+        "model_tier": "primary",
         "error": None,
     }
 
@@ -193,15 +207,22 @@ async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str
         result = await compiled_graph.ainvoke(initial_state)
         chunks = result.get("retrieval_results") or []
         contexts = [c.get("content", "") for c in chunks if isinstance(c, dict)]
+        report = result.get("report") or ""
+
+        # ── L3 cache set — store report for future identical queries ──────
+        if report and not result.get("error"):
+            set_report_cached(query, company, fiscal_label, report)
+
         return {
-            "answer": result.get("report") or "",
+            "answer": report,
             "contexts": contexts,
             "chunks": chunks,
             "error": result.get("error"),
+            "cache_hit": False,
         }
     except Exception as e:
         log.warning("Pipeline error for query '%s': %s", query[:60], e)
-        return {"answer": "", "contexts": [], "chunks": [], "error": str(e)}
+        return {"answer": "", "contexts": [], "chunks": [], "error": str(e), "cache_hit": False}
 
 
 def _parse_value(v: Any) -> float | None:
@@ -389,6 +410,10 @@ async def run_eval(
         log.info("Numeric pass rate: %.4f (%d/%d)", numeric_pass_rate,
                  passed, len(numeric_results))
 
+    # ── Cache stats ───────────────────────────────────────────────────────────
+    from azure_clients.redis_client import get_cache_stats
+    cache_stats = get_cache_stats()
+
     metrics = {
         **{f"ragas_{k_}": v for k_, v in ragas_scores.items()},
         f"precision_at_{k}": retrieval_scores.get("mean_precision_at_k", 0.0),
@@ -397,6 +422,7 @@ async def run_eval(
         "numeric_pass_rate": numeric_pass_rate,
         "total_claims": len(runnable),
         "pipeline_errors": sum(1 for r in per_claim_results if r["pipeline_error"]),
+        **{f"cache_{k_}": v for k_, v in cache_stats.items()},
     }
 
     params = {

@@ -268,16 +268,28 @@ class OpenAIClient:
     def embed(self, text: str) -> list[float]:
         """
         Embed a single string.
+        L1 cache: returns cached embedding if available, skipping API call.
 
         Returns:
             1536-dim embedding vector.
         """
+        from azure_clients.redis_client import get_embedding_cached, set_embedding_cached
+
+        # L1 cache check — returns instantly if seen before
+        cached = get_embedding_cached(text)
+        if cached is not None:
+            return cached
+
         response = self._client.embeddings.create(
             model=self._embedding_deployment,
             input=text,
             dimensions=EMBEDDING_DIMENSIONS,
         )
-        return response.data[0].embedding
+        embedding = response.data[0].embedding
+
+        # Store in L1 cache for future calls
+        set_embedding_cached(text, embedding)
+        return embedding
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """

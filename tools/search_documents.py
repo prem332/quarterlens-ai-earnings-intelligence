@@ -124,12 +124,13 @@ def search_documents(
     mmr_lambda: float = _MMR_LAMBDA,
     rerank: bool = False,
     rerank_top_k: int = 5,
+    use_cache: bool = True,
 ) -> dict:
     """
     Hybrid search (vector + BM25) over quarterlens-filings.
 
     Retrieval chain when all options enabled:
-        AI Search (mmr_fetch_k=20) → MMR (top=10) → Cross-encoder reranker (rerank_top_k=5)
+        L2 cache check → AI Search (mmr_fetch_k=20) → MMR (top=10) → Cross-encoder (rerank_top_k=5)
 
     Args:
         query:          Natural-language search query.
@@ -142,11 +143,20 @@ def search_documents(
         mmr_lambda:     MMR trade-off: 1.0 = pure relevance, 0.0 = pure diversity (default 0.5).
         rerank:         Enable cross-encoder reranking after MMR (default False).
         rerank_top_k:   Final number of chunks after cross-encoder reranking (default 5).
+        use_cache:      Enable L2 retrieval cache (default True).
 
     Returns:
         dict with 'results' list and 'count'.
     """
-    # 1. Embed the query
+    from azure_clients.redis_client import get_retrieval_cached, set_retrieval_cached
+
+    # ── L2 cache check — skip AI Search + MMR + reranker if cached ────────
+    if use_cache and company and quarter:
+        cached_chunks = get_retrieval_cached(query, company or "", quarter or "")
+        if cached_chunks is not None:
+            return {"results": cached_chunks, "count": len(cached_chunks)}
+
+    # 1. Embed the query (L1 cache inside embed())
     embedding: list[float] = openai_client.embed(query)
 
     # 2. Build OData filter
@@ -197,5 +207,9 @@ def search_documents(
             chunks=results,
             top_k=rerank_top_k,
         )
+
+    # ── L2 cache set — store results for future identical queries ─────────
+    if use_cache and company and quarter and results:
+        set_retrieval_cached(query, company, quarter, results)
 
     return {"results": results, "count": len(results)}

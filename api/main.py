@@ -8,6 +8,7 @@ import os
 from api.middleware.guardrails import GuardrailsMiddleware
 from api.middleware.rate_limiter import RateLimiterMiddleware
 from api.routes import analysis, reports, evidence, export
+from observability.azure_monitor_setup import setup_azure_monitor
 from observability.phoenix_setup import setup_phoenix
 from observability.langfuse_setup import setup_langfuse, flush_langfuse
 
@@ -15,8 +16,9 @@ from observability.langfuse_setup import setup_langfuse, flush_langfuse
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: initialise observability. Shutdown: flush Langfuse events."""
-    setup_phoenix()
-    setup_langfuse()
+    setup_azure_monitor()   # Azure Monitor first — sets up OTEL provider
+    setup_phoenix()         # Phoenix cloud tracing
+    setup_langfuse()        # Langfuse LLM call monitoring
     yield
     flush_langfuse()
 

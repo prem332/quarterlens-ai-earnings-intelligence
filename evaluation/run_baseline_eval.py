@@ -1,11 +1,14 @@
 """
 evaluation/run_baseline_eval.py
+Phase 1 baseline evaluation runner for QuarterLens AI.
 
 Loads the golden dataset, runs each claim through the compiled LangGraph
 pipeline, collects (question, answer, contexts, ground_truth) tuples, then
 scores with RAGAS + precision/recall@k + LLM-as-judge. Logs everything to
 MLflow as a single "baseline" run.
 
+This is the Phase 1 baseline. Every Phase 2 optimization is measured
+against this run in MLflow — never against a moving target.
 
 Usage:
     python evaluation/run_baseline_eval.py
@@ -26,6 +29,22 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# ── Observability — must initialize before openai_client is imported ──────────
+# Langfuse patches AzureOpenAI at import time; setup must run first so
+# LANGFUSE_PUBLIC_KEY is available when openai_client.py loads.
+try:
+    from observability.langfuse_setup import setup_langfuse
+    setup_langfuse()
+except Exception as _lf_exc:
+    pass  # non-fatal — eval proceeds without Langfuse tracing
+
+try:
+    from observability.phoenix_setup import setup_phoenix
+    setup_phoenix()
+except Exception as _px_exc:
+    pass  # non-fatal — eval proceeds without Phoenix tracing
+# ─────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
     level=logging.INFO,

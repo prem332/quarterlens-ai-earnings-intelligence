@@ -101,6 +101,8 @@ def _safe_search(
                 doc_type=h.get("doc_type", doc_type_filter),
                 fiscal_label=h.get("fiscal_label", quarter),
                 score=float(h.get("score", 0.0)),
+                accession=h.get("accession", ""),
+                section=h.get("section", ""),
             )
             for h in (hits.get("results", []) if isinstance(hits, dict) else hits or [])
         ]

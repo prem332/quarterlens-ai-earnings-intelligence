@@ -31,6 +31,8 @@ class RetrievalResult(TypedDict):
     doc_type: str          # "10-Q" | "10-K" | "transcript"
     fiscal_label: str
     score: float
+    accession: str         # SEC accession number — filing coordinate for precision/recall@k
+    section: str           # parsed section key (e.g. "mda") — filing coordinate for precision/recall@k
 
 
 class ComparisonFinding(TypedDict):

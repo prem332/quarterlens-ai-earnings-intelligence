@@ -93,11 +93,12 @@ async def comparison_agent(state: GraphState) -> dict:
     tokens_used = None
 
     try:
-        response = await openai_client.achat(
+        response = await openai_client.achat_tiered(
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
+            model_tier=state.get("model_tier", "primary"),
         )
         tokens_used = response.usage.total_tokens if response.usage else None
         raw = response.choices[0].message.content or "[]"

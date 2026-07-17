@@ -10,7 +10,8 @@ routing is a static DAG:
         → supervisor_finalize
 
 The supervisor owns two nodes:
-  - supervisor_init: validates input, sets defaults, writes initial log entry
+  - supervisor_init: validates input, sets defaults, classifies query for
+                     model routing (Phase 2), writes initial log entry
   - supervisor_finalize: checks for errors, writes Decision Log to Cosmos DB
 """
 
@@ -18,10 +19,11 @@ import time
 import uuid
 from graph.state import GraphState, DecisionLogEntry
 from azure_clients.cosmos_client import cosmos_decision_log
+from agents.router import classify_query
 
 
 def supervisor_init(state: GraphState) -> dict:
-    """Entry node. Validates required fields and initialises defaults."""
+    """Entry node. Validates required fields, sets model tier, initialises defaults."""
     t0 = time.time()
 
     missing = [f for f in ("company", "quarter", "query") if not state.get(f)]
@@ -33,7 +35,10 @@ def supervisor_init(state: GraphState) -> dict:
                 f"FAILED — missing {missing}", None, None, _ms(t0))],
         }
 
-    defaults: dict = {}
+    # Model routing — classify query tier before pipeline runs (Phase 2)
+    model_tier = classify_query(state["query"])
+
+    defaults: dict = {"model_tier": model_tier}
     if not state.get("comparison_quarters"):
         defaults["comparison_quarters"] = []
     if not state.get("retrieval_results"):
@@ -52,8 +57,11 @@ def supervisor_init(state: GraphState) -> dict:
     entry: DecisionLogEntry = _log_entry(
         agent="supervisor_init",
         tool_called=None,
-        input_summary=f"company={state['company']} quarter={state['quarter']} query_len={len(state['query'])}",
-        output_summary="pipeline initialised",
+        input_summary=(
+            f"company={state['company']} quarter={state['quarter']} "
+            f"query_len={len(state['query'])} model_tier={model_tier}"
+        ),
+        output_summary=f"pipeline initialised — model_tier={model_tier}",
         confidence=None,
         tokens_used=None,
         latency_ms=_ms(t0),
@@ -92,8 +100,7 @@ def supervisor_finalize(state: GraphState) -> dict:
         latency_ms=_ms(t0),
     )
 
-    # Persist audit trail to Cosmos DB using the correct log() method.
-    # fire-and-forget — failure is logged, not fatal.
+    # Persist audit trail to Cosmos DB — fire-and-forget, failure is non-fatal
     try:
         run_id = f"{state['company']}_{state['quarter']}_{int(time.time())}"
         cosmos_decision_log.log(
@@ -106,6 +113,7 @@ def supervisor_finalize(state: GraphState) -> dict:
                 "company": state["company"],
                 "quarter": state["quarter"],
                 "query": state.get("query", ""),
+                "model_tier": state.get("model_tier", "primary"),
             },
         )
     except Exception as exc:

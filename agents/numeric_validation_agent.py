@@ -48,7 +48,7 @@ async def numeric_validation_agent(state: GraphState) -> dict:
         return _empty("no transcript content for claim extraction", t0)
 
     # Step 2: extract claims via LLM (async)
-    raw_claims = await _extract_claims(transcript_text)
+    raw_claims = await _extract_claims(transcript_text, state.get("model_tier", "primary"))
     if not raw_claims:
         return _empty("no numeric claims extracted from transcript", t0)
 
@@ -122,13 +122,14 @@ def _concat_transcript(retrieval_results: list, max_chars: int = 6000) -> str:
     return "\n\n".join(parts)
 
 
-async def _extract_claims(transcript_text: str) -> list[dict]:
+async def _extract_claims(transcript_text: str, model_tier: str = "primary") -> list[dict]:
     try:
-        response = await openai_client.achat(
+        response = await openai_client.achat_tiered(
             messages=[
                 {"role": "system", "content": _CLAIM_EXTRACTION_PROMPT},
                 {"role": "user", "content": transcript_text},
             ],
+            model_tier=model_tier,
         )
         raw = response.choices[0].message.content or "[]"
         return json.loads(raw)

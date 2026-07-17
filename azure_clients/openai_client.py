@@ -54,6 +54,7 @@ class OpenAIClient:
         endpoint = kv.get_secret("AZURE-OPENAI-ENDPOINT")
         api_key = kv.get_secret("AZURE-OPENAI-KEY")
         self._chat_deployment = kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME")
+        self._standard_deployment = kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME-STANDARD")
         self._embedding_deployment = "text-embedding-3-small"
 
         self._client = AzureOpenAI(
@@ -69,8 +70,9 @@ class OpenAIClient:
         )
 
         logger.info(
-            "OpenAIClient: connected — chat=%s, embedding=%s",
+            "OpenAIClient: connected — primary=%s, standard=%s, embedding=%s",
             self._chat_deployment,
+            self._standard_deployment,
             self._embedding_deployment,
         )
 
@@ -165,6 +167,62 @@ class OpenAIClient:
         response = await self._async_client.chat.completions.create(**kwargs)
         logger.debug(
             "OpenAIClient.achat: %d prompt + %d completion tokens",
+            response.usage.prompt_tokens,
+            response.usage.completion_tokens,
+        )
+        return response
+
+    # ------------------------------------------------------------------
+    # Tiered async chat — model routing (Phase 2)
+    # ------------------------------------------------------------------
+
+    async def achat_tiered(
+        self,
+        messages: list[dict],
+        model_tier: str = "primary",
+        tools: Optional[list[dict]] = None,
+        tool_choice: Optional[str] = None,
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
+        max_completion_tokens: Optional[int] = None,
+    ) -> object:
+        """
+        Async chat completion with model tier routing.
+
+        Routes to:
+          "primary"  → gpt-5.4-mini (complex reasoning, comparison, report)
+          "standard" → gpt-5-mini   (simple fact lookups)
+
+        Args:
+            messages:    OpenAI message list.
+            model_tier:  "primary" | "standard". Defaults to "primary".
+            All other args mirror achat().
+
+        Returns:
+            The full ChatCompletion response object.
+        """
+        deployment = (
+            self._standard_deployment
+            if model_tier == "standard"
+            else self._chat_deployment
+        )
+
+        limit = max_completion_tokens or max_tokens
+        limit = max(limit, _MIN_SAFE_TOKENS)
+
+        kwargs = dict(
+            model=deployment,
+            messages=messages,
+            max_completion_tokens=limit,
+        )
+        if tools:
+            kwargs["tools"] = tools
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
+
+        response = await self._async_client.chat.completions.create(**kwargs)
+        logger.debug(
+            "OpenAIClient.achat_tiered [%s/%s]: %d prompt + %d completion tokens",
+            model_tier, deployment,
             response.usage.prompt_tokens,
             response.usage.completion_tokens,
         )

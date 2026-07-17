@@ -56,7 +56,8 @@ async def report_agent(state: GraphState) -> dict:
 
     # ── Step 1: Draft ─────────────────────────────────────────────────────
     draft_prompt = _build_draft_prompt(state)
-    draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt)
+    model_tier = state.get("model_tier", "primary")
+    draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt, model_tier)
     total_tokens += tokens
 
     if not draft:
@@ -68,7 +69,7 @@ async def report_agent(state: GraphState) -> dict:
         f"DRAFT REPORT:\n{draft}\n\n"
         f"SOURCE EVIDENCE:\n{evidence_summary}"
     )
-    verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt)
+    verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt, model_tier)
     total_tokens += tokens
 
     final_report = verified_report or draft  # fall back to draft if verify fails
@@ -164,18 +165,18 @@ def _build_evidence_summary(state: GraphState) -> str:
 
 # ── Async LLM wrapper ─────────────────────────────────────────────────────────
 
-async def _llm_call(system: str, user: str) -> tuple[str, int]:
+async def _llm_call(system: str, user: str, model_tier: str = "primary") -> tuple[str, int]:
     """
-    Async LLM call via openai_client.achat(). Returns (text, token_count).
-    Wrapper default max_completion_tokens (16384) applies — safe for
-    gpt-5-mini's reasoning token budget.
+    Async tiered LLM call via openai_client.achat_tiered(). Returns (text, token_count).
+    model_tier controls which deployment is used — "primary" or "standard".
     """
     try:
-        response = await openai_client.achat(
+        response = await openai_client.achat_tiered(
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
+            model_tier=model_tier,
         )
         text = response.choices[0].message.content or ""
         tokens = response.usage.total_tokens if response.usage else 0

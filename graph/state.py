@@ -66,6 +66,9 @@ class GraphState(TypedDict):
     query: str                        # analyst's question or "full analysis"
     comparison_quarters: list[str]    # prior quarters to compare against
 
+    # ── Model routing (Phase 2) ────────────────────────────────────────────
+    model_tier: str                   # "primary" (gpt-5.4-mini) | "standard" (gpt-5-mini)
+
     # ── Agent outputs (one key per agent, no shared keys) ──────────────────
     retrieval_results: list[RetrievalResult]
     comparison_findings: list[ComparisonFinding]

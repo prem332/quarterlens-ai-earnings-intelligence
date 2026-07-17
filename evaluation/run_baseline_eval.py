@@ -166,6 +166,7 @@ async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str
         "numeric_validations": [],
         "report": "",
         "decision_log_entries": [],
+        "model_tier": "primary",          # supervisor_init overwrites via classify_query
         "error": None,
     }
 

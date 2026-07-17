@@ -126,7 +126,7 @@ def _get_client():
     client = AzureOpenAI(
         azure_endpoint=kv.get_secret("AZURE-OPENAI-ENDPOINT"),
         api_key=kv.get_secret("AZURE-OPENAI-KEY"),
-        api_version="2024-10-21",
+        api_version="2024-12-01-preview",
     )
     deployment = kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME")
     return client, deployment
@@ -138,7 +138,7 @@ def _call_llm(client, deployment: str, prompt: str) -> dict:
         resp = client.chat.completions.create(
             model=deployment,
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=1024,
+            max_completion_tokens=4096,
         )
         raw = resp.choices[0].message.content.strip()
         # Strip markdown fences if present

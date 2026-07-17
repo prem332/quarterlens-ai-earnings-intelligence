@@ -1,4 +1,6 @@
 """
+agents/retrieval_agent.py
+
 Hybrid retrieval (BM25 + vector) from Azure AI Search.
 Fetches filing chunks and transcript chunks separately, then merges.
 Degrades gracefully — search failures return [] so the pipeline continues.
@@ -89,7 +91,9 @@ def _safe_search(
             company=company,
             quarter=quarter,
             top=top_k,
-            mmr=True,        # MMR reranking: diversity-aware chunk selection
+            mmr=True,        # MMR reranking: diversity-aware chunk selection (Phase 2)
+            rerank=True,     # cross-encoder reranking: accuracy reranking after MMR (Phase 2)
+            rerank_top_k=5,  # final chunks delivered to agents after reranking
         )
         return [
             RetrievalResult(

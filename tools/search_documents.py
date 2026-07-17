@@ -122,21 +122,26 @@ def search_documents(
     mmr: bool = False,
     mmr_fetch_k: int = _MMR_FETCH_K,
     mmr_lambda: float = _MMR_LAMBDA,
+    rerank: bool = False,
+    rerank_top_k: int = 5,
 ) -> dict:
     """
     Hybrid search (vector + BM25) over quarterlens-filings.
 
+    Retrieval chain when all options enabled:
+        AI Search (mmr_fetch_k=20) → MMR (top=10) → Cross-encoder reranker (rerank_top_k=5)
+
     Args:
-        query:        Natural-language search query.
-        doc_type:     Optional filter — '10-Q', '10-K', or 'transcript'.
-        company:      Optional filter — ticker symbol e.g. 'AAPL'.
-        quarter:      Optional filter — fiscal label e.g. 'FY2025-Q3'.
-        top:          Number of results to return (default 5).
-        mmr:          Enable Maximal Marginal Relevance reranking (default False).
-        mmr_fetch_k:  Candidate pool size fetched from AI Search before MMR
-                      (default 20). Must be >= top.
-        mmr_lambda:   MMR trade-off: 1.0 = pure relevance, 0.0 = pure diversity
-                      (default 0.5).
+        query:          Natural-language search query.
+        doc_type:       Optional filter — '10-Q', '10-K', or 'transcript'.
+        company:        Optional filter — ticker symbol e.g. 'AAPL'.
+        quarter:        Optional filter — fiscal label e.g. 'FY2025-Q3'.
+        top:            Number of results after MMR (default 5).
+        mmr:            Enable MMR diversity reranking (default False).
+        mmr_fetch_k:    Candidate pool fetched from AI Search before MMR (default 20).
+        mmr_lambda:     MMR trade-off: 1.0 = pure relevance, 0.0 = pure diversity (default 0.5).
+        rerank:         Enable cross-encoder reranking after MMR (default False).
+        rerank_top_k:   Final number of chunks after cross-encoder reranking (default 5).
 
     Returns:
         dict with 'results' list and 'count'.
@@ -173,7 +178,7 @@ def search_documents(
             }
         )
 
-    # 5. MMR reranking — reselects top chunks for relevance + diversity
+    # 5. MMR reranking — diversity-aware chunk selection
     if mmr and len(results) > top:
         results = _mmr_rerank(
             chunks=results,
@@ -183,5 +188,14 @@ def search_documents(
         )
     else:
         results = results[:top]
+
+    # 6. Cross-encoder reranking — accuracy reranking on MMR output
+    if rerank and results:
+        from tools.rerank_documents import rerank_documents
+        results = rerank_documents(
+            query=query,
+            chunks=results,
+            top_k=rerank_top_k,
+        )
 
     return {"results": results, "count": len(results)}

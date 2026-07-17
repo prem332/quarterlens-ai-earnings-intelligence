@@ -73,7 +73,7 @@ def compute_retrieval_metrics(
     hits = sum(1 for key in retrieved_keys if key in gt_keys)
 
     precision = hits / k if k > 0 else 0.0
-    recall = hits / len(gt_keys) if gt_keys else 0.0
+    recall = min(1.0, hits / len(gt_keys)) if gt_keys else 0.0
 
     return {
         "precision_at_k": round(precision, 4),

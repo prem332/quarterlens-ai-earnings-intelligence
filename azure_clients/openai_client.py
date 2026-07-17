@@ -20,7 +20,13 @@ import logging
 from collections.abc import Iterator
 from typing import Optional
 
-from openai import AzureOpenAI, AsyncAzureOpenAI
+try:
+    from langfuse.openai import AzureOpenAI
+    from openai import AsyncAzureOpenAI
+    _langfuse_instrumented = True
+except ImportError:
+    from openai import AzureOpenAI, AsyncAzureOpenAI
+    _langfuse_instrumented = False
 
 from azure_clients.key_vault_client import kv
 

@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7,6 +8,18 @@ import os
 from api.middleware.guardrails import GuardrailsMiddleware
 from api.middleware.rate_limiter import RateLimiterMiddleware
 from api.routes import analysis, reports, evidence, export
+from observability.phoenix_setup import setup_phoenix
+from observability.langfuse_setup import setup_langfuse, flush_langfuse
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: initialise observability. Shutdown: flush Langfuse events."""
+    setup_phoenix()
+    setup_langfuse()
+    yield
+    flush_langfuse()
+
 
 app = FastAPI(
     title="QuarterLens AI",
@@ -14,12 +27,12 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 # Phase 3 middleware — pass-through for now
 app.add_middleware(GuardrailsMiddleware)
 app.add_middleware(RateLimiterMiddleware)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],

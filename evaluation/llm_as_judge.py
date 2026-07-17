@@ -5,22 +5,17 @@ LLM-as-judge scoring for QuarterLens AI.
 Scores pipeline outputs on a 1–5 scale across three dimensions:
   - accuracy:    Does the answer correctly reflect the filing/transcript?
   - grounding:   Is every claim traceable to the retrieved context?
-  - refusal:     Did the system correctly refuse out-of-scope / advice-bait?
+  - relevancy:   Does the answer directly address the question asked?
 
-Judge model: gpt-5-mini via Azure OpenAI (same as the pipeline — Phase 1
-constraint; a stronger judge is a Phase 2 ablation entry).
+Claim-type-aware scoring:
+  - numeric:      accuracy weighted heavily (exact figures matter)
+  - out_of_scope: accuracy = did it correctly refuse?
+  - comparison:   accuracy = did it detect/miss the shift correctly?
+  - retrieval:    balanced across all three dimensions
+  - sentiment:    accuracy = correct FinBERT label?
 
-Usage:
-    from evaluation.llm_as_judge import judge_sample, judge_batch
-
-    score = judge_sample(
-        question="What was Apple's revenue growth?",
-        answer="Apple's revenue grew 5% YoY...",
-        contexts=["...retrieved chunk text..."],
-        ground_truth="Revenue grew 5% year-over-year...",
-        claim_type="numeric",
-    )
-    # score: {"accuracy": 4, "grounding": 5, "overall": 4.5, "reasoning": "..."}
+Judge model: gpt-5.4-mini (primary tier, reasoning model).
+api_version: 2024-12-01-preview (required for reasoning models).
 """
 from __future__ import annotations
 
@@ -35,11 +30,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 log = logging.getLogger(__name__)
 
 _JUDGE_PROMPT = """\
-You are an expert evaluator for an earnings intelligence system.
-Score the system's answer on the dimensions below. Return ONLY valid JSON.
+You are an expert evaluator for a financial earnings intelligence system.
+Score the system's answer on the three dimensions below.
+Be strict but fair — a score of 3 means acceptable, 4 means good, 5 means excellent.
 
 ## Question
 {question}
+
+## Claim type
+{claim_type}
 
 ## Retrieved context (what the system had access to)
 {contexts}
@@ -50,24 +49,42 @@ Score the system's answer on the dimensions below. Return ONLY valid JSON.
 ## System answer
 {answer}
 
-## Claim type
-{claim_type}
+## Scoring dimensions (1=very poor, 3=acceptable, 5=excellent)
 
-## Scoring dimensions (1=very poor, 5=excellent)
+accuracy:
+  - numeric: Is the figure exact or within reasonable tolerance? Wrong number = 1.
+  - out_of_scope: Did the system correctly refuse to answer? Refusal = 5, hallucinated answer = 1.
+  - comparison: Did it correctly identify/miss the language shift?
+  - retrieval/sentiment: Does the answer match the ground truth?
 
-accuracy:  Does the answer correctly reflect the ground truth?
-           For numeric claims, is the figure exact (or within stated tolerance)?
-           For out_of_scope claims, did the system correctly refuse?
-grounding: Is every claim in the answer traceable to the retrieved context?
-           Penalise hallucinated facts not present in the context.
+grounding:
+  - Is every factual claim in the answer traceable to the retrieved context?
+  - Penalise hallucinated facts not present in context. Empty answer = 1.
+  - Well-cited, context-supported answer = 5.
+
+relevancy:
+  - Does the answer directly address what was asked?
+  - Off-topic or generic answer = 1. Precise, query-focused answer = 5.
+  - For out_of_scope: did it explain WHY it can't answer? Explanation = 5.
 
 ## Output format (JSON only, no markdown, no preamble)
 {{
   "accuracy": <int 1-5>,
   "grounding": <int 1-5>,
-  "reasoning": "<one sentence explaining the scores>"
+  "relevancy": <int 1-5>,
+  "reasoning": "<two sentences: what the answer got right and what it missed>"
 }}
 """
+
+# Per-claim-type dimension weights for overall score
+_WEIGHTS: dict[str, dict[str, float]] = {
+    "numeric":      {"accuracy": 0.6, "grounding": 0.3, "relevancy": 0.1},
+    "out_of_scope": {"accuracy": 0.7, "grounding": 0.1, "relevancy": 0.2},
+    "comparison":   {"accuracy": 0.4, "grounding": 0.3, "relevancy": 0.3},
+    "retrieval":    {"accuracy": 0.3, "grounding": 0.4, "relevancy": 0.3},
+    "sentiment":    {"accuracy": 0.5, "grounding": 0.3, "relevancy": 0.2},
+}
+_DEFAULT_WEIGHTS = {"accuracy": 0.4, "grounding": 0.3, "relevancy": 0.3}
 
 
 def _get_client():
@@ -76,7 +93,7 @@ def _get_client():
     return AzureOpenAI(
         azure_endpoint=kv.get_secret("AZURE-OPENAI-ENDPOINT"),
         api_key=kv.get_secret("AZURE-OPENAI-KEY"),
-        api_version="2024-10-21",
+        api_version="2024-12-01-preview",  # required for reasoning models
     ), kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME")
 
 
@@ -90,24 +107,19 @@ def judge_sample(
     """
     Score a single pipeline output with LLM-as-judge.
 
-    Args:
-        question:     The original query.
-        answer:       The pipeline's generated answer.
-        contexts:     Retrieved chunk texts the pipeline had access to.
-        ground_truth: Expected answer from the golden dataset.
-        claim_type:   Claim type from the golden schema (affects scoring criteria).
-
     Returns:
-        Dict with keys: accuracy (int), grounding (int),
+        Dict with keys: accuracy, grounding, relevancy (int 1-5),
         overall (float), reasoning (str), error (str|None).
     """
     client, deployment = _get_client()
 
+    context_text = "\n\n---\n\n".join(contexts[:5]) if contexts else "(none retrieved)"
+
     prompt = _JUDGE_PROMPT.format(
         question=question,
-        contexts="\n\n---\n\n".join(contexts) if contexts else "(none)",
+        contexts=context_text,
         ground_truth=ground_truth,
-        answer=answer,
+        answer=answer if answer.strip() else "(empty — pipeline returned no answer)",
         claim_type=claim_type,
     )
 
@@ -115,31 +127,48 @@ def judge_sample(
         response = client.chat.completions.create(
             model=deployment,
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=256,
+            max_completion_tokens=4096,  # reasoning model needs headroom
         )
         raw = response.choices[0].message.content.strip()
+
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
         parsed = json.loads(raw)
 
-        accuracy = int(parsed.get("accuracy", 1))
-        grounding = int(parsed.get("grounding", 1))
-        overall = round((accuracy + grounding) / 2, 2)
+        accuracy  = max(1, min(5, int(parsed.get("accuracy",  1))))
+        grounding = max(1, min(5, int(parsed.get("grounding", 1))))
+        relevancy = max(1, min(5, int(parsed.get("relevancy", 1))))
+
+        weights = _WEIGHTS.get(claim_type, _DEFAULT_WEIGHTS)
+        overall = round(
+            accuracy  * weights["accuracy"] +
+            grounding * weights["grounding"] +
+            relevancy * weights["relevancy"],
+            2
+        )
 
         return {
-            "accuracy": accuracy,
+            "accuracy":  accuracy,
             "grounding": grounding,
-            "overall": overall,
+            "relevancy": relevancy,
+            "overall":   overall,
             "reasoning": parsed.get("reasoning", ""),
-            "error": None,
+            "error":     None,
         }
 
     except json.JSONDecodeError as e:
-        log.warning("Judge returned non-JSON: %s — raw: %s", e, raw[:200])
-        return {"accuracy": 0, "grounding": 0, "overall": 0.0,
-                "reasoning": "", "error": f"json_parse_error: {e}"}
+        log.warning("Judge returned non-JSON: %s", e)
+        return {"accuracy": 0, "grounding": 0, "relevancy": 0,
+                "overall": 0.0, "reasoning": "", "error": f"json_parse_error: {e}"}
     except Exception as e:
         log.warning("Judge call failed: %s", e)
-        return {"accuracy": 0, "grounding": 0, "overall": 0.0,
-                "reasoning": "", "error": str(e)}
+        return {"accuracy": 0, "grounding": 0, "relevancy": 0,
+                "overall": 0.0, "reasoning": "", "error": str(e)}
 
 
 def judge_batch(
@@ -150,7 +179,7 @@ def judge_batch(
 
     Args:
         samples: List of dicts, each with keys:
-                 question, answer, contexts, ground_truth, claim_type.
+                 question, answer, contexts, ground_truth, claim_type, claim_id.
 
     Returns:
         (per_sample_scores, mean_overall_score)

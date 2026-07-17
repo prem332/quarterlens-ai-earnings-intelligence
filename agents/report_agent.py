@@ -7,11 +7,13 @@ Two-step:
      retrieved chunk or a validated numeric fact. Claims that can't be
      grounded are flagged or removed.
 
-gpt-5-mini note: reasoning model — max_completion_tokens must be >= 2000
+Both LLM calls are async (achat) — Phase 2 async execution.
+gpt-5-mini note: reasoning model — max_completion_tokens must be >= 4096
 or the model produces empty output (reasoning tokens exhaust the budget).
-The openai_client wrapper enforces a minimum of 2000 automatically.
+The openai_client wrapper enforces this minimum automatically.
 """
 
+import asyncio
 import time
 from graph.state import (
     GraphState, DecisionLogEntry,
@@ -45,7 +47,7 @@ Your task:
 4. Return the corrected report text ONLY — no commentary, no JSON."""
 
 
-def report_agent(state: GraphState) -> dict:
+async def report_agent(state: GraphState) -> dict:
     if state.get("error"):
         return {}
 
@@ -54,7 +56,7 @@ def report_agent(state: GraphState) -> dict:
 
     # ── Step 1: Draft ─────────────────────────────────────────────────────
     draft_prompt = _build_draft_prompt(state)
-    draft, tokens = _llm_call(_DRAFT_SYSTEM, draft_prompt)
+    draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt)
     total_tokens += tokens
 
     if not draft:
@@ -66,7 +68,7 @@ def report_agent(state: GraphState) -> dict:
         f"DRAFT REPORT:\n{draft}\n\n"
         f"SOURCE EVIDENCE:\n{evidence_summary}"
     )
-    verified_report, tokens = _llm_call(_VERIFY_SYSTEM, verify_prompt)
+    verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt)
     total_tokens += tokens
 
     final_report = verified_report or draft  # fall back to draft if verify fails
@@ -160,16 +162,16 @@ def _build_evidence_summary(state: GraphState) -> str:
     return "\n\n".join(lines)
 
 
-# ── LLM wrapper ───────────────────────────────────────────────────────────────
+# ── Async LLM wrapper ─────────────────────────────────────────────────────────
 
-def _llm_call(system: str, user: str) -> tuple[str, int]:
+async def _llm_call(system: str, user: str) -> tuple[str, int]:
     """
-    Call the OpenAI wrapper and return (text, token_count).
-    No max_completion_tokens passed — let the wrapper default (8000) apply,
-    which is safe for gpt-5-mini's reasoning token budget.
+    Async LLM call via openai_client.achat(). Returns (text, token_count).
+    Wrapper default max_completion_tokens (16384) applies — safe for
+    gpt-5-mini's reasoning token budget.
     """
     try:
-        response = openai_client.chat(
+        response = await openai_client.achat(
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},

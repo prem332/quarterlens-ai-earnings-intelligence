@@ -3,10 +3,13 @@ Runs in parallel with comparison_agent (see build_graph.py).
 
 Calls run_finbert() over transcript chunks from retrieval_results.
 FinBERT is deterministic — no LLM involved here per ARCHITECTURE.md §3.
+FinBERT inference runs in a thread pool via asyncio.to_thread() so it
+doesn't block the event loop during parallel execution with comparison_agent.
 
 Tool: run_finbert(text) → {label: str, score: float}
 """
 
+import asyncio
 import time
 from graph.state import GraphState, DecisionLogEntry, SentimentScore
 from tools.run_finbert import run_finbert
@@ -19,7 +22,7 @@ _TRANSCRIPT_DOC_TYPES = {"transcript", "earnings_call"}
 _MAX_PASSAGE_CHARS = 1200
 
 
-def sentiment_agent(state: GraphState) -> dict:
+async def sentiment_agent(state: GraphState) -> dict:
     if state.get("error"):
         return {}
 
@@ -34,21 +37,25 @@ def sentiment_agent(state: GraphState) -> dict:
     if not transcript_chunks:
         return _empty("no transcript chunks in retrieval_results", t0)
 
-    scores: list[SentimentScore] = []
-
-    for chunk in transcript_chunks:
+    # Run FinBERT inference concurrently across chunks via thread pool
+    async def _score_chunk(chunk: dict) -> SentimentScore | None:
         passage = chunk.get("content", "")[:_MAX_PASSAGE_CHARS]
         if not passage.strip():
-            continue
+            return None
         try:
-            result = run_finbert(passage)
-            scores.append(SentimentScore(
+            result = await asyncio.to_thread(run_finbert, passage)
+            return SentimentScore(
                 label=result.get("label", "neutral"),
                 score=float(result.get("score", 0.0)),
                 passage=passage,
-            ))
+            )
         except Exception as exc:  # noqa: BLE001
             print(f"[sentiment_agent] run_finbert failed on chunk: {exc}")
+            return None
+
+    tasks = [_score_chunk(chunk) for chunk in transcript_chunks]
+    results = await asyncio.gather(*tasks)
+    scores: list[SentimentScore] = [r for r in results if r is not None]
 
     # Aggregate summary for log
     if scores:

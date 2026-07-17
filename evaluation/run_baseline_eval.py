@@ -1,14 +1,11 @@
 """
 evaluation/run_baseline_eval.py
-Phase 1 baseline evaluation runner for QuarterLens AI.
 
 Loads the golden dataset, runs each claim through the compiled LangGraph
 pipeline, collects (question, answer, contexts, ground_truth) tuples, then
 scores with RAGAS + precision/recall@k + LLM-as-judge. Logs everything to
 MLflow as a single "baseline" run.
 
-This is the Phase 1 baseline. Every Phase 2 optimization is measured
-against this run in MLflow — never against a moving target.
 
 Usage:
     python evaluation/run_baseline_eval.py
@@ -19,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
 import sys
@@ -144,9 +142,9 @@ def _extract_ground_truth_anchors(claim: dict) -> list[dict]:
     return anchors
 
 
-def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]:
+async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]:
     """
-    Invoke the compiled LangGraph graph for one claim.
+    Invoke the compiled LangGraph graph for one claim (async — Phase 2).
 
     Returns dict with:
         answer:   str — the pipeline's final answer
@@ -172,7 +170,7 @@ def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]
     }
 
     try:
-        result = compiled_graph.invoke(initial_state)
+        result = await compiled_graph.ainvoke(initial_state)
         chunks = result.get("retrieval_results") or []
         contexts = [c.get("content", "") for c in chunks if isinstance(c, dict)]
         return {
@@ -256,7 +254,7 @@ def _score_numeric(claim: dict, answer: str) -> dict[str, Any]:
     }
 
 
-def run_eval(
+async def run_eval(
     claims_dir: Path,
     k: int = 5,
     run_name: str = "baseline",
@@ -301,7 +299,7 @@ def run_eval(
                  company, fiscal_label)
 
         t0 = time.time()
-        pipeline_out = _run_pipeline(query, company, fiscal_label)
+        pipeline_out = await _run_pipeline(query, company, fiscal_label)
         latency_ms = int((time.time() - t0) * 1000)
 
         time.sleep(3)  # Rate limit headroom between pipeline calls
@@ -429,12 +427,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    metrics = run_eval(
+    metrics = asyncio.run(run_eval(
         claims_dir=Path(args.claims_dir),
         k=args.k,
         run_name=args.run_name,
         dry_run=args.dry_run,
-    )
+    ))
 
     if not args.dry_run:
         print("\n=== Baseline Eval Results ===")

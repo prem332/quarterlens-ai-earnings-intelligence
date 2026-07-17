@@ -7,10 +7,10 @@ prior quarter text. LLM role: linguistic comparison and shift detection only
 — not arithmetic, not sentiment scoring.
 
 Tools: fetch_prior_quarter(company, quarters_back) → list[dict]
-LLM: gpt-5-mini via openai_client (function-calling not used here; structured
-     output prompt used instead for reliability at Phase 1 scope).
+LLM: gpt-5-mini via openai_client.achat() (async, Phase 2).
 """
 
+import asyncio
 import json
 import time
 from graph.state import GraphState, DecisionLogEntry, ComparisonFinding
@@ -36,7 +36,7 @@ Respond ONLY with a JSON array. Each element must have:
 No preamble, no markdown fences — raw JSON array only."""
 
 
-def comparison_agent(state: GraphState) -> dict:
+async def comparison_agent(state: GraphState) -> dict:
     if state.get("error"):
         return {}
 
@@ -55,16 +55,24 @@ def comparison_agent(state: GraphState) -> dict:
     # Build current-quarter context (filing chunks preferred)
     current_text = _build_context(retrieval_results, prefer_doc_type="filing")
 
-    # Fetch prior quarter chunks and build context per quarter
-    prior_contexts: dict[str, str] = {}
+    # Fetch prior quarter chunks concurrently
     quarters_back_map = _resolve_quarters_back(quarter, comparison_quarters)
 
-    for fiscal_label, quarters_back in quarters_back_map.items():
+    async def _fetch_one(fiscal_label: str, quarters_back: int) -> tuple[str, str]:
         try:
-            prior_hits = fetch_prior_quarter(company=company, quarters_back=quarters_back)
-            prior_contexts[fiscal_label] = _build_context(prior_hits, prefer_doc_type="filing")
+            prior_hits = await asyncio.to_thread(
+                fetch_prior_quarter, company=company, quarters_back=quarters_back
+            )
+            return fiscal_label, _build_context(prior_hits, prefer_doc_type="filing")
         except Exception as exc:  # noqa: BLE001
             print(f"[comparison_agent] fetch_prior_quarter failed for {fiscal_label}: {exc}")
+            return fiscal_label, ""
+
+    fetch_tasks = [
+        _fetch_one(label, qb) for label, qb in quarters_back_map.items()
+    ]
+    fetch_results = await asyncio.gather(*fetch_tasks)
+    prior_contexts = {label: ctx for label, ctx in fetch_results if ctx}
 
     if not prior_contexts:
         return _empty("all prior quarter fetches failed", t0)
@@ -85,14 +93,11 @@ def comparison_agent(state: GraphState) -> dict:
     tokens_used = None
 
     try:
-        response = openai_client.chat.completions.create(
-            model=openai_client._deployment,  # gpt-5-mini
+        response = await openai_client.achat(
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
-            temperature=0.0,
-            max_tokens=2048,
         )
         tokens_used = response.usage.total_tokens if response.usage else None
         raw = response.choices[0].message.content or "[]"
@@ -136,11 +141,6 @@ def _build_context(chunks: list[dict], prefer_doc_type: str, max_chars: int = 40
 
 
 def _resolve_quarters_back(current_quarter: str, comparison_quarters: list[str]) -> dict[str, int]:
-    """
-    Maps each comparison quarter label to a quarters_back integer.
-    Assumes quarters are in order (most recent = index 0 in sorted list).
-    Falls back to sequential numbering if fiscal label parsing is unreliable.
-    """
     result: dict[str, int] = {}
     for i, label in enumerate(comparison_quarters, start=1):
         result[label] = i

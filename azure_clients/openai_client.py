@@ -3,6 +3,7 @@ azure_clients/openai_client.py
 
 Azure OpenAI client for:
   - Chat completions (gpt-5-mini) — streaming and non-streaming
+  - Async chat completions (achat) — for async agent nodes
   - Embeddings (text-embedding-3-small)
 
 Secrets sourced from Key Vault via the kv singleton.
@@ -19,7 +20,7 @@ import logging
 from collections.abc import Iterator
 from typing import Optional
 
-from openai import AzureOpenAI
+from openai import AzureOpenAI, AsyncAzureOpenAI
 
 from azure_clients.key_vault_client import kv
 
@@ -39,6 +40,8 @@ class OpenAIClient:
     """
     Thin wrapper around AzureOpenAI for chat and embedding calls.
     One instance shared across all agents via the module-level singleton.
+    Exposes both sync (chat) and async (achat) interfaces — same credentials,
+    same deployment. Async client used by async agent nodes (Phase 2).
     """
 
     def __init__(self):
@@ -52,6 +55,13 @@ class OpenAIClient:
             api_key=api_key,
             api_version="2024-12-01-preview",  # required for gpt-5-mini
         )
+
+        self._async_client = AsyncAzureOpenAI(
+            azure_endpoint=endpoint,
+            api_key=api_key,
+            api_version="2024-12-01-preview",
+        )
+
         logger.info(
             "OpenAIClient: connected — chat=%s, embedding=%s",
             self._chat_deployment,
@@ -59,7 +69,7 @@ class OpenAIClient:
         )
 
     # ------------------------------------------------------------------
-    # Chat completions
+    # Chat completions (sync)
     # ------------------------------------------------------------------
 
     def chat(
@@ -87,7 +97,7 @@ class OpenAIClient:
             The full ChatCompletion response object.
         """
         limit = max_completion_tokens or max_tokens
-        limit = max(limit, _MIN_SAFE_TOKENS)  # enforce minimum for reasoning model
+        limit = max(limit, _MIN_SAFE_TOKENS)
 
         kwargs = dict(
             model=self._chat_deployment,
@@ -106,6 +116,57 @@ class OpenAIClient:
             response.usage.completion_tokens,
         )
         return response
+
+    # ------------------------------------------------------------------
+    # Chat completions (async) — used by async agent nodes (Phase 2)
+    # ------------------------------------------------------------------
+
+    async def achat(
+        self,
+        messages: list[dict],
+        tools: Optional[list[dict]] = None,
+        tool_choice: Optional[str] = None,
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
+        max_completion_tokens: Optional[int] = None,
+    ) -> object:
+        """
+        Async non-streaming chat completion.
+        Mirrors chat() exactly — use in async agent nodes with await.
+
+        Args:
+            messages:               OpenAI message list.
+            tools:                  Tool schemas for function calling (optional).
+            tool_choice:            "auto" | "none" | specific tool name (optional).
+            max_tokens:             Alias for max_completion_tokens (kept for compat).
+            max_completion_tokens:  Max tokens. Must be >= 4096 for gpt-5-mini.
+
+        Returns:
+            The full ChatCompletion response object.
+        """
+        limit = max_completion_tokens or max_tokens
+        limit = max(limit, _MIN_SAFE_TOKENS)
+
+        kwargs = dict(
+            model=self._chat_deployment,
+            messages=messages,
+            max_completion_tokens=limit,
+        )
+        if tools:
+            kwargs["tools"] = tools
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
+
+        response = await self._async_client.chat.completions.create(**kwargs)
+        logger.debug(
+            "OpenAIClient.achat: %d prompt + %d completion tokens",
+            response.usage.prompt_tokens,
+            response.usage.completion_tokens,
+        )
+        return response
+
+    # ------------------------------------------------------------------
+    # Streaming (sync only — streaming stays sync for Phase 1/2)
+    # ------------------------------------------------------------------
 
     def chat_stream(
         self,

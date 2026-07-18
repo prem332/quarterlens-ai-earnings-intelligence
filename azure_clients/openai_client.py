@@ -57,6 +57,12 @@ class OpenAIClient:
         self._standard_deployment = kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME-STANDARD")
         self._embedding_deployment = "text-embedding-3-small"
 
+        # Fine-tuned deployment — loaded lazily; None if secret not set
+        try:
+            self._finetuned_deployment = kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME-FINETUNED")
+        except Exception:
+            self._finetuned_deployment = None
+
         self._client = AzureOpenAI(
             azure_endpoint=endpoint,
             api_key=api_key,
@@ -70,9 +76,10 @@ class OpenAIClient:
         )
 
         logger.info(
-            "OpenAIClient: connected — primary=%s, standard=%s, embedding=%s",
+            "OpenAIClient: connected — primary=%s, standard=%s, finetuned=%s, embedding=%s",
             self._chat_deployment,
             self._standard_deployment,
+            self._finetuned_deployment or "not configured",
             self._embedding_deployment,
         )
 
@@ -189,22 +196,29 @@ class OpenAIClient:
         Async chat completion with model tier routing.
 
         Routes to:
-          "primary"  → gpt-5.4-mini (complex reasoning, comparison, report)
-          "standard" → gpt-5-mini   (simple fact lookups)
+          "primary"   → gpt-5.4-mini (complex reasoning, comparison, report)
+          "standard"  → gpt-5-mini   (simple fact lookups)
+          "finetuned" → gpt-4o-mini-finetuned (report_agent eval only)
 
         Args:
             messages:    OpenAI message list.
-            model_tier:  "primary" | "standard". Defaults to "primary".
+            model_tier:  "primary" | "standard" | "finetuned". Defaults to "primary".
             All other args mirror achat().
 
         Returns:
             The full ChatCompletion response object.
         """
-        deployment = (
-            self._standard_deployment
-            if model_tier == "standard"
-            else self._chat_deployment
-        )
+        if model_tier == "standard":
+            deployment = self._standard_deployment
+        elif model_tier == "finetuned":
+            if not self._finetuned_deployment:
+                raise ValueError(
+                    "model_tier='finetuned' requested but AZURE-OPENAI-DEPLOYMENT-NAME-FINETUNED "
+                    "is not set in Key Vault."
+                )
+            deployment = self._finetuned_deployment
+        else:
+            deployment = self._chat_deployment
 
         limit = max_completion_tokens or max_tokens
         limit = max(limit, _MIN_SAFE_TOKENS)

@@ -68,6 +68,7 @@ class GraphState(TypedDict):
 
     # ── Model routing (Phase 2) ────────────────────────────────────────────
     model_tier: str                   # "primary" (gpt-5.4-mini) | "standard" (gpt-5-mini)
+    report_model_tier: str            # "primary" | "finetuned" — report_agent only; isolates fine-tuned model from other agents
 
     # ── Agent outputs (one key per agent, no shared keys) ──────────────────
     retrieval_results: list[RetrievalResult]

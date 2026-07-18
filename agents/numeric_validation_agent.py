@@ -120,21 +120,25 @@ def _concat_transcript(retrieval_results: list, max_chars: int = 6000) -> str:
 
 def _extract_claims(transcript_text: str) -> list[dict]:
     try:
-        response = openai_client.chat.completions.create(
-            model=openai_client._deployment,
+        response = openai_client.chat(
             messages=[
                 {"role": "system", "content": _CLAIM_EXTRACTION_PROMPT},
                 {"role": "user", "content": transcript_text},
             ],
-            temperature=0.0,
-            max_tokens=1024,
+            max_completion_tokens=1024,
         )
         raw = response.choices[0].message.content or "[]"
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
         return json.loads(raw)
     except json.JSONDecodeError as exc:
         print(f"[numeric_validation_agent] claim JSON parse failed: {exc}")
         return []
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[numeric_validation_agent] claim extraction LLM failed: {exc}")
         return []
 

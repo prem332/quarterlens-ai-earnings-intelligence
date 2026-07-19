@@ -6,6 +6,11 @@ chunks, then uses the LLM to identify language shifts between current and
 prior quarter text. LLM role: linguistic comparison and shift detection only
 — not arithmetic, not sentiment scoring.
 
+Fix (Phase 3): current-quarter context now uses retrieval_results directly
+in their globally reranked order from retrieval_agent, instead of rebuilding
+and reordering by doc_type. This ensures comparison_agent and report_agent
+operate on the same evidence set with the same ranking.
+
 Tools: fetch_prior_quarter(company, quarters_back) → list[dict]
 LLM: gpt-5-mini via openai_client.achat() (async, Phase 2).
 """
@@ -52,8 +57,10 @@ async def comparison_agent(state: GraphState) -> dict:
     if not comparison_quarters:
         return _empty("no comparison_quarters specified", t0)
 
-    # Build current-quarter context (filing chunks preferred)
-    current_text = _build_context(retrieval_results, prefer_doc_type="filing")
+    # Use retrieval_results directly in globally reranked order — do not
+    # rebuild or reorder by doc_type. This keeps current-quarter evidence
+    # identical to what report_agent receives.
+    current_text = _ranked_context(retrieval_results, max_chars=4000)
 
     # Fetch prior quarter chunks concurrently
     quarters_back_map = _resolve_quarters_back(quarter, comparison_quarters)
@@ -63,8 +70,9 @@ async def comparison_agent(state: GraphState) -> dict:
             prior_hits = await asyncio.to_thread(
                 fetch_prior_quarter, company=company, quarters_back=quarters_back
             )
-            return fiscal_label, _build_context(prior_hits, prefer_doc_type="filing")
-        except Exception as exc:  # noqa: BLE001
+            # Prior quarter context: preserve fetch order (no global ranking available)
+            return fiscal_label, _ranked_context(prior_hits, max_chars=2000)
+        except Exception as exc:
             print(f"[comparison_agent] fetch_prior_quarter failed for {fiscal_label}: {exc}")
             return fiscal_label, ""
 
@@ -106,7 +114,7 @@ async def comparison_agent(state: GraphState) -> dict:
         findings = [_to_finding(f) for f in parsed if isinstance(f, dict)]
     except json.JSONDecodeError as exc:
         print(f"[comparison_agent] JSON parse failed: {exc}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[comparison_agent] LLM call failed: {exc}")
 
     entry: DecisionLogEntry = {
@@ -127,12 +135,16 @@ async def comparison_agent(state: GraphState) -> dict:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _build_context(chunks: list[dict], prefer_doc_type: str, max_chars: int = 4000) -> str:
-    preferred = [c for c in chunks if c.get("doc_type") == prefer_doc_type]
-    ordered = preferred + [c for c in chunks if c.get("doc_type") != prefer_doc_type]
+def _ranked_context(chunks: list[dict], max_chars: int = 4000) -> str:
+    """
+    Build context string from chunks preserving their input order.
+    For retrieval_results this is the global rerank order from retrieval_agent.
+    For prior-quarter hits this is the fetch order from fetch_prior_quarter.
+    No reordering by doc_type — the reranker already determined the best order.
+    """
     parts: list[str] = []
     total = 0
-    for chunk in ordered:
+    for chunk in chunks:
         text = chunk.get("content", "")
         if total + len(text) > max_chars:
             break

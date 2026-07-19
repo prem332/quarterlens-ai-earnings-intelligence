@@ -9,6 +9,11 @@ Three-step:
   3. Verify: LLM checks every factual claim in the draft traces back to a
      retrieved chunk or a validated numeric fact.
 
+Fix (Phase 3): draft and verify now use the identical chunk_text payload.
+Previously verify used _build_evidence_summary() which truncated each chunk
+to 300 chars — the verifier could not confirm claims from the full chunk text
+used by the drafter. Now the same chunk_text string is passed to both steps.
+
 gpt-5.4-mini note: reasoning model — max_completion_tokens must be >= 4096.
 The openai_client wrapper enforces this minimum automatically.
 """
@@ -97,14 +102,8 @@ CRITICAL: When in doubt, DELETE. A shorter grounded report scores higher than a 
 # ── CrewAI LLM factory ────────────────────────────────────────────────────────
 
 def _make_crewai_llm(model_tier: str) -> LLM:
-    """
-    Build a CrewAI LLM pointed at Azure OpenAI.
-    Uses the same tier routing as the rest of the pipeline.
-    Sets AZURE_ENDPOINT env var so CrewAI's Azure provider can find it —
-    sourced from Key Vault, works identically in local dev and Container Apps.
-    """
     endpoint = kv.get_secret("AZURE-OPENAI-ENDPOINT")
-    os.environ["AZURE_ENDPOINT"] = endpoint  # CrewAI Azure provider requires this
+    os.environ["AZURE_ENDPOINT"] = endpoint
 
     deployment = (
         kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME-STANDARD")
@@ -122,11 +121,6 @@ def _make_crewai_llm(model_tier: str) -> LLM:
 # ── CrewAI bull/bear debate ───────────────────────────────────────────────────
 
 def _build_debate_crew(evidence_summary: str, model_tier: str) -> Crew:
-    """
-    Build a two-agent CrewAI crew for bull/bear debate.
-    Bull agent argues the positive case; bear agent argues the critical/risk case.
-    Sequential execution: bull first, bear responds.
-    """
     llm = _make_crewai_llm(model_tier)
 
     bull_analyst = Agent(
@@ -185,14 +179,9 @@ def _build_debate_crew(evidence_summary: str, model_tier: str) -> Crew:
 
 
 def _run_debate_sync(evidence_summary: str, model_tier: str) -> str:
-    """
-    Synchronous CrewAI kickoff — wrapped in asyncio.to_thread by the caller.
-    Returns formatted bull/bear debate summary string.
-    """
     try:
         crew = _build_debate_crew(evidence_summary, model_tier)
         result = crew.kickoff()
-        # result.tasks_output is a list of TaskOutput objects
         outputs = result.tasks_output if hasattr(result, "tasks_output") else []
         if len(outputs) >= 2:
             bull_text = outputs[0].raw if hasattr(outputs[0], "raw") else str(outputs[0])
@@ -212,8 +201,6 @@ async def report_agent(state: GraphState) -> dict:
 
     t0 = time.time()
     total_tokens = 0
-    # Use report_model_tier if set — isolates finetuned model to report_agent only.
-    # Falls back to model_tier for backward compatibility.
     model_tier = state.get("report_model_tier") or state.get("model_tier", "primary")
 
     # ── Step 1: Bull/Bear debate (CrewAI) ─────────────────────────────────
@@ -223,7 +210,10 @@ async def report_agent(state: GraphState) -> dict:
     )
 
     # ── Step 2: Draft ─────────────────────────────────────────────────────
-    draft_prompt = _build_draft_prompt(state, debate_summary)
+    # chunk_text is built once and reused in verify — ensures draft and
+    # verifier operate on identical evidence, not a truncated summary.
+    chunk_text = _build_chunk_text(state)
+    draft_prompt = _build_draft_prompt(state, chunk_text, debate_summary)
     draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt, model_tier)
     total_tokens += tokens
 
@@ -231,9 +221,11 @@ async def report_agent(state: GraphState) -> dict:
         return _empty("draft generation failed", t0)
 
     # ── Step 3: Verify ────────────────────────────────────────────────────
+    # Use chunk_text (same as draft) — not _build_evidence_summary() which
+    # was truncating each chunk to 300 chars and causing verifier blindspots.
     verify_prompt = (
         f"DRAFT REPORT:\n{draft}\n\n"
-        f"SOURCE EVIDENCE:\n{evidence_summary}"
+        f"SOURCE EVIDENCE:\n{chunk_text}"
     )
     verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt, model_tier)
     total_tokens += tokens
@@ -264,14 +256,22 @@ async def report_agent(state: GraphState) -> dict:
 
 # ── Prompt builders ───────────────────────────────────────────────────────────
 
-def _build_draft_prompt(state: GraphState, debate_summary: str = "") -> str:
+def _build_chunk_text(state: GraphState, max_chunks: int = 8) -> str:
+    """
+    Build the full chunk text payload used by both draft and verify steps.
+    Preserves the global reranking order from retrieval_agent.
+    Each chunk tagged with source type for citation tracking.
+    """
+    chunks = state.get("retrieval_results") or []
+    return "\n\n".join(
+        f"[{r['doc_type'].upper()}] {r['content']}"
+        for r in chunks[:max_chunks]
+    )
+
+
+def _build_draft_prompt(state: GraphState, chunk_text: str, debate_summary: str = "") -> str:
     company = state["company"]
     quarter = state["quarter"]
-
-    chunks = state.get("retrieval_results") or []
-    chunk_text = "\n\n".join(
-        f"[{r['doc_type'].upper()}] {r['content']}" for r in chunks[:8]
-    )
 
     findings: list[ComparisonFinding] = state.get("comparison_findings") or []
     findings_text = "\n".join(
@@ -323,7 +323,11 @@ Draft the analyst earnings intelligence briefing based on the above."""
 
 
 def _build_evidence_summary(state: GraphState) -> str:
-    """Compact evidence summary for debate input and verification step."""
+    """
+    Compact evidence summary for the CrewAI debate input only.
+    Debate agents need a shorter context — 300 chars per chunk is sufficient
+    for bull/bear framing. Full chunk_text is used for draft + verify.
+    """
     lines: list[str] = []
     for r in (state.get("retrieval_results") or [])[:10]:
         lines.append(f"[{r['doc_type'].upper()}] {r['content'][:300]}")
@@ -338,9 +342,6 @@ def _build_evidence_summary(state: GraphState) -> str:
 # ── Async LLM wrapper ─────────────────────────────────────────────────────────
 
 async def _llm_call(system: str, user: str, model_tier: str = "primary") -> tuple[str, int]:
-    """
-    Async tiered LLM call via openai_client.achat_tiered(). Returns (text, token_count).
-    """
     try:
         response = await openai_client.achat_tiered(
             messages=[

@@ -90,6 +90,7 @@ _CONCEPT_ALIASES: dict[str, str] = {
     "total_revenue_yoy_growth":             "Revenues",
     "total_revenue_growth_yoy_constant_currency": "Revenues",
     "revenue_growth_cc":                    "Revenues",
+    "revenue_yoy_growth":                   "Revenues",   # variant of revenue_growth_yoy
     # Sequential (QoQ) growth variants
     "revenue_growth_sequential":            "Revenues",
     "revenue_growth_sequential_absolute":   "Revenues",
@@ -119,6 +120,9 @@ _CONCEPT_ALIASES: dict[str, str] = {
     "operating_expenses":                   "OperatingExpenses",
     "operating_expenses_growth_cc":         "OperatingExpenses",    # YoY on reported OpEx
     "operating_expenses_growth":            "OperatingExpenses",
+    "operating_expenses_yoy_growth":        "OperatingExpenses",    # variant
+    # Gross margin QoQ change
+    "gross_margin_qoq_change":              "GrossProfit",          # margin pct change QoQ
     # Net income
     "net_income":                           "NetIncomeLoss",
     "net_income_loss":                      "NetIncomeLoss",
@@ -183,7 +187,7 @@ _QOQ_METRICS = {
 
 # Margin pct change — compute margin for current and prior, then diff
 _MARGIN_CHANGE_METRICS = {
-    "gross_margin_pct_change",
+    "gross_margin_pct_change", "gross_margin_qoq_change",
 }
 
 # Categorized unsupported metrics — not in SEC XBRL financial_facts.
@@ -201,11 +205,13 @@ _UNSUPPORTED_METRIC_CATEGORIES: dict[str, str] = {
     "segment_gross_margin_dollars":                 "segment_kpi",
     "segment_gross_margin":                         "segment_kpi",
     # Product revenue — AAPL
-    "iphone_revenue":    "product_kpi",
-    "mac_revenue":       "product_kpi",
-    "ipad_revenue":      "product_kpi",
-    "services_revenue":  "product_kpi",
-    "wearables_revenue": "product_kpi",
+    "iphone_revenue":              "product_kpi",
+    "mac_revenue":                 "product_kpi",
+    "ipad_revenue":                "product_kpi",
+    "services_revenue":            "product_kpi",
+    "services_revenue_yoy_growth": "product_kpi",
+    "services_revenue_growth_yoy": "product_kpi",
+    "wearables_revenue":           "product_kpi",
     # Product / forward-looking KPIs — NVDA
     "blackwell_rubin_visible_revenue":    "product_kpi",
     "blackwell_revenue":                  "product_kpi",

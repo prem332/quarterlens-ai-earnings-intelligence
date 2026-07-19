@@ -84,3 +84,6 @@ def rerank_documents(
     # Sort by rerank_score descending, return top_k
     scored_chunks.sort(key=lambda c: c["rerank_score"], reverse=True)
     return scored_chunks[:top_k]
+
+# Warm-up: load model at import time so first rerank_documents() call has no cold-start penalty
+_get_cross_encoder()

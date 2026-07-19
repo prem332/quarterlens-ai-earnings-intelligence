@@ -6,6 +6,11 @@ Design notes:
   append audit entries concurrently without clobbering each other.
 - Comparison and Sentiment run in parallel (see build_graph.py); their output
   keys (comparison_findings, sentiment_scores) are independent.
+- retrieval_results: globally reranked evidence (filing + transcript) for
+  comparison_agent, report_agent, numeric_validation_agent.
+- transcript_retrieval_results: raw transcript candidates preserved for
+  sentiment_agent — FinBERT needs maximum transcript coverage, not the
+  globally reranked top-5 which may be dominated by filing chunks.
 """
 
 import operator
@@ -68,10 +73,11 @@ class GraphState(TypedDict):
 
     # ── Model routing (Phase 2) ────────────────────────────────────────────
     model_tier: str                   # "primary" (gpt-5.4-mini) | "standard" (gpt-5-mini)
-    report_model_tier: str            # "primary" | "finetuned" — report_agent only; isolates fine-tuned model from other agents
+    report_model_tier: str            # "primary" | "finetuned" — report_agent only
 
     # ── Agent outputs (one key per agent, no shared keys) ──────────────────
-    retrieval_results: list[RetrievalResult]
+    retrieval_results: list[RetrievalResult]             # globally reranked — comparison/report/numeric
+    transcript_retrieval_results: list[RetrievalResult]  # transcript candidates — sentiment_agent only
     comparison_findings: list[ComparisonFinding]
     sentiment_scores: list[SentimentScore]
     numeric_validations: list[NumericValidation]

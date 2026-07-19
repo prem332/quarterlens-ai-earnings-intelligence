@@ -43,6 +43,8 @@ def supervisor_init(state: GraphState) -> dict:
         defaults["comparison_quarters"] = []
     if not state.get("retrieval_results"):
         defaults["retrieval_results"] = []
+    if not state.get("transcript_retrieval_results"):   # ← add this
+        defaults["transcript_retrieval_results"] = []
     if not state.get("comparison_findings"):
         defaults["comparison_findings"] = []
     if not state.get("sentiment_scores"):

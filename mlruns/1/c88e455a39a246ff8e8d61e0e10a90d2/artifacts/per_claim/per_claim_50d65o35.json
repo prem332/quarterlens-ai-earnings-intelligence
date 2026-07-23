@@ -1,0 +1,92 @@
+[
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_005",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 349926,
+    "pipeline_error": null,
+    "answer_length": 4497
+  },
+  {
+    "claim_id": "META_FY2025-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 94214,
+    "pipeline_error": null,
+    "answer_length": 2389
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_010",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 47952,
+    "pipeline_error": null,
+    "answer_length": 4716
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 38445,
+    "pipeline_error": null,
+    "answer_length": 4748
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 41958,
+    "pipeline_error": null,
+    "answer_length": 3312
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_004",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 30231,
+    "pipeline_error": null,
+    "answer_length": 4489
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_sent_002",
+    "claim_type": "sentiment",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 41107,
+    "pipeline_error": null,
+    "answer_length": 4881
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_004",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 32730,
+    "pipeline_error": null,
+    "answer_length": 4192
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 31888,
+    "pipeline_error": null,
+    "answer_length": 4535
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 33227,
+    "pipeline_error": null,
+    "answer_length": 3680
+  }
+]

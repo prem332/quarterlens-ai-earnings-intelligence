@@ -623,7 +623,7 @@ async def run_eval(
     error_analysis_batch: list[dict] = []   # Phase 3: retrieval error classification
     detail_reports: list[dict] = []          # --detail-report: per-claim chunk detail
 
-    for claim in runnable:
+    for claim_idx, claim in enumerate(runnable, start=1):
         claim_id = claim.get("claim_id", str(uuid.uuid4()))
         claim_type = claim.get("claim_type", "retrieval")
         query = _build_query(claim)
@@ -635,7 +635,11 @@ async def run_eval(
             log.warning("Claim %s has no query — skipping", claim_id)
             continue
 
-        log.info("Claim %s (%s | %s/%s)", claim_id, claim_type, company, fiscal_label)
+        log.info(
+            "Claim %s (%s | %s/%s) [%d/%d — %d remaining]",
+            claim_id, claim_type, company, fiscal_label,
+            claim_idx, len(runnable), len(runnable) - claim_idx,
+        )
 
         t0 = time.time()
         pipeline_out = await _run_pipeline(query, company, fiscal_label)

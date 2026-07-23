@@ -34,7 +34,7 @@ log = logging.getLogger("indexer")
 
 INDEX_NAME = kv.get_secret("AZURE-SEARCH-INDEX")
 EMBED_DIM = 1536
-UPLOAD_BATCH = 500                     # docs per upload request
+UPLOAD_BATCH = 100   # smaller batches for Free tier quota headroom
 HNSW_ALGO = "hnsw-cosine"
 VECTOR_PROFILE = "vector-profile"
 
@@ -65,6 +65,9 @@ def build_index() -> SearchIndex:
                     filterable=True, facetable=True),
         SimpleField(name="section", type=SearchFieldDataType.String,
                     filterable=True, facetable=True),
+        # Phase 4: subsection field for structure-aware filtering
+        SimpleField(name="subsection", type=SearchFieldDataType.String,
+                    filterable=True, facetable=True),
         SimpleField(name="report_date", type=SearchFieldDataType.String,
                     filterable=True, sortable=True),
         SimpleField(name="cik", type=SearchFieldDataType.String, filterable=True),
@@ -92,10 +95,25 @@ def build_index() -> SearchIndex:
 
 
 def recreate_index(client: SearchIndexClient) -> None:
+    import time
+    from azure.search.documents import SearchClient
+    from azure_clients.key_vault_client import kv as _kv
+
     existing = [i for i in client.list_index_names()]
     if INDEX_NAME in existing:
         log.info("Deleting existing index '%s'", INDEX_NAME)
         client.delete_index(INDEX_NAME)
+        # Free F0 tier needs time to reclaim storage after deletion
+        # Poll until index is gone or timeout after 60s
+        for attempt in range(12):
+            time.sleep(5)
+            current = [i for i in client.list_index_names()]
+            if INDEX_NAME not in current:
+                log.info("Index confirmed deleted after %ds", (attempt + 1) * 5)
+                break
+            log.info("Waiting for index deletion... (%ds)", (attempt + 1) * 5)
+        time.sleep(5)  # extra buffer for storage reclaim
+
     log.info("Creating index '%s'", INDEX_NAME)
     client.create_index(build_index())
 
@@ -117,6 +135,7 @@ def _load_all_docs(embedding_manifest: list[dict]) -> list[dict]:
                 "fiscal_label": chunk["fiscal_label"],
                 "form":         chunk["form"],
                 "section":      chunk["section"],
+                "subsection":   chunk.get("subsection", ""),  # Phase 4: new field
                 "report_date":  chunk["report_date"],
                 "cik":          chunk["cik"],
                 "accession":    chunk["accession"],
@@ -127,21 +146,34 @@ def _load_all_docs(embedding_manifest: list[dict]) -> list[dict]:
 
 
 def upload_docs(endpoint: str, key: str, docs: list[dict]) -> int:
+    import time
     client = SearchClient(
         endpoint=endpoint, index_name=INDEX_NAME, credential=AzureKeyCredential(key)
     )
     uploaded = 0
     for start in range(0, len(docs), UPLOAD_BATCH):
         batch = docs[start:start + UPLOAD_BATCH]
-        results = client.upload_documents(documents=batch)
-        succeeded = sum(1 for r in results if r.succeeded)
-        uploaded += succeeded
-        if succeeded != len(batch):
-            for r in results:
-                if not r.succeeded:
-                    log.error("  upload failed: key=%s status=%s", r.key, r.status_code)
-        log.info("  uploaded %d/%d (batch %d-%d)",
-                 succeeded, len(batch), start, start + len(batch))
+        # Retry on 429 (quota) with exponential backoff
+        for attempt in range(5):
+            try:
+                results = client.upload_documents(documents=batch)
+                succeeded = sum(1 for r in results if r.succeeded)
+                uploaded += succeeded
+                if succeeded != len(batch):
+                    for r in results:
+                        if not r.succeeded:
+                            log.error("  upload failed: key=%s status=%s", r.key, r.status_code)
+                log.info("  uploaded %d/%d (batch %d-%d)",
+                         succeeded, len(batch), start, start + len(batch))
+                break
+            except Exception as e:
+                if "429" in str(e) or "quota" in str(e).lower():
+                    wait = 30 * (2 ** attempt)
+                    log.warning("  429/quota on batch %d, waiting %ds (attempt %d/5)...",
+                                start, wait, attempt + 1)
+                    time.sleep(wait)
+                else:
+                    raise
     return uploaded
 
 

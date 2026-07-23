@@ -1,0 +1,227 @@
+[
+  {
+    "claim_id": "META_FY2025-Q3_ret_003",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 69564,
+    "pipeline_error": null,
+    "answer_length": 3548
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 28546,
+    "pipeline_error": null,
+    "answer_length": 3767
+  },
+  {
+    "claim_id": "META_FY2025-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 30904,
+    "pipeline_error": null,
+    "answer_length": 5550
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 28381,
+    "pipeline_error": null,
+    "answer_length": 5509
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 27369,
+    "pipeline_error": null,
+    "answer_length": 5712
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 24879,
+    "pipeline_error": null,
+    "answer_length": 2880
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 25560,
+    "pipeline_error": null,
+    "answer_length": 3256
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 26907,
+    "pipeline_error": null,
+    "answer_length": 5179
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_004",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 26950,
+    "pipeline_error": null,
+    "answer_length": 4873
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_006",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 30151,
+    "pipeline_error": null,
+    "answer_length": 5223
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_sent_002",
+    "claim_type": "sentiment",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 29350,
+    "pipeline_error": null,
+    "answer_length": 4238
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_004",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 28969,
+    "pipeline_error": null,
+    "answer_length": 3382
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_004",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 24514,
+    "pipeline_error": null,
+    "answer_length": 2836
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 31005,
+    "pipeline_error": null,
+    "answer_length": 4054
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_007",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 25958,
+    "pipeline_error": null,
+    "answer_length": 3336
+  },
+  {
+    "claim_id": "META_FY2025-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 25846,
+    "pipeline_error": null,
+    "answer_length": 2751
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_011",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 26348,
+    "pipeline_error": null,
+    "answer_length": 3286
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_003",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 24002,
+    "pipeline_error": null,
+    "answer_length": 2799
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_007",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 29275,
+    "pipeline_error": null,
+    "answer_length": 4105
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_010",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 27484,
+    "pipeline_error": null,
+    "answer_length": 4496
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 28119,
+    "pipeline_error": null,
+    "answer_length": 4431
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_005",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 26059,
+    "pipeline_error": null,
+    "answer_length": 3659
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_005",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 30491,
+    "pipeline_error": null,
+    "answer_length": 2758
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_006",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 29224,
+    "pipeline_error": null,
+    "answer_length": 3146
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 25737,
+    "pipeline_error": null,
+    "answer_length": 4257
+  }
+]

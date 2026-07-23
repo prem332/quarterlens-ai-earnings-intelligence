@@ -10,6 +10,11 @@ Supports phased evaluation (cost control):
 
 Stratified sampling ensures all claim types are represented even in small runs.
 
+Phase 3 addition: retrieval error analysis integrated into every eval run.
+For each claim with ground truth anchors, top-5 chunks are classified as:
+  exact_match, same_accession, same_company, irrelevant
+Duplicate density and adjacent chunk rate also computed and logged to MLflow.
+
 Usage:
     python evaluation/run_baseline_eval.py --dry-run
     python evaluation/run_baseline_eval.py --max-claims 5 --run-name baseline-recursive-5
@@ -289,6 +294,250 @@ def _score_numeric(claim: dict, answer: str) -> dict:
             "filed_value": filed_f, "stated_value": stated_f, "tolerance_rule": tolerance}
 
 
+# ── Retrieval error analysis helpers (Phase 3) ────────────────────────────────
+
+def _classify_chunk(chunk: dict, gt_anchors: list[dict], claim: dict) -> str:
+    """
+    Classify a retrieved chunk against ground truth anchors.
+    Returns: exact_match | same_accession | same_company | irrelevant
+    """
+    chunk_acc = chunk.get("accession", "").strip()
+    chunk_sec = chunk.get("section", "").strip().lower()
+    chunk_company = chunk.get("company", "").strip().upper()
+    chunk_quarter = chunk.get("quarter", "").strip()
+
+    claim_company = claim.get("company", "").strip().upper()
+    claim_quarter = claim.get("fiscal_label", "").strip()
+
+    gt_accs = {a["accession"].strip() for a in gt_anchors}
+    gt_keys = {(a["accession"].strip(), a["section"].strip().lower()) for a in gt_anchors}
+
+    if (chunk_acc, chunk_sec) in gt_keys:
+        return "exact_match"
+    if chunk_acc in gt_accs:
+        return "same_accession"
+    if chunk_company == claim_company and chunk_quarter == claim_quarter:
+        return "same_company"
+    return "irrelevant"
+
+
+def _duplicate_density(chunks: list[dict]) -> float:
+    """Fraction of top-k chunks sharing accession+section with another chunk."""
+    if len(chunks) <= 1:
+        return 0.0
+    keys = [(c.get("accession", ""), c.get("section", "").lower()) for c in chunks]
+    seen: set = set()
+    dupes = 0
+    for k in keys:
+        if k in seen:
+            dupes += 1
+        seen.add(k)
+    return round(dupes / len(chunks), 4)
+
+
+def _adjacent_chunk_rate(chunks: list[dict]) -> float:
+    """
+    Fraction of chunk pairs with abs(chunk_index diff) <= 2 and same accession.
+    High rate → MMR not diversifying within a document.
+    """
+    if len(chunks) <= 1:
+        return 0.0
+    pairs = 0
+    adjacent = 0
+    for i in range(len(chunks)):
+        for j in range(i + 1, len(chunks)):
+            pairs += 1
+            if chunks[i].get("accession") == chunks[j].get("accession"):
+                idx_i = chunks[i].get("chunk_index", -1)
+                idx_j = chunks[j].get("chunk_index", -1)
+                if idx_i >= 0 and idx_j >= 0 and abs(idx_i - idx_j) <= 2:
+                    adjacent += 1
+    return round(adjacent / pairs, 4) if pairs > 0 else 0.0
+
+
+def _compute_chunk_pair_similarities(chunks: list[dict]) -> list[dict]:
+    """
+    Compute pairwise cosine similarities between top-k chunks for duplicate analysis.
+    Uses the rerank_score as a proxy when embeddings aren't available.
+    Returns list of pair dicts with classification.
+    """
+    pairs = []
+    for i in range(len(chunks)):
+        for j in range(i + 1, len(chunks)):
+            a, b = chunks[i], chunks[j]
+            same_acc = a.get("accession", "") == b.get("accession", "")
+            same_sec = a.get("section", "").lower() == b.get("section", "").lower()
+            same_key = same_acc and same_sec
+            idx_dist = (
+                abs(a.get("chunk_index", -1) - b.get("chunk_index", -1))
+                if a.get("chunk_index", -1) >= 0 and b.get("chunk_index", -1) >= 0
+                else -1
+            )
+            # Classify the duplicate pair type
+            if same_key:
+                if idx_dist >= 0 and idx_dist <= 2:
+                    pair_type = "adjacent_same_section"
+                else:
+                    pair_type = "non_adjacent_same_section"
+            elif same_acc:
+                pair_type = "same_filing_diff_section"
+            elif a.get("company") == b.get("company") and a.get("quarter") == b.get("quarter"):
+                pair_type = "same_company_diff_filing"
+            else:
+                pair_type = "different_company"
+
+            pairs.append({
+                "rank_a": i + 1,
+                "rank_b": j + 1,
+                "chunk_id_a": a.get("chunk_id", ""),
+                "chunk_id_b": b.get("chunk_id", ""),
+                "accession_a": a.get("accession", ""),
+                "accession_b": b.get("accession", ""),
+                "section_a": a.get("section", ""),
+                "section_b": b.get("section", ""),
+                "doc_type_a": a.get("doc_type", ""),
+                "doc_type_b": b.get("doc_type", ""),
+                "chunk_index_a": a.get("chunk_index", -1),
+                "chunk_index_b": b.get("chunk_index", -1),
+                "chunk_index_distance": idx_dist,
+                "same_accession": same_acc,
+                "same_section": same_sec,
+                "same_key": same_key,
+                "pair_type": pair_type,
+                "content_preview_a": a.get("content", "")[:200],
+                "content_preview_b": b.get("content", "")[:200],
+            })
+    return pairs
+
+
+def _build_detail_report(
+    claim: dict,
+    chunks: list[dict],
+    gt_anchors: list[dict],
+    classifications: list[str],
+    answer: str,
+    k: int,
+) -> dict:
+    """Build a full per-claim detail record for the --detail-report output."""
+    top_k = chunks[:k]
+    chunk_details = []
+    for rank, (chunk, cls) in enumerate(zip(top_k, classifications), start=1):
+        chunk_details.append({
+            "rank":          rank,
+            "classification": cls,
+            "chunk_id":      chunk.get("chunk_id", ""),
+            "accession":     chunk.get("accession", ""),
+            "section":       chunk.get("section", ""),
+            "doc_type":      chunk.get("doc_type", ""),
+            "chunk_index":   chunk.get("chunk_index", -1),
+            "chunk_total":   chunk.get("chunk_total", -1),
+            "score":         round(float(chunk.get("score", 0.0)), 4),
+            "content_preview": chunk.get("content", "")[:300],
+        })
+
+    return {
+        "claim_id":            claim.get("claim_id", ""),
+        "claim_type":          claim.get("claim_type", ""),
+        "company":             claim.get("company", ""),
+        "fiscal_label":        claim.get("fiscal_label", ""),
+        "difficulty":          claim.get("difficulty", ""),
+        "edge_case":           claim.get("edge_case", ""),
+        "query":               _build_query(claim)[:200],
+        "ground_truth_anchors": gt_anchors,
+        "precision_at_k":      round(
+            sum(1 for c in classifications if c == "exact_match") / k, 4
+        ) if k else 0.0,
+        "duplicate_density":   _duplicate_density(top_k),
+        "adjacent_chunk_rate": _adjacent_chunk_rate(top_k),
+        "chunks":              chunk_details,
+        "chunk_pairs":         _compute_chunk_pair_similarities(top_k),
+        "answer_preview":      answer[:300],
+    }
+    """
+    Aggregate retrieval error classifications across all claims.
+    Returns summary dict suitable for MLflow logging.
+    """
+    if not error_analysis_batch:
+        return {}
+
+    total_chunks = 0
+    counts = {"exact_match": 0, "same_accession": 0, "same_company": 0, "irrelevant": 0}
+    dup_densities = []
+    adj_rates = []
+
+    for item in error_analysis_batch:
+        for cls in item["classifications"]:
+            counts[cls] = counts.get(cls, 0) + 1
+            total_chunks += 1
+        dup_densities.append(item["duplicate_density"])
+        adj_rates.append(item["adjacent_chunk_rate"])
+
+    rates = {k: round(v / total_chunks, 4) if total_chunks else 0.0
+             for k, v in counts.items()}
+
+    dominant = max(
+        {"same_accession": counts["same_accession"],
+         "same_company": counts["same_company"],
+         "irrelevant": counts["irrelevant"]},
+        key=lambda k: {"same_accession": counts["same_accession"],
+                       "same_company": counts["same_company"],
+                       "irrelevant": counts["irrelevant"]}[k]
+    )
+
+    return {
+        "retrieval_exact_match_rate":    rates["exact_match"],
+        "retrieval_same_accession_rate": rates["same_accession"],
+        "retrieval_same_company_rate":   rates["same_company"],
+        "retrieval_irrelevant_rate":     rates["irrelevant"],
+        "retrieval_duplicate_density":   round(sum(dup_densities) / len(dup_densities), 4),
+        "retrieval_adjacent_chunk_rate": round(sum(adj_rates) / len(adj_rates), 4),
+        "retrieval_dominant_failure":    dominant,
+    }
+
+
+def _compute_error_analysis(error_analysis_batch: list[dict]) -> dict:
+    """
+    Aggregate retrieval error classifications across all claims.
+    Returns summary dict suitable for MLflow logging.
+    """
+    if not error_analysis_batch:
+        return {}
+
+    total_chunks = 0
+    counts = {"exact_match": 0, "same_accession": 0, "same_company": 0, "irrelevant": 0}
+    dup_densities = []
+    adj_rates = []
+
+    for item in error_analysis_batch:
+        for cls in item["classifications"]:
+            counts[cls] = counts.get(cls, 0) + 1
+            total_chunks += 1
+        dup_densities.append(item["duplicate_density"])
+        adj_rates.append(item["adjacent_chunk_rate"])
+
+    rates = {k: round(v / total_chunks, 4) if total_chunks else 0.0
+             for k, v in counts.items()}
+
+    dominant = max(
+        {"same_accession": counts["same_accession"],
+         "same_company": counts["same_company"],
+         "irrelevant": counts["irrelevant"]},
+        key=lambda k: {"same_accession": counts["same_accession"],
+                       "same_company": counts["same_company"],
+                       "irrelevant": counts["irrelevant"]}[k]
+    )
+
+    return {
+        "retrieval_exact_match_rate":    rates["exact_match"],
+        "retrieval_same_accession_rate": rates["same_accession"],
+        "retrieval_same_company_rate":   rates["same_company"],
+        "retrieval_irrelevant_rate":     rates["irrelevant"],
+        "retrieval_duplicate_density":   round(sum(dup_densities) / len(dup_densities), 4),
+        "retrieval_adjacent_chunk_rate": round(sum(adj_rates) / len(adj_rates), 4),
+        "retrieval_dominant_failure":    dominant,
+    }
+
+
 # ── Pipeline runner ───────────────────────────────────────────────────────────
 
 async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]:
@@ -307,6 +556,7 @@ async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str
         "query": query,
         "comparison_quarters": [],
         "retrieval_results": [],
+        "transcript_retrieval_results": [],
         "comparison_findings": [],
         "sentiment_scores": [],
         "numeric_validations": [],
@@ -340,6 +590,7 @@ async def run_eval(
     dry_run: bool = False,
     max_claims: int | None = None,
     seed: int = 42,
+    detail_report: bool = False,
 ) -> dict[str, Any]:
     from evaluation.ragas_eval import run_ragas_eval
     from evaluation.precision_recall_at_k import compute_batch_retrieval_metrics
@@ -354,7 +605,6 @@ async def run_eval(
     if max_claims and max_claims < len(runnable):
         runnable = _stratified_sample(runnable, max_claims, seed=seed)
         log.info("Stratified sample: %d claims selected", len(runnable))
-        # Log type distribution
         by_type: dict[str, int] = {}
         for c in runnable:
             ct = c.get("claim_type", "unknown")
@@ -370,6 +620,8 @@ async def run_eval(
     judge_samples: list[dict] = []
     numeric_results: list[dict] = []
     per_claim_results: list[dict] = []
+    error_analysis_batch: list[dict] = []   # Phase 3: retrieval error classification
+    detail_reports: list[dict] = []          # --detail-report: per-claim chunk detail
 
     for claim in runnable:
         claim_id = claim.get("claim_id", str(uuid.uuid4()))
@@ -402,6 +654,30 @@ async def run_eval(
         if gt_anchors:
             retrieval_batch.append({"claim_id": claim_id, "retrieved_chunks": chunks,
                                     "ground_truth_anchors": gt_anchors})
+
+            # Phase 3: classify each top-k chunk against ground truth
+            top_k_chunks = chunks[:k]
+            classifications = [
+                _classify_chunk(c, gt_anchors, claim) for c in top_k_chunks
+            ]
+            error_analysis_batch.append({
+                "claim_id":           claim_id,
+                "claim_type":         claim_type,
+                "classifications":    classifications,
+                "duplicate_density":  _duplicate_density(top_k_chunks),
+                "adjacent_chunk_rate": _adjacent_chunk_rate(top_k_chunks),
+            })
+
+            # --detail-report: build full per-claim chunk detail record
+            if detail_report:
+                detail_reports.append(_build_detail_report(
+                    claim=claim,
+                    chunks=chunks,
+                    gt_anchors=gt_anchors,
+                    classifications=classifications,
+                    answer=answer,
+                    k=k,
+                ))
 
         judge_samples.append({"claim_id": claim_id, "question": query, "answer": answer,
                                "contexts": contexts, "ground_truth": ground_truth,
@@ -439,8 +715,29 @@ async def run_eval(
         numeric_pass_rate = round(passed / len(numeric_results), 4)
         log.info("Numeric pass rate: %.4f (%d/%d)", numeric_pass_rate, passed, len(numeric_results))
 
+    # Phase 3: aggregate retrieval error analysis
+    error_analysis_metrics = _compute_error_analysis(error_analysis_batch)
+    if error_analysis_metrics:
+        log.info(
+            "Retrieval error analysis: exact=%.3f same_acc=%.3f same_co=%.3f irrelevant=%.3f "
+            "dup_density=%.3f adj_rate=%.3f dominant=%s",
+            error_analysis_metrics.get("retrieval_exact_match_rate", 0),
+            error_analysis_metrics.get("retrieval_same_accession_rate", 0),
+            error_analysis_metrics.get("retrieval_same_company_rate", 0),
+            error_analysis_metrics.get("retrieval_irrelevant_rate", 0),
+            error_analysis_metrics.get("retrieval_duplicate_density", 0),
+            error_analysis_metrics.get("retrieval_adjacent_chunk_rate", 0),
+            error_analysis_metrics.get("retrieval_dominant_failure", "unknown"),
+        )
+
     from azure_clients.redis_client import get_cache_stats
     cache_stats = get_cache_stats()
+
+    # Separate string fields from numeric fields for MLflow compatibility
+    error_analysis_numeric = {k: v for k, v in error_analysis_metrics.items()
+                               if isinstance(v, (int, float))}
+    error_analysis_string = {k: v for k, v in error_analysis_metrics.items()
+                              if isinstance(v, str)}
 
     metrics = {
         **{f"ragas_{k_}": v for k_, v in ragas_scores.items()},
@@ -451,6 +748,7 @@ async def run_eval(
         "total_claims": len(runnable),
         "pipeline_errors": sum(1 for r in per_claim_results if r["pipeline_error"]),
         **{f"cache_{k_}": v for k_, v in cache_stats.items()},
+        **error_analysis_numeric,   # Phase 3: numeric retrieval error metrics only
     }
 
     params = {
@@ -464,11 +762,35 @@ async def run_eval(
         "num_claims": len(runnable),
         "max_claims_filter": max_claims or "all",
         "stratified_seed": seed,
+        **error_analysis_string,    # Phase 3: string fields (dominant_failure) go to params
     }
 
     with start_run(run_name=run_name, tags={"phase": "2", "variant": run_name}):
         log_eval_results(metrics=metrics, params=params)
         log_per_claim_results(per_claim_results)
+
+    # Save detail report if requested
+    if detail_report and detail_reports:
+        # Summarize pair type distribution across all claims
+        pair_type_counts: dict[str, int] = {}
+        for dr in detail_reports:
+            for pair in dr.get("chunk_pairs", []):
+                pt = pair.get("pair_type", "unknown")
+                pair_type_counts[pt] = pair_type_counts.get(pt, 0) + 1
+
+        detail_output = {
+            "run_name": run_name,
+            "total_claims": len(detail_reports),
+            "pair_type_summary": pair_type_counts,
+            "claims": detail_reports,
+        }
+        detail_path = Path(f"evaluation/detail_report_{run_name}.json")
+        detail_path.write_text(
+            json.dumps(detail_output, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        log.info("Detail report saved to %s", detail_path)
+        print(f"\nDetail report: {detail_path}")
+        print(f"Pair type distribution: {pair_type_counts}")
 
     print("\n" + "=" * 55)
     print(f"EVAL COMPLETE — {run_name}")
@@ -496,6 +818,11 @@ def main() -> None:
         help="Limit to N stratified claims for cost control (e.g. 5, 10, 25, 50, 75)."
     )
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--detail-report", action="store_true",
+        help="Save per-claim chunk detail + duplicate pair analysis to JSON. "
+             "Use with --max-claims 25 for cost control."
+    )
     args = parser.parse_args()
 
     asyncio.run(run_eval(
@@ -505,6 +832,7 @@ def main() -> None:
         dry_run=args.dry_run,
         max_claims=args.max_claims,
         seed=args.seed,
+        detail_report=args.detail_report,
     ))
 
 

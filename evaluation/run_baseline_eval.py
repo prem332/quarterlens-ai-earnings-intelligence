@@ -555,12 +555,19 @@ def _compute_error_analysis(error_analysis_batch: list[dict]) -> dict:
 
 # ── RAGAS per-claim-type aggregation (measurement correction) ─────────────────
 
-# Claim types that carry filing-coordinate anchors — the exact population
-# precision@5 is measured over (see _extract_ground_truth_anchors). Reporting
-# context_precision on this subset makes it comparable to precision@5 instead of
-# being diluted by numeric/sentiment claims whose terse categorical ground_truth
-# ("Filed value: …", "Expected sentiment: …") has no chunk-level relevance signal.
-_ANCHOR_CLAIM_TYPES = {"retrieval", "comparison", "out_of_scope"}
+# Claim types where context_precision measures something meaningful: retrieved
+# chunks are judged against a ground_truth that actually describes filing
+# content. Excludes numeric/sentiment (terse categorical ground_truth, e.g.
+# "Filed value: …", "Expected sentiment: …" — no chunk-level relevance signal)
+# AND out_of_scope (ground_truth is a refusal string, e.g. "Expected behavior:
+# refuse…" — retrieved financial prose structurally has ~0 overlap with a
+# refusal description regardless of retrieval quality, so out_of_scope
+# context_precision is a constant ~0.00 that dilutes the subset rather than
+# measuring anything). out_of_scope still gets its own ragas_*_out_of_scope
+# metric from the by-claim-type loop below, and still contributes to
+# precision@5/recall@5 via _extract_ground_truth_anchors — this constant only
+# controls the RAGAS retrieval_subset aggregate.
+_RAGAS_RETRIEVAL_SUBSET_TYPES = {"retrieval", "comparison"}
 
 
 def _aggregate_ragas_by_type(
@@ -579,7 +586,7 @@ def _aggregate_ragas_by_type(
         ct = sample.get("claim_type", "unknown")
         for metric, val in ps.items():
             by_type.setdefault(ct, {}).setdefault(metric, []).append(val)
-            if ct in _ANCHOR_CLAIM_TYPES:
+            if ct in _RAGAS_RETRIEVAL_SUBSET_TYPES:
                 subset.setdefault(metric, []).append(val)
 
     out: dict[str, float] = {}

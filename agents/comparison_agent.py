@@ -48,6 +48,7 @@ async def comparison_agent(state: GraphState) -> dict:
     t0 = time.time()
     company = state["company"]
     quarter = state["quarter"]
+    query = state["query"]
     comparison_quarters = state.get("comparison_quarters") or []
     retrieval_results = state.get("retrieval_results") or []
 
@@ -67,11 +68,15 @@ async def comparison_agent(state: GraphState) -> dict:
 
     async def _fetch_one(fiscal_label: str, quarters_back: int) -> tuple[str, str]:
         try:
-            prior_hits = await asyncio.to_thread(
-                fetch_prior_quarter, company=company, quarters_back=quarters_back
+            prior_result = await asyncio.to_thread(
+                fetch_prior_quarter,
+                company=company,
+                current_quarter=quarter,
+                quarters_back=quarters_back,
+                query=query,
             )
             # Prior quarter context: preserve fetch order (no global ranking available)
-            return fiscal_label, _ranked_context(prior_hits, max_chars=2000)
+            return fiscal_label, _ranked_context(prior_result["results"], max_chars=2000)
         except Exception as exc:
             print(f"[comparison_agent] fetch_prior_quarter failed for {fiscal_label}: {exc}")
             return fiscal_label, ""

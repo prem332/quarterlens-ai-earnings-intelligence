@@ -122,23 +122,71 @@ chunking.py → embedding.py → indexer.py
 ## Evaluation
 
 ### Locked Baselines
+
+**`baseline-recall-fix-25`** (current — Fix 5 + Fix 3 + recall fix applied, this session):
+- faithfulness=0.9260, answer_relevancy=0.7344, context_precision=0.2640 (all claim types — diluted by numeric/sentiment)
+- context_precision_retrieval_subset=0.2833 (retrieval+comparison+out_of_scope only — fair comparison to precision@5)
+- context_recall=0.7673
+- precision@5=0.7333, recall@5=1.0000 (restored — prior-quarter anchors excluded from comparison claims)
+- llm_judge=2.9720, numeric_pass=1.0000
+- exact_match_rate=0.7333, duplicate_density=0.5667
+- adjacent_chunk_rate=0.2417 (now meaningful — chunk_index plumbed through Fix 5)
+
 **`baseline-evidence-consistency-25`** (pre-structure-aware, production reference):
 - faithfulness=0.9274, answer_relevancy=0.8264, context_precision=0.2960
 - precision@5=0.6500, recall@5=1.0000, llm_judge=3.0560, numeric_pass=1.0000
 
-**`baseline-structure-aware-25`** (Phase 4, current best precision@5):
+**`baseline-structure-aware-25`** (Phase 4, prior best precision@5):
 - faithfulness=0.9139, answer_relevancy=0.6228, context_precision=0.2560
 - precision@5=0.8167, recall@5=1.0000, llm_judge=3.0240, numeric_pass=1.0000
 
-**Retrieval error analysis (baseline-structure-aware-25b):**
+**Retrieval error analysis (baseline-structure-aware-25b, historical):**
 - exact_match_rate=0.817, same_company_rate=0.100, irrelevant_rate=0.000
-- duplicate_density=0.633, adjacent_chunk_rate=0.000
+- duplicate_density=0.633, adjacent_chunk_rate=0.000 (blind — chunk_index not yet plumbed)
 - dominant_failure=same_company (right company/quarter, wrong section)
 
+### Session Fixes Applied (do not revert)
+
+1. **Fix 5 — chunk_index/chunk_total plumbing.** Added to `RetrievalResult` (`graph/state.py`),
+   mapped in `search_documents.py` normalization, passed through `retrieval_agent._to_retrieval_results`.
+   Un-blinds `adjacent_chunk_rate` (was permanently 0.0) and lets genuine identical-chunk duplicates
+   be told apart from same-section-but-different-chunk pairs. No retrieval behavior change.
+2. **Fix 3 — RAGAS context_precision measurement correction.** `run_ragas_eval()` can now return
+   per-sample scores (`return_per_sample=True`, backward-compatible). `run_baseline_eval.py` tags
+   each sample with `claim_type` and logs `ragas_context_precision_<type>` +
+   `ragas_context_precision_retrieval_subset` (retrieval/comparison/out_of_scope only) to MLflow.
+   Pure measurement change — zero retrieval impact.
+3. **Recall fix — comparison claim ground truth anchors.** `_extract_ground_truth_anchors()` in
+   `run_baseline_eval.py` now only includes the anchor matching the claim's own `fiscal_label` for
+   comparison claims. `retrieval_results` never contains prior-quarter chunks (comparison_agent
+   fetches those separately and never merges them back), so including `prior_anchor` structurally
+   capped recall@5 at 0.5 for every comparison claim. Filters by `fiscal_label` match, not by
+   hardcoded anchor key name, so it survives future claim-file reordering.
+
+### Key Diagnostic Findings (Opus analysis, this session)
+
+- **`context_precision_retrieval_subset` is the metric to track, not overall `context_precision`.**
+  The overall number is diluted by numeric/sentiment claims whose terse categorical ground_truth
+  (`"Filed value: 82886 USD millions..."`, `"Expected sentiment: negative..."`) has no chunk-level
+  relevance signal — RAGAS scores those contexts near 0 regardless of retrieval quality.
+- **This repo's `context_precision` (`evaluation/ragas_eval.py`) is NOT the RAGAS-paper rank-weighted
+  Average Precision.** It's order-insensitive `relevant / len(top-5 chunks)`, with each chunk
+  truncated to 300 chars before the LLM judges it. Re-ordering chunks within top-5 does not move
+  this metric — only reducing the count of off-topic chunks in the top-5 does.
+- **Root cause of low context_precision: topical impurity in MDA chunks**, not chunk splitting.
+  MSFT's `mda` section alone chunks into 33 pieces from ~6 total filing sections; a query about one
+  metric (e.g. Azure growth) retrieves chunks packed with 8-10 unrelated metrics. High recall, low
+  precision — chunk *selection*, not ordering, is the lever.
+- **MMR lambda (re-ordering) is a weaker lever than chunk purity** given the metric is order-insensitive.
+  Still worth ablating cheaply before the expensive re-chunk/re-embed path.
+- **Next experiment:** `MMR_LAMBDA` ablation (0.7, then 1.0) against `baseline-recall-fix-25`.
+- **After that:** chunk topical purity (Fix 6, deferred — requires full re-embed + re-index; highest
+  ceiling, highest recall risk — do not attempt before the MMR ablation is measured).
+
 ### Metric Targets
-- context_precision: 0.8+ (currently 0.25-0.30) ← PRIMARY TARGET
-- precision@5: 0.8+ (currently 0.65-0.82)
-- llm_judge: 4.0+ (currently ~3.0)
+- context_precision_retrieval_subset: 0.5+ (currently 0.2833) ← PRIMARY TARGET
+- precision@5: 0.8+ (currently 0.7333)
+- llm_judge: 4.0+ (currently 2.9720)
 - numeric_pass_rate: 1.0 (locked — do not regress)
 - recall@5: 1.0 (locked — do not regress)
 
@@ -171,9 +219,10 @@ python evaluation/run_baseline_eval.py --max-claims 25 --run-name <name> --detai
    0.817→0.533. mda-only filter too restrictive for financial queries that span
    multiple sections. Needs redesigned intent→section mapping before re-enabling.
 
-3. **context_precision gap** — precision@5=0.82 but context_precision=0.25.
-   Right chunks retrieved but RAGAS context_precision measures ranking quality.
-   Needs investigation: are relevant chunks at wrong rank positions?
+3. **context_precision gap** — DIAGNOSED, see "Key Diagnostic Findings" under Evaluation above.
+   Not a rank-position problem — this repo's context_precision is order-insensitive. Root cause is
+   topical impurity in MDA chunks + dilution from numeric/sentiment claims in the overall metric.
+   Track `context_precision_retrieval_subset` going forward.
 
 4. **Alias map split** — `calculate_metric.py` `_CONCEPT_ALIASES` should split into
    `FINANCIAL_METRIC_ALIASES` + `SEGMENT_METRIC_ALIASES`. Deferred (numeric_pass=1.0).

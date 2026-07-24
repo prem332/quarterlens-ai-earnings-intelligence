@@ -47,6 +47,15 @@ CHUNK_OVERLAP = 0      # zero overlap — eliminates sliding-window duplicate de
 CHUNK_MIN     = 80     # minimum tokens — skip boilerplate headers
 ENCODING      = "cl100k_base"
 
+# MDA-specific finer chunking (Fix 6) — only applied when the section has
+# detectable structural boundaries (ALL-CAPS headers / bullet markers).
+# Filings without either (e.g. NVDA, AAPL MD&A) fall through unchanged to the
+# standard CHUNK_SIZE/CHUNK_MIN sentence-boundary grouping below.
+_MDA_TARGET_TOKENS  = 250   # smaller target — single-topic chunks vs 400 mixed-topic
+_MDA_OVERLAP_TOKENS = 50    # small overlap applied only across MDA subsection joins;
+                            # scoped exception to CHUNK_OVERLAP=0 above — does not
+                            # apply to any other section.
+
 # Transcript: group this many speaker turns per chunk
 _TRANSCRIPT_TURNS_PER_CHUNK = 4
 
@@ -64,6 +73,15 @@ _CIK_MAP = {
 _SUBSECTION_HEADER_RE = re.compile(
     r'(?:^|(?<=[.!?] ))([A-Z][A-Z &/\-]{2,49})(?=[ ][A-Za-z])'
 )
+
+# Macro-topic boundary scanner for MDA structural splitting (Fix 6) — same shape
+# as _SUBSECTION_HEADER_RE but scans anywhere in the text (not just chunk start)
+# and requires a longer run (6+ chars) to reject short false positives embedded
+# in prose (e.g. "MD&A", "USG", "SEC").
+_MDA_MACRO_HEADER_RE = re.compile(
+    r'(?:^|(?<=[.!?] ))([A-Z][A-Z &/\-]{5,49})(?=[ ][A-Za-z])'
+)
+_BULLET_CHAR = "•"
 
 # Known financial subsection keywords for MDA
 _MDA_SUBSECTION_KEYWORDS = {
@@ -197,6 +215,108 @@ def _group_sentences_into_chunks(
     return chunks
 
 
+# ── MDA structural chunking (Fix 6) ────────────────────────────────────────────
+
+def _split_mda_boundaries(text: str) -> list[str]:
+    """
+    Split raw MDA text into topic-bounded units using structural signals only:
+    ALL-CAPS macro headers (OVERVIEW, SEGMENT RESULTS OF OPERATIONS, ...) and
+    bullet markers ('•'). Returns [text] unchanged when neither signal is
+    present (e.g. NVDA/AAPL MD&A) — caller falls back to standard chunking.
+    """
+    positions = [m.start() for m in _MDA_MACRO_HEADER_RE.finditer(text)]
+    bounds = sorted(set([0] + positions + [len(text)]))
+    macro_segments = [text[bounds[i]:bounds[i + 1]].strip() for i in range(len(bounds) - 1)]
+    macro_segments = [s for s in macro_segments if s]
+
+    units: list[str] = []
+    for seg in macro_segments:
+        if _BULLET_CHAR not in seg:
+            units.append(seg)
+            continue
+        parts = seg.split(_BULLET_CHAR)
+        intro = parts[0].strip()
+        if intro:
+            units.append(intro)
+        for part in parts[1:]:
+            part = part.strip()
+            if part:
+                units.append(part)
+    return units
+
+
+def _coalesce_mda_units(
+    units: list[str],
+    encoder: tiktoken.Encoding,
+    min_tokens: int = CHUNK_MIN,
+    max_tokens: int = _MDA_TARGET_TOKENS * 2,
+) -> list[str]:
+    """
+    Merge adjacent tiny units (below min_tokens) forward into their neighbor so
+    no unit is noise-sized. Unlike the flat grouper below, this does NOT keep
+    packing units once a group is reasonably sized — it merges only as much as
+    needed to clear the floor, preserving per-bullet/per-topic separation.
+    """
+    if not units:
+        return []
+    merged: list[str] = []
+    current, current_tok = units[0], _token_count(units[0], encoder)
+    for nxt in units[1:]:
+        nxt_tok = _token_count(nxt, encoder)
+        if current_tok < min_tokens and current_tok + nxt_tok <= max_tokens:
+            current = current + " " + nxt
+            current_tok += nxt_tok
+        else:
+            merged.append(current)
+            current, current_tok = nxt, nxt_tok
+    merged.append(current)
+    return merged
+
+
+def _tail_tokens(text: str, encoder: tiktoken.Encoding, n_tokens: int) -> str:
+    """Last ~n_tokens of text, word-aligned — overlap prefix at MDA subsection joins."""
+    words = text.split()
+    tail: list[str] = []
+    tok = 0
+    for word in reversed(words):
+        w_tok = _token_count(word, encoder)
+        if tok + w_tok > n_tokens:
+            break
+        tail.insert(0, word)
+        tok += w_tok
+    return " ".join(tail)
+
+
+def _chunk_mda_section(text: str, encoder: tiktoken.Encoding) -> list[str]:
+    """
+    Finer, single-topic chunking for MDA sections (Fix 6). Splits at structural
+    boundaries (headers/bullets), coalesces tiny fragments, then re-applies
+    sentence-boundary grouping within each unit at a smaller target size, with
+    a 50-token overlap carried across each subsection join.
+
+    Falls back to the standard CHUNK_SIZE/CHUNK_MIN grouping — identical to
+    every other section — when no structural boundary is found in the text.
+    """
+    units = _split_mda_boundaries(text)
+    if len(units) <= 1:
+        sentences = _split_sentences(text)
+        return _group_sentences_into_chunks(sentences, encoder) if sentences else []
+
+    coalesced = _coalesce_mda_units(units, encoder)
+    chunk_texts: list[str] = []
+    prev_tail = ""
+    for unit in coalesced:
+        unit_with_overlap = f"{prev_tail} {unit}" if prev_tail else unit
+        sentences = _split_sentences(unit_with_overlap)
+        chunk_texts.extend(
+            _group_sentences_into_chunks(
+                sentences, encoder, target_tokens=_MDA_TARGET_TOKENS, min_tokens=CHUNK_MIN
+            )
+        )
+        prev_tail = _tail_tokens(unit, encoder, _MDA_OVERLAP_TOKENS)
+    return chunk_texts
+
+
 # ── Filing chunker ────────────────────────────────────────────────────────────
 
 def chunk_filing(parsed_sections: list[dict], encoder: tiktoken.Encoding) -> list[dict]:
@@ -217,11 +337,14 @@ def chunk_filing(parsed_sections: list[dict], encoder: tiktoken.Encoding) -> lis
         if not text:
             continue
 
-        sentences = _split_sentences(text)
-        if not sentences:
-            continue
+        if section["section"] == "mda":
+            chunk_texts = _chunk_mda_section(text, encoder)
+        else:
+            sentences = _split_sentences(text)
+            if not sentences:
+                continue
+            chunk_texts = _group_sentences_into_chunks(sentences, encoder)
 
-        chunk_texts = _group_sentences_into_chunks(sentences, encoder)
         total = len(chunk_texts)
 
         for i, chunk_text in enumerate(chunk_texts):

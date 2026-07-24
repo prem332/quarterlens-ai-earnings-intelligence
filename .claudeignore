@@ -1,0 +1,59 @@
+# Claude Code context exclusions for QuarterLens AI
+# Excludes non-essential files to minimize token usage
+
+# Virtual environment
+.venv/
+
+# Environment / secrets
+.env
+.env.example
+
+# Data directories (large, not needed for code understanding)
+data/
+mlruns/
+mlflow.db
+
+# Git internals
+.git/
+.gitattributes
+.gitignore
+
+# Infrastructure / deployment (not relevant to ML pipeline)
+infra/
+docker-compose.yml
+Dockerfile
+setup_skeleton.sh
+SETUP.md
+
+# Tests (separate concern from main pipeline)
+tests/
+
+# Temp / diagnostic scripts
+test_phase3_changes.py
+test_section_routing.py
+check_embedding_field.py
+fix_xxhash.py
+flush_redis.py
+test_report.txt
+
+# Python packaging artifacts
+'=1.4.7'
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# GitHub Actions
+.github/
+
+# Node (not used in this project)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/

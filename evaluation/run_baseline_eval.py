@@ -174,8 +174,21 @@ def _build_ground_truth(claim: dict) -> str:
 
 
 def _extract_ground_truth_anchors(claim: dict) -> list[dict]:
+    """
+    Extract filing-coordinate anchors reachable by retrieval_results.
+
+    retrieval_results is scoped to the claim's own fiscal_label — the pipeline
+    only ever queries company/fiscal_label for the claim under test (see
+    _run_pipeline). Comparison claims carry a current_anchor (same fiscal_label
+    as the claim) and a prior_anchor (an earlier fiscal_label fetched
+    separately by comparison_agent.fetch_prior_quarter and never merged into
+    retrieval_results). Including prior_anchor here would structurally cap
+    recall@k below 1.0 for every comparison claim, independent of retrieval
+    quality, since no prior-quarter chunk can ever appear in retrieval_results.
+    """
     gt = claim.get("ground_truth") or {}
     claim_type = claim.get("claim_type", "")
+    claim_fiscal_label = claim.get("fiscal_label", "")
     anchors = []
 
     def _extract_anchor(anchor_dict: dict) -> dict | None:
@@ -192,7 +205,9 @@ def _extract_ground_truth_anchors(claim: dict) -> list[dict]:
     elif claim_type == "comparison":
         for key in ("current_anchor", "prior_anchor"):
             a = gt.get(key)
-            if a:
+            # Only the anchor matching the claim's own fiscal_label is reachable
+            # by retrieval_results — the prior-quarter anchor never is.
+            if a and a.get("fiscal_label") == claim_fiscal_label:
                 e = _extract_anchor(a)
                 if e: anchors.append(e)
     elif claim_type == "out_of_scope":

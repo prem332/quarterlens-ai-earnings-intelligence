@@ -176,6 +176,8 @@ def search_documents(
             "fiscal_label": hit.get("fiscal_label", ""),
             "accession":    hit.get("accession", ""),
             "section":      hit.get("section", ""),
+            "chunk_index":  hit.get("chunk_index", -1),
+            "chunk_total":  hit.get("chunk_total", -1),
             "score":        hit.get("@search.score", 0.0),
         })
 

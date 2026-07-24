@@ -221,7 +221,8 @@ def _score_context_recall(
 def run_ragas_eval(
     samples: list[dict[str, Any]],
     metrics: list[str] | None = None,
-) -> dict[str, float]:
+    return_per_sample: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], list[dict[str, float]]]:
     """
     Run RAGAS-equivalent evaluation over a list of pipeline output samples.
 
@@ -235,9 +236,13 @@ def run_ragas_eval(
             - "contexts":     list[str]
             - "ground_truth": str
         metrics: Subset of the four metric names. Defaults to all four.
+        return_per_sample: When True, also return the per-sample scores so callers
+            can aggregate by claim type (no extra LLM calls). Each entry is a
+            {metric_name: score} dict aligned to `samples` by index.
 
     Returns:
         Dict of metric_name -> mean float score across all samples.
+        If return_per_sample is True: (aggregate_dict, per_sample_list).
     """
     _all_metrics = ["faithfulness", "answer_relevancy", "context_precision", "context_recall"]
     requested = metrics or _all_metrics
@@ -288,4 +293,11 @@ def run_ragas_eval(
         len(samples),
         {k: f"{v:.4f}" for k, v in result.items()},
     )
+
+    if return_per_sample:
+        per_sample = [
+            {m: scores[m][i] for m in requested}
+            for i in range(len(samples))
+        ]
+        return result, per_sample
     return result

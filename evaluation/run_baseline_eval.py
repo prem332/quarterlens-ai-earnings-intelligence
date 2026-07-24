@@ -538,6 +538,49 @@ def _compute_error_analysis(error_analysis_batch: list[dict]) -> dict:
     }
 
 
+# ── RAGAS per-claim-type aggregation (measurement correction) ─────────────────
+
+# Claim types that carry filing-coordinate anchors — the exact population
+# precision@5 is measured over (see _extract_ground_truth_anchors). Reporting
+# context_precision on this subset makes it comparable to precision@5 instead of
+# being diluted by numeric/sentiment claims whose terse categorical ground_truth
+# ("Filed value: …", "Expected sentiment: …") has no chunk-level relevance signal.
+_ANCHOR_CLAIM_TYPES = {"retrieval", "comparison", "out_of_scope"}
+
+
+def _aggregate_ragas_by_type(
+    samples: list[dict], per_sample: list[dict[str, float]]
+) -> dict[str, float]:
+    """
+    Break RAGAS per-sample scores down by claim type + a retrieval-relevant subset.
+
+    Uses the per-sample scores already computed by run_ragas_eval — no extra LLM
+    calls. Returns a flat {metric_key: value} dict (floats + counts) for MLflow.
+    """
+    by_type: dict[str, dict[str, list[float]]] = {}
+    subset: dict[str, list[float]] = {}
+
+    for sample, ps in zip(samples, per_sample):
+        ct = sample.get("claim_type", "unknown")
+        for metric, val in ps.items():
+            by_type.setdefault(ct, {}).setdefault(metric, []).append(val)
+            if ct in _ANCHOR_CLAIM_TYPES:
+                subset.setdefault(metric, []).append(val)
+
+    out: dict[str, float] = {}
+    for ct, metrics in by_type.items():
+        for metric, vals in metrics.items():
+            out[f"ragas_{metric}_{ct}"] = round(sum(vals) / len(vals), 4) if vals else 0.0
+        out[f"ragas_n_{ct}"] = len(next(iter(metrics.values()), []))
+
+    for metric, vals in subset.items():
+        out[f"ragas_{metric}_retrieval_subset"] = (
+            round(sum(vals) / len(vals), 4) if vals else 0.0
+        )
+    out["ragas_n_retrieval_subset"] = len(next(iter(subset.values()), []))
+    return out
+
+
 # ── Pipeline runner ───────────────────────────────────────────────────────────
 
 async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]:
@@ -652,7 +695,8 @@ async def run_eval(
         pipeline_error = pipeline_out["error"]
 
         ragas_samples.append({"question": query, "answer": answer,
-                               "contexts": contexts, "ground_truth": ground_truth})
+                               "contexts": contexts, "ground_truth": ground_truth,
+                               "claim_type": claim_type})
 
         gt_anchors = _extract_ground_truth_anchors(claim)
         if gt_anchors:
@@ -702,10 +746,20 @@ async def run_eval(
     # ── Scoring ───────────────────────────────────────────────────────────────
     log.info("Scoring %d samples...", len(ragas_samples))
 
-    ragas_scores = run_ragas_eval(
-        ragas_samples,
-        metrics=["faithfulness", "answer_relevancy", "context_precision", "context_recall"]
-    ) if ragas_samples else {}
+    if ragas_samples:
+        ragas_scores, ragas_per_sample = run_ragas_eval(
+            ragas_samples,
+            metrics=["faithfulness", "answer_relevancy", "context_precision", "context_recall"],
+            return_per_sample=True,
+        )
+        ragas_by_type = _aggregate_ragas_by_type(ragas_samples, ragas_per_sample)
+        log.info(
+            "context_precision — overall=%.4f retrieval_subset=%.4f",
+            ragas_scores.get("context_precision", 0.0),
+            ragas_by_type.get("ragas_context_precision_retrieval_subset", 0.0),
+        )
+    else:
+        ragas_scores, ragas_by_type = {}, {}
 
     retrieval_scores = (
         compute_batch_retrieval_metrics(retrieval_batch, k=k)
@@ -745,6 +799,7 @@ async def run_eval(
 
     metrics = {
         **{f"ragas_{k_}": v for k_, v in ragas_scores.items()},
+        **ragas_by_type,   # per-claim-type + retrieval-subset context_precision breakdown
         f"precision_at_{k}": retrieval_scores.get("mean_precision_at_k", 0.0),
         f"recall_at_{k}": retrieval_scores.get("mean_recall_at_k", 0.0),
         "llm_judge_mean": mean_judge,

@@ -240,6 +240,8 @@ def _to_retrieval_results(
             score=        float(h.get("rerank_score", h.get("score", 0.0))),
             accession=    h.get("accession", ""),
             section=      h.get("section", ""),
+            chunk_index=  int(h.get("chunk_index", -1)),
+            chunk_total=  int(h.get("chunk_total", -1)),
         )
         for h in chunks
     ]

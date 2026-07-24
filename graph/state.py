@@ -38,6 +38,8 @@ class RetrievalResult(TypedDict):
     score: float
     accession: str         # SEC accession number — filing coordinate for precision/recall@k
     section: str           # parsed section key (e.g. "mda") — filing coordinate for precision/recall@k
+    chunk_index: int       # position of chunk within its section (−1 if unknown) — enables adjacency/duplicate analysis
+    chunk_total: int       # total chunks in the section (−1 if unknown)
 
 
 class ComparisonFinding(TypedDict):

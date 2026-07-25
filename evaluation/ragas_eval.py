@@ -181,13 +181,25 @@ def _score_answer_relevancy(client, deployment: str, question: str, answer: str)
 
 def _score_context_precision(
     client, deployment: str, question: str,
-    contexts: list[str], ground_truth: str
+    contexts: list[str], ground_truth: str, k: int = 5, chunk_chars: int = 300,
 ) -> float:
-    """Context precision: fraction of retrieved chunks that are relevant."""
+    """
+    Context precision: fraction of the top-k retrieved chunks judged relevant.
+
+    k is a measurement-scope parameter only — the production pipeline always
+    retrieves/generates from 5 chunks (retrieval_agent.py unchanged); k controls
+    how many of those (already cross-encoder-ranked) chunks are held to a strict
+    per-chunk relevance bar for this metric. chunk_chars controls how much of each
+    chunk's text the judge sees (0 = full chunk, no truncation). See CLAUDE.md
+    Deviation log for why order-insensitive relevant/5 structurally caps below 0.8
+    for narrow queries.
+    """
     if not contexts or not ground_truth.strip():
         return 0.0
+    def _preview(c: str) -> str:
+        return c if chunk_chars <= 0 else c[:chunk_chars]
     chunks_text = "\n\n".join(
-        f"Chunk {i+1}: {c[:300]}" for i, c in enumerate(contexts[:5])
+        f"Chunk {i+1}: {_preview(c)}" for i, c in enumerate(contexts[:k])
     )
     prompt = _CONTEXT_PRECISION_PROMPT.format(
         question=question, ground_truth=ground_truth, chunks=chunks_text
@@ -222,6 +234,8 @@ def run_ragas_eval(
     samples: list[dict[str, Any]],
     metrics: list[str] | None = None,
     return_per_sample: bool = False,
+    context_precision_k: int = 5,
+    context_precision_chunk_chars: int = 300,
 ) -> dict[str, float] | tuple[dict[str, float], list[dict[str, float]]]:
     """
     Run RAGAS-equivalent evaluation over a list of pipeline output samples.
@@ -239,6 +253,12 @@ def run_ragas_eval(
         return_per_sample: When True, also return the per-sample scores so callers
             can aggregate by claim type (no extra LLM calls). Each entry is a
             {metric_name: score} dict aligned to `samples` by index.
+        context_precision_k: How many of the (already-ranked) retrieved contexts
+            to hold to a strict per-chunk relevance bar for context_precision only.
+            Measurement-scope parameter — does not affect retrieval or generation,
+            which always use all 5. See CLAUDE.md.
+        context_precision_chunk_chars: How much of each chunk's text the judge sees
+            for context_precision only (0 = full chunk, no truncation).
 
     Returns:
         Dict of metric_name -> mean float score across all samples.
@@ -280,7 +300,10 @@ def run_ragas_eval(
             )
         if "context_precision" in requested:
             scores["context_precision"].append(
-                _score_context_precision(client, deployment, question, contexts, ground_truth)
+                _score_context_precision(
+                    client, deployment, question, contexts, ground_truth,
+                    k=context_precision_k, chunk_chars=context_precision_chunk_chars,
+                )
             )
         if "context_recall" in requested:
             scores["context_recall"].append(

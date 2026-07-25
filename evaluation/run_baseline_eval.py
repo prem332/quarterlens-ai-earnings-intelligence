@@ -28,6 +28,7 @@ import asyncio
 import json
 import logging
 import math
+import os
 import random
 import re
 import sys
@@ -35,6 +36,16 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any
+
+# context_precision measurement-scope k — how many of the (already-ranked) retrieved
+# contexts are held to a strict per-chunk relevance bar. Does not affect retrieval or
+# generation, which always use all 5 (retrieval_agent.py unchanged). See CLAUDE.md.
+#   CONTEXT_PRECISION_K=3 python evaluation/run_baseline_eval.py --run-name ctxprec-k3
+_CONTEXT_PRECISION_K: int = int(os.environ.get("CONTEXT_PRECISION_K", "5"))
+# context_precision measurement-scope chunk preview length (chars) the judge sees per
+# chunk. 0 = full chunk text, no truncation. Same measurement-only scope as above.
+#   CONTEXT_PRECISION_CHUNK_CHARS=0 python evaluation/run_baseline_eval.py --run-name ctxprec-full
+_CONTEXT_PRECISION_CHUNK_CHARS: int = int(os.environ.get("CONTEXT_PRECISION_CHUNK_CHARS", "300"))
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -677,33 +688,45 @@ def _build_typed_answer(
     sentiment_scores: list[dict],
     comparison_findings: list[dict],
     current_context: str,
-) -> str:
+) -> tuple[str, list[str]]:
     """
     Evaluate the claim-appropriate agent output, not the generic briefing.
     Sentiment/comparison claims are answered by the specialized agents' own
     outputs (FinBERT label, shift verdict) — quoting only the exact evidence
     the agent used. Other claim types keep the report (already relevant).
+
+    Returns (answer, extra_gen_contexts). extra_gen_contexts is the actual
+    evidence the typed answer draws from — a transcript passage FinBERT scored
+    (sourced from the larger pre-rerank transcript_retrieval_results pool, not
+    necessarily in the final top-k retrieval_results) or prior-quarter language
+    comparison_agent fetched separately (never merged into retrieval_results).
+    Without this, faithfulness/context_recall/judge grounding get scored
+    against context the typed answer never actually had access to.
     """
     claim_type = claim.get("claim_type", "")
 
     if claim_type == "sentiment" and sentiment_scores:
         pool = [s for s in sentiment_scores if s.get("label") != "neutral"] or sentiment_scores
         best = max(pool, key=lambda s: s.get("score", 0.0))
-        passage = (best.get("passage", "") or "")[:400]
-        return (f'Sentiment: {best.get("label", "neutral")} '
-                f'(confidence {best.get("score", 0.0):.2f}). Evidence: "{passage}"')
+        full_passage = best.get("passage", "") or ""
+        passage = full_passage[:400]
+        answer = (f'Sentiment: {best.get("label", "neutral")} '
+                  f'(confidence {best.get("score", 0.0):.2f}). Evidence: "{passage}"')
+        return answer, ([full_passage] if full_passage else [])
 
     if claim_type == "comparison":
         finding = _select_comparison_finding(claim, comparison_findings, current_context)
         if finding is not None:
             verdict = "YES" if finding.get("shift_detected") else "NO"
             desc = finding.get("shift_description") or "No substantive language shift."
-            return f"Language shift vs prior quarter: {verdict}. {desc}"
+            answer = f"Language shift vs prior quarter: {verdict}. {desc}"
+            extra = [finding.get("current_language", ""), *finding.get("prior_language", {}).values()]
+            return answer, [e for e in extra if e]
         # No finding matches the claim's topic (or it isn't grounded in the
         # retrieved evidence) — the generic briefing is a safer answer than a
         # confidently-wrong one about an unrelated topic.
 
-    return report
+    return report, []
 
 
 # ── Pipeline runner ───────────────────────────────────────────────────────────
@@ -839,14 +862,18 @@ async def run_eval(
         pipeline_error = pipeline_out["error"]
 
         # Claim-type answer shaping: grade the specialized agent's output for
-        # sentiment/comparison; the briefing for everything else.
-        answer = _build_typed_answer(
+        # sentiment/comparison; the briefing for everything else. typed_gen_extra
+        # is the evidence that answer actually draws from outside retrieval_results
+        # (a transcript passage, or prior-quarter language) — folded into gen_contexts
+        # so faithfulness/context_recall/judge grounding see what the answer used.
+        answer, typed_gen_extra = _build_typed_answer(
             claim,
             pipeline_out["answer"],
             pipeline_out.get("sentiment_scores") or [],
             pipeline_out.get("comparison_findings") or [],
             "\n\n".join(contexts),
         )
+        gen_contexts = gen_contexts + typed_gen_extra
 
         ragas_samples.append({"question": query, "answer": answer,
                                "contexts": contexts, "gen_contexts": gen_contexts,
@@ -906,6 +933,8 @@ async def run_eval(
             ragas_samples,
             metrics=["faithfulness", "answer_relevancy", "context_precision", "context_recall"],
             return_per_sample=True,
+            context_precision_k=_CONTEXT_PRECISION_K,
+            context_precision_chunk_chars=_CONTEXT_PRECISION_CHUNK_CHARS,
         )
         ragas_by_type = _aggregate_ragas_by_type(ragas_samples, ragas_per_sample)
         log.info(
@@ -967,6 +996,8 @@ async def run_eval(
 
     params = {
         "retrieval_k": k,
+        "context_precision_k": _CONTEXT_PRECISION_K,
+        "context_precision_chunk_chars": _CONTEXT_PRECISION_CHUNK_CHARS,
         "run_name": run_name,
         "phase": "2",
         "model": "gpt-5.4-mini",
@@ -1006,10 +1037,24 @@ async def run_eval(
         print(f"\nDetail report: {detail_path}")
         print(f"Pair type distribution: {pair_type_counts}")
 
+    # Final report scope, per explicit user directive: only these 7 headline metrics
+    # + cache hit-rate breakdown. `metrics` itself stays full (MLflow logging, detail
+    # report, per-type diagnostics all still get everything) — this only trims what
+    # gets printed as the final report.
+    _report_keys = [
+        "ragas_faithfulness", "ragas_answer_relevancy",
+        "ragas_context_precision", "ragas_context_recall",
+        f"precision_at_{k}", f"recall_at_{k}", "llm_judge_mean",
+        "cache_l1_embedding_hits", "cache_l1_embedding_misses", "cache_l1_hit_rate",
+        "cache_l2_l3_redis_hits", "cache_l2_l3_redis_misses", "cache_l2_l3_hit_rate",
+    ]
     print("\n" + "=" * 55)
     print(f"EVAL COMPLETE — {run_name}")
     print("=" * 55)
-    for name, val in metrics.items():
+    for name in _report_keys:
+        if name not in metrics:
+            continue
+        val = metrics[name]
         if isinstance(val, float):
             print(f"  {name}: {val:.4f}")
         else:

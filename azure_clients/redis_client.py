@@ -48,9 +48,11 @@ _embedding_cache: dict[str, list[float]] = {}
 _embedding_hits = 0
 _embedding_misses = 0
 
-# L2/L3 Redis hit/miss counters
-_redis_hits = 0
-_redis_misses = 0
+# L2/L3 Redis hit/miss counters — separate per level for reporting
+_l2_hits = 0
+_l2_misses = 0
+_l3_hits = 0
+_l3_misses = 0
 
 # Redis client singleton
 _redis_client = None
@@ -130,7 +132,7 @@ def get_retrieval_cached(
     L2 cache get — returns cached chunk list or None.
     TTL: 30 minutes.
     """
-    global _redis_hits, _redis_misses
+    global _l2_hits, _l2_misses
     client = _get_redis()
     if client is None:
         return None
@@ -139,10 +141,10 @@ def get_retrieval_cached(
     try:
         value = client.get(key)
         if value:
-            _redis_hits += 1
+            _l2_hits += 1
             logger.info("L2 cache HIT: retrieval for %s/%s", company, quarter)
             return json.loads(value)
-        _redis_misses += 1
+        _l2_misses += 1
         return None
     except Exception as exc:
         logger.warning("L2 cache get failed (non-fatal): %s", exc)
@@ -179,7 +181,7 @@ def get_report_cached(
     L3 cache get — returns cached report string or None.
     TTL: 24 hours.
     """
-    global _redis_hits, _redis_misses
+    global _l3_hits, _l3_misses
     client = _get_redis()
     if client is None:
         return None
@@ -188,10 +190,10 @@ def get_report_cached(
     try:
         value = client.get(key)
         if value:
-            _redis_hits += 1
+            _l3_hits += 1
             logger.info("L3 cache HIT: report for %s/%s", company, quarter)
             return value
-        _redis_misses += 1
+        _l3_misses += 1
         return None
     except Exception as exc:
         logger.warning("L3 cache get failed (non-fatal): %s", exc)
@@ -221,32 +223,44 @@ def set_report_cached(
 
 def get_cache_stats() -> dict[str, Any]:
     """
-    Returns hit/miss stats across all cache levels.
+    Returns hit/miss stats across all cache levels — L1, and L2/L3 both
+    separately and combined (combined fields preserved for backward
+    compatibility with existing report/MLflow field names).
     Call after eval run to log to MLflow.
     """
     l1_total = _embedding_hits + _embedding_misses
-    redis_total = _redis_hits + _redis_misses
+    l2_total = _l2_hits + _l2_misses
+    l3_total = _l3_hits + _l3_misses
+    redis_total = l2_total + l3_total
 
     return {
         "l1_embedding_hits": _embedding_hits,
         "l1_embedding_misses": _embedding_misses,
         "l1_hit_rate": round(_embedding_hits / l1_total, 4) if l1_total else 0.0,
-        "l2_l3_redis_hits": _redis_hits,
-        "l2_l3_redis_misses": _redis_misses,
-        "l2_l3_hit_rate": round(_redis_hits / redis_total, 4) if redis_total else 0.0,
+        "l2_hits": _l2_hits,
+        "l2_misses": _l2_misses,
+        "l2_hit_rate": round(_l2_hits / l2_total, 4) if l2_total else 0.0,
+        "l3_hits": _l3_hits,
+        "l3_misses": _l3_misses,
+        "l3_hit_rate": round(_l3_hits / l3_total, 4) if l3_total else 0.0,
+        "l2_l3_redis_hits": _l2_hits + _l3_hits,
+        "l2_l3_redis_misses": _l2_misses + _l3_misses,
+        "l2_l3_hit_rate": round((_l2_hits + _l3_hits) / redis_total, 4) if redis_total else 0.0,
     }
 
 
 def clear_all_caches() -> None:
     """Clear L1 in-memory cache and flush Redis (use for testing only)."""
     global _embedding_cache, _embedding_hits, _embedding_misses
-    global _redis_hits, _redis_misses
+    global _l2_hits, _l2_misses, _l3_hits, _l3_misses
 
     _embedding_cache.clear()
     _embedding_hits = 0
     _embedding_misses = 0
-    _redis_hits = 0
-    _redis_misses = 0
+    _l2_hits = 0
+    _l2_misses = 0
+    _l3_hits = 0
+    _l3_misses = 0
 
     client = _get_redis()
     if client:

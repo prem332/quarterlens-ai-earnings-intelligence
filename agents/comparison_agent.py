@@ -28,8 +28,49 @@ You are a financial analyst assistant specialising in earnings disclosure analys
 You will be given excerpts from a company's CURRENT quarter filing/transcript and
 one or more PRIOR quarter excerpts on the same topic.
 
+You will be given a QUERY naming the specific topic to analyze. Your task is to
+answer that query, not to survey the excerpts broadly for anything noteworthy:
+
+0. FIND THE QUERY'S TOPIC FIRST. Locate the current-quarter statement most
+   directly relevant to QUERY, and the prior-quarter statement it corresponds
+   to. Your FIRST array element must be this comparison. You may add further
+   elements for other genuine shifts you notice, but the first one must
+   address QUERY — a correct, on-topic "no shift" (shift_detected: false) is a
+   better first element than an off-topic "shift" elsewhere in the excerpts.
+
 Identify meaningful language shifts: changes in tone, dropped or added phrases,
 hedging language that appeared or disappeared, forward guidance changes.
+
+Apply these rules when deciding shift_detected — get these right, they are the
+cases analysts most often get wrong:
+
+1. NEW TOPIC, NO PRIOR COUNTERPART → shift_detected: true. If a topic appears in
+   the current excerpts with nothing corresponding in the prior excerpts (e.g. a
+   new investment, new risk disclosure, new commitment), that absence-then-presence
+   IS itself a meaningful shift — an addition. Do not skip it just because there is
+   nothing to diff against.
+
+2. VERBATIM-IDENTICAL SENTENCE → shift_detected: false, even if nearby or
+   surrounding text in the same excerpt changed. Judge each specific sentence you
+   are comparing in isolation. Do not let unrelated changes elsewhere in the
+   passage cause you to flag a sentence that itself did not change.
+
+3. ATTRIBUTION/EXPLANATORY ADDITIONS THAT DON'T CHANGE THE CORE CLAIM →
+   shift_detected: false. Adding a secondary explanatory factor (e.g. "and a
+   different mix" alongside an already-stated driver) is standard disclosure
+   elaboration, not a characterization change. Only flag a shift when the
+   DIRECTION, MAGNITUDE, or SUBSTANTIVE characterization actually changes
+   (e.g. "decreased" → "increased", a driver being dropped and replaced, new
+   quantified risk exposure).
+
+4. REORDERING OR REFORMATTING OF THE SAME CONTENT → shift_detected: false. The
+   same items appearing in a different order, or as bullets vs. prose, is not a
+   language shift.
+
+5. GROUNDING — shift_description must state only what is explicitly present in
+   the given excerpts. Do not infer intent, motivation, or characterize what
+   management is "now emphasizing" unless that characterization is directly
+   stated in the text. When in doubt, describe less rather than more.
 
 Respond ONLY with a JSON array. Each element must have:
   "topic": string,
@@ -97,7 +138,8 @@ async def comparison_agent(state: GraphState) -> dict:
     )
     user_msg = (
         f"COMPANY: {company}\n"
-        f"CURRENT QUARTER: {quarter}\n\n"
+        f"CURRENT QUARTER: {quarter}\n"
+        f"QUERY: {query}\n\n"
         f"--- CURRENT QUARTER EXCERPT ---\n{current_text}\n\n"
         f"{prior_section}"
     )

@@ -33,14 +33,23 @@ from azure_clients.openai_client import openai_client
 _DRAFT_SYSTEM = """\
 You are a senior equity research analyst writing earnings intelligence briefings for institutional investors.
 
+You will always be given a specific QUESTION. Answering that question is the primary job:
+- The Executive Summary's first 1-2 sentences must directly answer the QUESTION — not a general
+  overview of the quarter. A reader who reads only those sentences should have their question answered.
+- Scope the rest of the report to the QUESTION. If it asks about one specific metric, topic, or
+  segment, keep the report focused there — do not pad with unrelated sections just to fill space.
+  A section with nothing relevant to the QUESTION should be written as "Not applicable to this
+  question." (one line), not expanded with tangential content.
+- Broad questions ("how did the quarter go overall") still warrant the fuller structure below.
+
 TONE:
 - Professional, direct, assertive — not hedged or generic
 - Use active voice: "Revenue grew 10%" not "Revenue was reported to have grown"
 - No filler phrases: never use "it is worth noting", "importantly", "it should be mentioned"
 - No financial advice, no buy/sell/hold recommendations
 
-STRUCTURE (always follow this exact order):
-## Executive Summary (2-3 sentences max — the single most important takeaway)
+STRUCTURE (always follow this exact order; collapse non-applicable sections to one line as above):
+## Executive Summary (2-3 sentences max — directly answers the QUESTION first)
 ## Key Financial Metrics (bullet points, one metric per line)
 ## Guidance & Language Shifts (what changed vs prior quarter, be specific)
 ## Risk Factor Changes (what's new or dropped)
@@ -57,7 +66,8 @@ FORMATTING RULES:
 - Dates always in format: Q3 FY2025, not "third quarter of fiscal year 2025"
 - If a section has no evidence, write "No data available." — do not invent content
 
-LENGTH: 600-800 words total. No more, no less.
+LENGTH: for a narrow, single-topic QUESTION, 150-350 words focused on that topic is correct — do
+not stretch to fill 600-800 words. For a broad QUESTION covering the whole quarter, 600-800 words.
 
 EXAMPLE OF IDEAL OUTPUT FORMAT:
 ## Executive Summary
@@ -272,6 +282,7 @@ def _build_chunk_text(state: GraphState, max_chunks: int = 8) -> str:
 def _build_draft_prompt(state: GraphState, chunk_text: str, debate_summary: str = "") -> str:
     company = state["company"]
     quarter = state["quarter"]
+    query = state.get("query", "")
 
     findings: list[ComparisonFinding] = state.get("comparison_findings") or []
     findings_text = "\n".join(
@@ -306,6 +317,7 @@ def _build_draft_prompt(state: GraphState, chunk_text: str, debate_summary: str 
 
     return f"""COMPANY: {company}
 QUARTER: {quarter}
+QUESTION: {query}
 
 === RETRIEVED EVIDENCE ===
 {chunk_text}
@@ -319,7 +331,7 @@ QUARTER: {quarter}
 === NUMERIC VALIDATION ===
 {validations_text}
 {debate_section}
-Draft the analyst earnings intelligence briefing based on the above."""
+Draft the analyst earnings intelligence briefing. Answer QUESTION directly first, then support it."""
 
 
 def _build_evidence_summary(state: GraphState) -> str:

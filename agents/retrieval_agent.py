@@ -36,6 +36,7 @@ Why two separate retrieval outputs:
 from __future__ import annotations
 
 import os
+import re
 import time
 from collections import defaultdict
 
@@ -60,6 +61,25 @@ _MMR_TOP_K: int = int(os.environ.get("MMR_TOP_K", "10"))
 
 # Post-reranking diversity cap — disabled (0). Do not enable without ablation.
 _MAX_CHUNKS_PER_SECTION: int = int(os.environ.get("MAX_CHUNKS_PER_SECTION", "0"))
+
+# Boilerplate demotion — SUBTRACTS a fixed penalty from rerank_score for near-
+# content-free procedural chunks (transcript operator intros, risk-factors Item 1A
+# preambles) that can win the cross-encoder argmax on clean lexical overlap alone.
+# Additive, not multiplicative: cross-encoder rerank_score is an unbounded raw
+# logit that's frequently negative (observed range roughly -7 to +9 this session)
+# — a multiplicative scale factor (e.g. x0.7) makes a negative score LESS negative,
+# promoting it instead of demoting it. Subtraction demotes correctly regardless of
+# sign. Soft demotion, not a filter: reorders within the already-diversified
+# candidate pool rather than shrinking it, so it can't reproduce the
+# diversity-cap/section-routing regressions (both failed by removing candidates).
+#   BOILERPLATE_PENALTY=0 python evaluation/run_baseline_eval.py --run-name ablate-nopenalty
+_BOILERPLATE_PENALTY: float = float(os.environ.get("BOILERPLATE_PENALTY", "10.0"))
+_TRANSCRIPT_OPERATOR_RE = re.compile(r"^\s*operator\s*:", re.IGNORECASE)
+_SECTION_PREAMBLE_PHRASES = (
+    "other than the risk factors listed below",
+    "item 1a. risk factors",
+    "item 1a risk factors",
+)
 
 
 def retrieval_agent(state: GraphState) -> dict:
@@ -98,12 +118,15 @@ def retrieval_agent(state: GraphState) -> dict:
         lambda_param=_MMR_LAMBDA,
     )
 
-    # ── 6. Global cross-encoder rerank ────────────────────────────────────
+    # ── 6. Global cross-encoder rerank (full candidate pool, penalty applied,
+    #        then sliced to top-5 — not truncated to top-5 before the penalty,
+    #        or a demoted chunk could never be replaced by one ranked lower) ──
     ranked = rerank_documents(
         query=query,
         chunks=mmr_candidates,
-        top_k=_FINAL_TOP_K,
+        top_k=len(mmr_candidates),
     )
+    ranked = _demote_boilerplate(ranked)
 
     # ── 7. Optional diversity cap (disabled by default) ───────────────────
     final = _apply_diversity_cap(ranked, _MAX_CHUNKS_PER_SECTION, _FINAL_TOP_K)
@@ -173,6 +196,39 @@ def _dedup_across_sources(
             deduped_transcript.append(c)
 
     return deduped_filing, deduped_transcript
+
+
+def _is_boilerplate(chunk: dict) -> bool:
+    """
+    Narrow, high-precision signature for procedural/boilerplate chunks that
+    carry a clean literal keyword match but no substantive content — the exact
+    failure mode found this session: a transcript operator's introduction
+    ranked #1 for an "operating cost" query (stem overlap), a risk-factors
+    Item 1A preamble ranked #1 for a company-risk query (lexical "risk(s)"
+    match). Both are chunk_index==0 of their section/transcript.
+    """
+    if int(chunk.get("chunk_index", -1)) != 0:
+        return False
+    content = (chunk.get("content") or "").strip()
+    if chunk.get("doc_type") == "transcript":
+        return bool(_TRANSCRIPT_OPERATOR_RE.match(content))
+    if (chunk.get("section") or "").lower() in ("risk_factors", "business"):
+        lowered = content.lower()[:200]
+        return any(p in lowered for p in _SECTION_PREAMBLE_PHRASES)
+    return False
+
+
+def _demote_boilerplate(ranked: list[dict]) -> list[dict]:
+    """Subtract the penalty from rerank_score for boilerplate chunks and re-sort.
+    See _BOILERPLATE_PENALTY docstring above — demotes, never removes, a candidate."""
+    out = []
+    for chunk in ranked:
+        c = dict(chunk)
+        if _is_boilerplate(c):
+            c["rerank_score"] = c.get("rerank_score", 0.0) - _BOILERPLATE_PENALTY
+        out.append(c)
+    out.sort(key=lambda c: c["rerank_score"], reverse=True)
+    return out
 
 
 def _apply_diversity_cap(

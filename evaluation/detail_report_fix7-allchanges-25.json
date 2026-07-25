@@ -1,10 +1,10 @@
 {
-  "run_name": "fix7-answershape-25",
+  "run_name": "fix7-allchanges-25",
   "total_claims": 12,
   "pair_type_summary": {
-    "same_filing_diff_section": 20,
+    "same_filing_diff_section": 23,
     "same_company_diff_filing": 28,
-    "non_adjacent_same_section": 59,
+    "non_adjacent_same_section": 56,
     "adjacent_same_section": 13
   },
   "claims": [
@@ -299,7 +299,7 @@
           "content_preview_b": "These decisions may adversely affect our business and results of operations and may not produce the long-term benefits that we expect. We may not be successful in our Reality Labs strategy and investm"
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta delivered $51.24B of revenue in Q3 FY2025. [FILING] Operating income rose to $20.54B, but net income fell to $2.71B because the company recorded an $18.95B tax provision tied to the One Big Beautiful Bill Act. [FILING]\n\n## Key Financial Metrics\n- Revenue: $51.24B [FILING]\n-"
+      "answer_preview": "## Executive Summary\nReality Labs revenue in Q3 FY2025 was **$470M**.\n\n## Key Financial Metrics\n- Reality Labs revenue: **$470M** in Q3 FY2025 [FILING]\n- Reality Labs operating loss: **$(4.43)B** in Q3 FY2025 [FILING]\n\n## Guidance & Language Shifts\n- Management said RL revenue increased in Q3 FY2025"
     },
     {
       "claim_id": "META_FY2025-Q3_ret_002",
@@ -328,7 +328,7 @@
           "doc_type": "transcript",
           "chunk_index": 0,
           "chunk_total": 19,
-          "score": -7.4625,
+          "score": -5.2237,
           "content_preview": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator Instructions] This call will be recorded. Thank you very much. Kenneth Dorell, Meta's Director of I"
         },
         {
@@ -592,7 +592,7 @@
           "content_preview_b": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 1"
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta delivered $51.24B in revenue for Q3 FY2025. [FILING] Operating income was $20.54B, and net income was $2.71B because the company booked an $18.95B tax provision tied largely to OBBBA. [FILING]\n\n## Key Financial Metrics\n- Total revenue: $51.24B [FILING]\n- Advertising revenue"
+      "answer_preview": "## Executive Summary\nMeta’s operating cost acceleration in Q3 FY2025 was driven mainly by a sharp step-up in R&D and G&A, with R&D rising $3.97B or 35% and G&A rising $1.65B or 88% year over year. Management tied the R&D increase to higher employee compensation and infrastructure spending for AI ini"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_ret_001",
@@ -625,7 +625,7 @@
           "doc_type": "10-Q",
           "chunk_index": 0,
           "chunk_total": 41,
-          "score": -0.3171,
+          "score": -0.222,
           "content_preview": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the fiscal year ended January 26, 2025 and Item 1A of our Quarterly Reports on Form 10-Q for the fiscal q"
         },
         {
@@ -889,7 +889,7 @@
           "content_preview_b": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan,"
         }
       ],
-      "answer_preview": "## Executive Summary\nRevenue growth in the third quarter was driven by data center compute and networking platforms for accelerated computing and AI solutions. Our Blackwell architectures are the majority of our Data Center revenue. [FILING]\n\n## Key Financial Metrics\n- Revenue growth was driven by d"
+      "answer_preview": "## Executive Summary\nNVIDIA’s China-related risk in Q3 FY2026 centers on export controls, licensing uncertainty, potential revenue-sharing fees, and customer demand disruption in China. [FILING]\n\n## Key Financial Metrics\n- H20 revenue under China licenses: approximately **$50M** [FILING]\n- Timing of"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_oos_001",
@@ -905,8 +905,8 @@
           "section": "mda"
         }
       ],
-      "precision_at_k": 0.8,
-      "duplicate_density": 0.6,
+      "precision_at_k": 0.6,
+      "duplicate_density": 0.4,
       "adjacent_chunk_rate": 0.1,
       "chunks": [
         {
@@ -959,15 +959,15 @@
         },
         {
           "rank": 5,
-          "classification": "exact_match",
-          "chunk_id": "628f5ef1-23c2-4195-968d-bc5b6ce41b11",
+          "classification": "same_accession",
+          "chunk_id": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
           "accession": "0001045810-25-000230",
-          "section": "mda",
+          "section": "risk_factors",
           "doc_type": "10-Q",
-          "chunk_index": 9,
-          "chunk_total": 37,
-          "score": -5.7619,
-          "content_preview": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRevenue | $ | 57,006 | $ | 46,743 | $ | 35,082 | 22 | % | 62 | %\nGross margin | 73.4 | % | 72.4 | % | 7"
+          "chunk_index": 0,
+          "chunk_total": 41,
+          "score": -4.8435,
+          "content_preview": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the fiscal year ended January 26, 2025 and Item 1A of our Quarterly Reports on Form 10-Q for the fiscal q"
         }
       ],
       "chunk_pairs": [
@@ -1038,22 +1038,22 @@
           "rank_a": 1,
           "rank_b": 5,
           "chunk_id_a": "3cd2872c-1571-435a-9779-2a26ab6ab1f9",
-          "chunk_id_b": "628f5ef1-23c2-4195-968d-bc5b6ce41b11",
+          "chunk_id_b": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
           "accession_a": "transcript_NVDA_FY2026-Q3",
           "accession_b": "0001045810-25-000230",
           "section_a": "transcript_part_1",
-          "section_b": "mda",
+          "section_b": "risk_factors",
           "doc_type_a": "transcript",
           "doc_type_b": "10-Q",
           "chunk_index_a": 1,
-          "chunk_index_b": 9,
-          "chunk_index_distance": 8,
+          "chunk_index_b": 0,
+          "chunk_index_distance": 1,
           "same_accession": false,
           "same_section": false,
           "same_key": false,
           "pair_type": "same_company_diff_filing",
           "content_preview_a": "Colette Kress: Thank you, Toshiya. We delivered another outstanding quarter with revenue of $57 billion, up 62% year over year and a record sequential revenue growth of $10 billion or 22%. Our custome",
-          "content_preview_b": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRev"
+          "content_preview_b": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f"
         },
         {
           "rank_a": 2,
@@ -1101,22 +1101,22 @@
           "rank_a": 2,
           "rank_b": 5,
           "chunk_id_a": "5498504c-0e66-46ad-b7a0-03276b45f789",
-          "chunk_id_b": "628f5ef1-23c2-4195-968d-bc5b6ce41b11",
+          "chunk_id_b": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
           "accession_a": "0001045810-25-000230",
           "accession_b": "0001045810-25-000230",
           "section_a": "mda",
-          "section_b": "mda",
+          "section_b": "risk_factors",
           "doc_type_a": "10-Q",
           "doc_type_b": "10-Q",
           "chunk_index_a": 19,
-          "chunk_index_b": 9,
-          "chunk_index_distance": 10,
+          "chunk_index_b": 0,
+          "chunk_index_distance": 19,
           "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
+          "same_section": false,
+          "same_key": false,
+          "pair_type": "same_filing_diff_section",
           "content_preview_a": "Concentration of Revenue We refer to customers who purchase products directly from NVIDIA as direct customers, such as add-in board manufacturers, distributors, ODMs, OEMs, CSPs, hyperscale companies,",
-          "content_preview_b": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRev"
+          "content_preview_b": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f"
         },
         {
           "rank_a": 3,
@@ -1143,46 +1143,46 @@
           "rank_a": 3,
           "rank_b": 5,
           "chunk_id_a": "0984f021-6089-4a08-a719-d2a57024856b",
-          "chunk_id_b": "628f5ef1-23c2-4195-968d-bc5b6ce41b11",
+          "chunk_id_b": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
           "accession_a": "0001045810-25-000230",
           "accession_b": "0001045810-25-000230",
           "section_a": "mda",
-          "section_b": "mda",
+          "section_b": "risk_factors",
           "doc_type_a": "10-Q",
           "doc_type_b": "10-Q",
           "chunk_index_a": 4,
-          "chunk_index_b": 9,
-          "chunk_index_distance": 5,
+          "chunk_index_b": 0,
+          "chunk_index_distance": 4,
           "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
+          "same_section": false,
+          "same_key": false,
+          "pair_type": "same_filing_diff_section",
           "content_preview_a": "Headquartered in Santa Clara, California, NVIDIA was incorporated in California in April 1993 and reincorporated in Delaware in April 1998. Recent Developments, Future Objectives and Challenges Revenu",
-          "content_preview_b": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRev"
+          "content_preview_b": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f"
         },
         {
           "rank_a": 4,
           "rank_b": 5,
           "chunk_id_a": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
-          "chunk_id_b": "628f5ef1-23c2-4195-968d-bc5b6ce41b11",
+          "chunk_id_b": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
           "accession_a": "0001045810-25-000230",
           "accession_b": "0001045810-25-000230",
           "section_a": "mda",
-          "section_b": "mda",
+          "section_b": "risk_factors",
           "doc_type_a": "10-Q",
           "doc_type_b": "10-Q",
           "chunk_index_a": 3,
-          "chunk_index_b": 9,
-          "chunk_index_distance": 6,
+          "chunk_index_b": 0,
+          "chunk_index_distance": 3,
           "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
+          "same_section": false,
+          "same_key": false,
+          "pair_type": "same_filing_diff_section",
           "content_preview_a": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to s",
-          "content_preview_b": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRev"
+          "content_preview_b": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f"
         }
       ],
-      "answer_preview": "## Executive Summary\nNVIDIA posted a strong Q3 FY2026 quarter, with revenue of **$57.0B**, while operating income reached **$36.0B** and diluted EPS came in at **$1.30**. [FILING]\n\n## Key Financial Metrics\n- Revenue: **$57.0B**. [FILING]\n- Data Center revenue: **$51.2B**. [FILING]\n- Data Center comp"
+      "answer_preview": "## Executive Summary\nGaming revenue was $4.3 billion.\n\n## Key Financial Metrics\n- Gaming revenue: $4.3 billion\n\n## Guidance & Language Shifts\nNo verified data available.\n\n## Risk Factor Changes\nNo verified data available.\n\n## Sentiment Overview\nNo verified data available.\n\n## Bull/Bear Perspectives\n"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_cmp_001",
@@ -1475,7 +1475,7 @@
           "content_preview_b": "Toshiya Hari: We will now open the call for questions. Operator, would you please poll for questions? Sarah: Thank you. At this time, I would like to remind everyone, in order to ask a question, press"
         }
       ],
-      "answer_preview": "## Executive Summary\nNVIDIA posted $57.0B in revenue in Q3 FY2026, with Compute & Networking driving the increase. [FILING] Gross margin reached 73.4%, and operating income rose to $38.3B. [FILING]\n\nManagement also signaled a heavier strategic-investment posture, including a $5.0B commitment to Inte"
+      "answer_preview": "## Executive Summary\nNo verified data available.\n\n## Key Financial Metrics\nNo verified data available.\n\n## Guidance & Language Shifts\n- The filing states: “We expect to continue investing in strategic partnerships” and adds that “In the third quarter of fiscal year 2026, we entered into a letter of "
     },
     {
       "claim_id": "NVDA_FY2026-Q3_cmp_004",
@@ -1768,7 +1768,7 @@
           "content_preview_b": "The scope, timing, and requirements of the forthcoming rule remain uncertain. The replacement rule may impose new restrictions on our products or operations and/or add license requirements that could "
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. The current quarter materially expands and hardens the disclosure. It drops the prior framing about wider controls causing customers to “design-out” U.S. semiconductors and overseas governments steering purchases to competitors, and replaces/extends it with more"
+      "answer_preview": "Language shift vs prior quarter: YES. The current quarter removed the prior quarter's explicit statements that wider controls would have a disproportionate impact and disadvantage NVIDIA versus competitors, along with the added explanations about customers design-ing out U.S. semiconductors and over"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_ret_004",
@@ -2061,7 +2061,7 @@
           "content_preview_b": "Services | 27,423 | 24,213 | 13 | % | 80,408 | 71,197 | 13 | %\nTotal net sales | $ | 94,036 | $ | 85,777 | 10 | % | $ | 313,695 | $ | 296,105 | 6 | % iPhone iPhone net sales increased during the third"
         }
       ],
-      "answer_preview": "## Executive Summary\nApple posted $94.0B in total net sales in Q3 FY2025. [FILING]\n\n## Key Financial Metrics\n- Total net sales: $94.0B [FILING]\n- Nine-month net sales: $313.7B [FILING]\n- iPhone net sales: $44.6B [FILING]\n- Mac net sales: $8.0B [FILING]\n- iPad net sales: $6.6B [FILING]\n- Wearables, H"
+      "answer_preview": "## Executive Summary\nApple said products gross margin increased in the quarter due to favorable costs and product mix, but that gain was partially offset by tariffs, and products gross margin percentage decreased because of tariffs and mix. [FILING]\n\n## Key Financial Metrics\n- Products gross margin:"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_cmp_007",
@@ -2354,7 +2354,7 @@
           "content_preview_b": "Percentage of total net sales | 17 | % | 17 | % | 15 | % | 15 | % Research and Development The growth in research and development (“R&D”) expense during the third quarter and first nine months of 2025"
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. The driver set changed from currency weakness to tariffs. Current language drops the prior hedging around foreign exchange and instead highlights tariffs as a primary margin headwind, while retaining the mix and favorable costs language."
+      "answer_preview": "Language shift vs prior quarter: YES. The explanation was broadened from a single driver in the prior quarter (higher Services net sales) to two drivers in the current quarter (higher Services net sales and a different mix of services)."
     },
     {
       "claim_id": "META_FY2025-Q3_oos_001",
@@ -2376,6 +2376,18 @@
       "chunks": [
         {
           "rank": 1,
+          "classification": "same_company",
+          "chunk_id": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
+          "accession": "transcript_META_FY2025-Q3",
+          "section": "transcript_part_0",
+          "doc_type": "transcript",
+          "chunk_index": 0,
+          "chunk_total": 19,
+          "score": -3.8749,
+          "content_preview": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator Instructions] This call will be recorded. Thank you very much. Kenneth Dorell, Meta's Director of I"
+        },
+        {
+          "rank": 2,
           "classification": "exact_match",
           "chunk_id": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
           "accession": "0001628280-25-047240",
@@ -2385,18 +2397,6 @@
           "chunk_total": 45,
           "score": -4.573,
           "content_preview": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time income tax charge of $15.93 billion accrued in the third quarter of 2025 related to the implementation as"
-        },
-        {
-          "rank": 2,
-          "classification": "same_company",
-          "chunk_id": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "accession": "transcript_META_FY2025-Q3",
-          "section": "transcript_part_0",
-          "doc_type": "transcript",
-          "chunk_index": 0,
-          "chunk_total": 19,
-          "score": -5.5356,
-          "content_preview": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator Instructions] This call will be recorded. Thank you very much. Kenneth Dorell, Meta's Director of I"
         },
         {
           "rank": 3,
@@ -2439,89 +2439,26 @@
         {
           "rank_a": 1,
           "rank_b": 2,
-          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
-          "chunk_id_b": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "accession_a": "0001628280-25-047240",
-          "accession_b": "transcript_META_FY2025-Q3",
-          "section_a": "mda",
-          "section_b": "transcript_part_0",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "transcript",
-          "chunk_index_a": 5,
-          "chunk_index_b": 0,
+          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
+          "chunk_id_b": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
+          "accession_a": "transcript_META_FY2025-Q3",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "transcript_part_0",
+          "section_b": "mda",
+          "doc_type_a": "transcript",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 0,
+          "chunk_index_b": 5,
           "chunk_index_distance": 5,
           "same_accession": false,
           "same_section": false,
           "same_key": false,
           "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
-          "content_preview_b": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator"
+          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
+          "content_preview_b": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom"
         },
         {
           "rank_a": 1,
-          "rank_b": 3,
-          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
-          "chunk_id_b": "d5c5a26e-b931-474b-babc-1c6ee1233310",
-          "accession_a": "0001628280-25-047240",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "mda",
-          "section_b": "mda",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 5,
-          "chunk_index_b": 43,
-          "chunk_index_distance": 38,
-          "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
-          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
-          "content_preview_b": "equivalents. Subject to legally available funds and future declaration by our board of directors, we currently intend to continue to pay a quarterly cash dividend and dividend equivalents on our outst"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 4,
-          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
-          "chunk_id_b": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
-          "accession_a": "0001628280-25-047240",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "mda",
-          "section_b": "mda",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 5,
-          "chunk_index_b": 34,
-          "chunk_index_distance": 29,
-          "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
-          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
-          "content_preview_b": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 5,
-          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
-          "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
-          "accession_a": "0001628280-25-047240",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "mda",
-          "section_b": "mda",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 5,
-          "chunk_index_b": 26,
-          "chunk_index_distance": 21,
-          "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
-          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
-          "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
-        },
-        {
-          "rank_a": 2,
           "rank_b": 3,
           "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
           "chunk_id_b": "d5c5a26e-b931-474b-babc-1c6ee1233310",
@@ -2542,7 +2479,7 @@
           "content_preview_b": "equivalents. Subject to legally available funds and future declaration by our board of directors, we currently intend to continue to pay a quarterly cash dividend and dividend equivalents on our outst"
         },
         {
-          "rank_a": 2,
+          "rank_a": 1,
           "rank_b": 4,
           "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
           "chunk_id_b": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
@@ -2563,7 +2500,7 @@
           "content_preview_b": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for"
         },
         {
-          "rank_a": 2,
+          "rank_a": 1,
           "rank_b": 5,
           "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
           "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
@@ -2581,6 +2518,69 @@
           "same_key": false,
           "pair_type": "same_company_diff_filing",
           "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
+          "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
+          "chunk_id_b": "d5c5a26e-b931-474b-babc-1c6ee1233310",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 5,
+          "chunk_index_b": 43,
+          "chunk_index_distance": 38,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
+          "content_preview_b": "equivalents. Subject to legally available funds and future declaration by our board of directors, we currently intend to continue to pay a quarterly cash dividend and dividend equivalents on our outst"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 4,
+          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
+          "chunk_id_b": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 5,
+          "chunk_index_b": 34,
+          "chunk_index_distance": 29,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
+          "content_preview_b": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 5,
+          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
+          "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 5,
+          "chunk_index_b": 26,
+          "chunk_index_distance": 21,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
           "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
         },
         {
@@ -2647,7 +2647,7 @@
           "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta posted **$51.242B** in revenue for **Q3 FY2025**. Operating income rose to **$20.535B** even as reported net income fell to **$2.709B** because of an **$18.954B** tax provision tied to the enactment of the **One Big Beautiful Bill Act**.\n\n## Key Financial Metrics\n- Revenue:"
+      "answer_preview": "## Executive Summary\nNo verified data available.\n\n## Key Financial Metrics\n- Net income: $2.709 billion [FILING]\n- Provision for income taxes: $18.954 billion [FILING]\n- One-time income tax charge: $15.93 billion [FILING]\n- Effective tax rate: 87% [FILING]\n- Reported diluted EPS: $1.05 [FILING]\n\n## "
     },
     {
       "claim_id": "AAPL_FY2025-Q3_cmp_003",
@@ -2940,7 +2940,7 @@
           "content_preview_b": "Timothy D. Cook: Yes. We did grow in Greater China by 4% during the quarter versus the previous quarter, it was driven by an acceleration by iPhone, although we also had substantial growth on the Mac "
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. Current language adds a more specific tariff contingency framework, explicitly referencing tariffs or other measures being announced or imposed, foreign retaliation, and the magnitude and duration of such measures. This is a meaningful expansion and more direct "
+      "answer_preview": "Language shift vs prior quarter: YES. The current quarter changes from a year-to-date decrease to a third-quarter increase, and adds Mac as a second primary driver instead of only citing lower iPhone sales."
     },
     {
       "claim_id": "MSFT_FY2026-Q3_oos_001",
@@ -3233,7 +3233,7 @@
           "content_preview_b": "Nine Months Ended March 31, 2026 Compared with Nine Months Ended March 31, 2025 Revenue increased $36.5 billion or 18% driven by growth in Microsoft Cloud. Intelligent Cloud revenue increased driven b"
         }
       ],
-      "answer_preview": "## Executive Summary\nMicrosoft delivered a strong quarter, with revenue of $82.9B, operating income up 20%, and EPS of $4.27, all above expectations according to management. AI is now a scaled revenue engine: the AI business annual revenue run rate exceeded $37.0B, up 123% year-over-year.\n\n## Key Fi"
+      "answer_preview": "## Executive Summary\nMicrosoft said its AI business annual revenue run rate surpassed **$37.0 billion** in **Q3 FY2026**. Management said it was up **123% year-over-year**.\n\n## Key Financial Metrics\n- AI business annual revenue run rate: **>$37.0 billion**\n- AI business year-over-year growth: **123%"
     },
     {
       "claim_id": "MSFT_FY2026-Q3_ret_002",
@@ -3526,7 +3526,7 @@
           "content_preview_b": "Dynamics 365 revenue growth | Revenue from Dynamics 365, including a set of intelligent, cloud-based applications across ERP, CRM, Power Apps, and Power Automate\nAzure and other cloud services revenue"
         }
       ],
-      "answer_preview": "## Executive Summary\nMicrosoft delivered $82.9B in revenue for Q3 FY2026. [FILING]\n\n## Key Financial Metrics\n- Revenue: $82.9B [FILING]\n- Gross margin: $56.1B [FILING]\n- Operating income: $38.4B [FILING]\n- Net income: $31.8B [FILING]\n- Diluted EPS: $4.27 [FILING]\n- Adjusted net income: $31.8B [FILIN"
+      "answer_preview": "## Executive Summary\nAzure and other cloud services revenue grew **40%** in **Q3 FY2026**. [FILING]\n\n## Key Financial Metrics\n- Azure and other cloud services revenue growth: **40%** [FILING]\n- Server products and cloud services revenue growth: **32%** [FILING]\n- Microsoft Cloud gross margin percent"
     }
   ]
 }

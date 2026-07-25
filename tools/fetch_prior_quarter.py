@@ -11,22 +11,28 @@ _QUARTER_ORDER = ["Q1", "Q2", "Q3", "Q4"]
 
 def _parse_fiscal_label(label: str) -> tuple[int, int]:
     """
-    Parse 'Q2_FY2025' → (quarter_index=1, fiscal_year=2025).
+    Parse a fiscal label → (quarter_index 0-3, fiscal_year).
+
+    Accepts the canonical corpus format 'FY2025-Q2' (used by claims, chunks, and
+    the AI Search index) and the legacy 'Q2_FY2025' as a fallback.
     Raises ValueError on bad format.
     """
-    m = re.fullmatch(r"Q([1-4])_FY(\d{4})", label.strip())
-    if not m:
-        raise ValueError(f"Invalid fiscal label '{label}'. Expected format: Q1_FY2025")
-    q_idx = int(m.group(1)) - 1   # 0-based index into _QUARTER_ORDER
-    fy = int(m.group(2))
-    return q_idx, fy
+    s = label.strip()
+    m = re.fullmatch(r"FY(\d{4})-Q([1-4])", s)      # canonical: FY2025-Q2
+    if m:
+        return int(m.group(2)) - 1, int(m.group(1))
+    m = re.fullmatch(r"Q([1-4])_FY(\d{4})", s)      # legacy fallback: Q2_FY2025
+    if m:
+        return int(m.group(1)) - 1, int(m.group(2))
+    raise ValueError(f"Invalid fiscal label '{label}'. Expected 'FY2025-Q2' or 'Q2_FY2025'.")
 
 
 def _resolve_prior_label(current_quarter: str, quarters_back: int) -> str:
     """
-    Subtract `quarters_back` from `current_quarter` and return the resolved label.
+    Subtract `quarters_back` from `current_quarter`, returning the canonical
+    corpus format so it matches the AI Search `fiscal_label` filter.
 
-    Example: current='Q2_FY2025', quarters_back=3 → 'Q3_FY2024'
+    Example: current='FY2025-Q2', quarters_back=3 → 'FY2024-Q3'
     """
     if quarters_back < 1:
         raise ValueError("quarters_back must be >= 1")
@@ -39,8 +45,8 @@ def _resolve_prior_label(current_quarter: str, quarters_back: int) -> str:
         total_quarters += 4
         fy -= 1
 
-    resolved_q = _QUARTER_ORDER[total_quarters % 4]
-    return f"{resolved_q}_FY{fy}"
+    resolved_q_num = (total_quarters % 4) + 1
+    return f"FY{fy}-Q{resolved_q_num}"
 
 
 def fetch_prior_quarter(

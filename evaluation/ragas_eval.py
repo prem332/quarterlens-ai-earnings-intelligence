@@ -261,14 +261,18 @@ def run_ragas_eval(
     for i, s in enumerate(samples):
         question = s.get("question", "")
         answer = s.get("answer", "")
+        # Child contexts (retrieval unit) score precision; generation contexts
+        # (parent-expanded, what the report agent used) score faithfulness/recall.
+        # Falls back to child when gen_contexts absent — backward compatible.
         contexts = s.get("contexts", [])
+        gen_contexts = s.get("gen_contexts") or contexts
         ground_truth = s.get("ground_truth", "")
 
         log.debug("Scoring sample %d/%d", i + 1, len(samples))
 
         if "faithfulness" in requested:
             scores["faithfulness"].append(
-                _score_faithfulness(client, deployment, answer, contexts)
+                _score_faithfulness(client, deployment, answer, gen_contexts)
             )
         if "answer_relevancy" in requested:
             scores["answer_relevancy"].append(
@@ -280,7 +284,7 @@ def run_ragas_eval(
             )
         if "context_recall" in requested:
             scores["context_recall"].append(
-                _score_context_recall(client, deployment, contexts, ground_truth)
+                _score_context_recall(client, deployment, gen_contexts, ground_truth)
             )
 
     result = {}

@@ -150,7 +150,7 @@ def _ranked_context(chunks: list[dict], max_chars: int = 4000) -> str:
     parts: list[str] = []
     total = 0
     for chunk in chunks:
-        text = chunk.get("content", "")
+        text = chunk.get("parent_content") or chunk.get("content", "")
         if total + len(text) > max_chars:
             break
         parts.append(text)
@@ -159,9 +159,31 @@ def _ranked_context(chunks: list[dict], max_chars: int = 4000) -> str:
 
 
 def _resolve_quarters_back(current_quarter: str, comparison_quarters: list[str]) -> dict[str, int]:
+    """
+    Map each comparison label to how many quarters back it is from the current
+    quarter, computed from the labels themselves (QoQ=1, YoY=4, ...). Falls back
+    to list position only if a label can't be parsed.
+    """
+    from tools.fetch_prior_quarter import _parse_fiscal_label
+
+    try:
+        c_idx, c_fy = _parse_fiscal_label(current_quarter)
+        current_abs = c_fy * 4 + c_idx
+    except ValueError:
+        current_abs = None
+
     result: dict[str, int] = {}
     for i, label in enumerate(comparison_quarters, start=1):
-        result[label] = i
+        quarters_back = i
+        if current_abs is not None:
+            try:
+                t_idx, t_fy = _parse_fiscal_label(label)
+                dist = current_abs - (t_fy * 4 + t_idx)
+                if dist >= 1:
+                    quarters_back = dist
+            except ValueError:
+                pass
+        result[label] = quarters_back
     return result
 
 

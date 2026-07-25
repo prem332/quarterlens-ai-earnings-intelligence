@@ -74,6 +74,10 @@ def build_index() -> SearchIndex:
         SimpleField(name="accession", type=SearchFieldDataType.String, filterable=True),
         SimpleField(name="chunk_index", type=SearchFieldDataType.Int32, filterable=True),
         SimpleField(name="chunk_total", type=SearchFieldDataType.Int32),
+        # Deviation #32: hierarchical (parent/child) fields for small-to-big retrieval
+        SimpleField(name="parent_id", type=SearchFieldDataType.String, filterable=True),
+        SimpleField(name="parent_index", type=SearchFieldDataType.Int32, filterable=True, sortable=True),
+        SimpleField(name="parent_total", type=SearchFieldDataType.Int32),
     ]
 
     vector_search = VectorSearch(
@@ -141,6 +145,9 @@ def _load_all_docs(embedding_manifest: list[dict]) -> list[dict]:
                 "accession":    chunk["accession"],
                 "chunk_index":  chunk["chunk_index"],
                 "chunk_total":  chunk["chunk_total"],
+                "parent_id":    chunk.get("parent_id", chunk["chunk_id"]),
+                "parent_index": chunk.get("parent_index", 0),
+                "parent_total": chunk.get("parent_total", 1),
             })
     return docs
 

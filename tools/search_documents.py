@@ -178,6 +178,9 @@ def search_documents(
             "section":      hit.get("section", ""),
             "chunk_index":  hit.get("chunk_index", -1),
             "chunk_total":  hit.get("chunk_total", -1),
+            "parent_id":    hit.get("parent_id", ""),
+            "parent_index": hit.get("parent_index", 0),
+            "parent_total": hit.get("parent_total", 1),
             "score":        hit.get("@search.score", 0.0),
         })
 
@@ -185,3 +188,42 @@ def search_documents(
         set_retrieval_cached(query, company, quarter, results)
 
     return {"results": results, "count": len(results)}
+
+
+def fetch_parent_siblings(
+    parent_id: str,
+    company: Optional[str] = None,
+    quarter: Optional[str] = None,
+    top: int = 50,
+) -> list[dict]:
+    """
+    All child chunks of one L2 parent, ordered by parent_index — for small-to-big
+    parent reconstruction. Filter is defensively scoped by ticker+fiscal_label;
+    parent_id is a UUID so company/quarter are belt-and-suspenders against mixing.
+    Concatenating the returned 'content' values reconstructs the parent block.
+    """
+    if not parent_id:
+        return []
+
+    def _esc(v: str) -> str:
+        return v.replace("'", "''")
+
+    clauses = [f"parent_id eq '{_esc(parent_id)}'"]
+    if company:
+        clauses.append(f"ticker eq '{_esc(company)}'")
+    if quarter:
+        clauses.append(f"fiscal_label eq '{_esc(quarter)}'")
+
+    try:
+        hits = ai_search.filter_search(" and ".join(clauses), top=top)
+    except Exception as exc:  # noqa: BLE001 — expansion is best-effort
+        print(f"[search_documents] fetch_parent_siblings failed: {exc}")
+        return []
+
+    rows = [
+        {"parent_index": h.get("parent_index", 0),
+         "content": h.get("text", h.get("content", ""))}
+        for h in hits
+    ]
+    rows.sort(key=lambda r: r["parent_index"])
+    return rows

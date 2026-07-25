@@ -40,6 +40,10 @@ class RetrievalResult(TypedDict):
     section: str           # parsed section key (e.g. "mda") — filing coordinate for precision/recall@k
     chunk_index: int       # position of chunk within its section (−1 if unknown) — enables adjacency/duplicate analysis
     chunk_total: int       # total chunks in the section (−1 if unknown)
+    parent_id: str         # L2 parent block id (hierarchical retrieval) — siblings share it
+    parent_index: int      # ordinal of this child within its parent
+    parent_total: int      # total children in the parent
+    parent_content: str    # parent block reconstructed at retrieval (small-to-big); "" until expanded
 
 
 class ComparisonFinding(TypedDict):

@@ -264,7 +264,7 @@ def _build_chunk_text(state: GraphState, max_chunks: int = 8) -> str:
     """
     chunks = state.get("retrieval_results") or []
     return "\n\n".join(
-        f"[{r['doc_type'].upper()}] {r['content']}"
+        f"[{r['doc_type'].upper()}] {r.get('parent_content') or r['content']}"
         for r in chunks[:max_chunks]
     )
 
@@ -330,7 +330,7 @@ def _build_evidence_summary(state: GraphState) -> str:
     """
     lines: list[str] = []
     for r in (state.get("retrieval_results") or [])[:10]:
-        lines.append(f"[{r['doc_type'].upper()}] {r['content'][:300]}")
+        lines.append(f"[{r['doc_type'].upper()}] {(r.get('parent_content') or r['content'])[:300]}")
     for v in (state.get("numeric_validations") or []):
         lines.append(
             f"[VALIDATED] {v['metric']}: claimed={v['claimed_value']} "

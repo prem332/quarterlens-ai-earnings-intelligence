@@ -114,6 +114,16 @@ class AISearchClient:
         logger.debug("AISearchClient: vector-only search returned %d results", len(hits))
         return hits
 
+    def filter_search(self, filters: str, top: int = 50) -> list[dict]:
+        """
+        Filter-only fetch (no scoring) — used for hierarchical sibling lookup by
+        parent_id. Returns all index fields for docs matching the OData filter.
+        """
+        results = self._client.search(
+            search_text="*", filter=filters, top=top, select="*",
+        )
+        return [dict(r) for r in results]
+
 
 # Module-level singleton
 ai_search = AISearchClient()

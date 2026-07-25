@@ -111,6 +111,9 @@ def retrieval_agent(state: GraphState) -> dict:
     # ── 8. Map to RetrievalResult for GraphState ──────────────────────────
     retrieval_results = _to_retrieval_results(final, company, quarter)
 
+    # ── 8b. Small-to-big: reconstruct parent blocks for reasoning agents ──
+    retrieval_results = _expand_parents(retrieval_results, company, quarter)
+
     entry: DecisionLogEntry = {
         "agent":         "retrieval_agent",
         "tool_called":   "search_documents + mmr_rerank + rerank_documents",
@@ -242,6 +245,38 @@ def _to_retrieval_results(
             section=      h.get("section", ""),
             chunk_index=  int(h.get("chunk_index", -1)),
             chunk_total=  int(h.get("chunk_total", -1)),
+            parent_id=    h.get("parent_id", ""),
+            parent_index= int(h.get("parent_index", 0)),
+            parent_total= int(h.get("parent_total", 1)),
+            parent_content="",
         )
         for h in chunks
     ]
+
+
+def _expand_parents(
+    results: list[RetrievalResult],
+    company: str,
+    quarter: str,
+) -> list[RetrievalResult]:
+    """
+    Small-to-big: reconstruct each child's L2 parent block by fetching its
+    siblings (one filtered query per unique parent, cached within the call) and
+    concatenating them in parent_index order. `content` stays the precise child
+    (retrieval + RAGAS precision); `parent_content` carries the rich context that
+    the reasoning agents consume. Degenerate parents (transcripts, single-child)
+    skip the fetch — parent_content == content.
+    """
+    from tools.search_documents import fetch_parent_siblings
+
+    cache: dict[str, str] = {}
+    for r in results:
+        pid = r.get("parent_id", "")
+        if not pid or r.get("parent_total", 1) <= 1:
+            r["parent_content"] = r.get("content", "")
+            continue
+        if pid not in cache:
+            siblings = fetch_parent_siblings(pid, company=company, quarter=quarter)
+            cache[pid] = "".join(s["content"] for s in siblings) if siblings else r.get("content", "")
+        r["parent_content"] = cache[pid]
+    return results

@@ -603,23 +603,132 @@ def _aggregate_ragas_by_type(
     return out
 
 
+# ── Claim-type answer shaping ─────────────────────────────────────────────────
+
+def _comparison_quarters(claim: dict) -> list[str]:
+    """Prior-quarter label for comparison claims so comparison_agent actually runs."""
+    if claim.get("claim_type") != "comparison":
+        return []
+    prior = (claim.get("ground_truth") or {}).get("prior_anchor") or {}
+    label = prior.get("fiscal_label")
+    return [label] if label else []
+
+
+_STOPWORDS = {
+    "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with",
+    "is", "was", "were", "are", "be", "as", "by", "at", "this", "that",
+    "compared", "same", "period", "periods", "due", "primarily",
+}
+
+
+def _tokens(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOPWORDS and len(w) > 2}
+
+
+def _overlap_ratio(a: str, b: str) -> float:
+    """Fraction of a's content tokens also present in b — cheap lexical topic match."""
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta:
+        return 0.0
+    return len(ta & tb) / len(ta)
+
+
+def _select_comparison_finding(
+    claim: dict,
+    comparison_findings: list[dict],
+    current_context: str,
+) -> dict | None:
+    """
+    Pick the finding that's actually about the claim's topic, not findings[0]
+    (comparison_agent's LLM returns an array covering whatever topics it noticed
+    across the whole retrieved context — the first one is often the most
+    "newsworthy" shift elsewhere in the filing, not the claim's specific sentence).
+
+    1. Topic match: score each finding's current_language against the claim's
+       own current_quarter_lang (the exact sentence the claim tests — embedded
+       verbatim in the query). Require a minimum overlap floor.
+    2. Grounding proxy: the matched finding's current_language must itself be
+       substantively present in what was actually retrieved (current_context) —
+       catches the LLM inventing a quote not in the evidence it was given.
+    Returns None if nothing clears both bars — caller falls back to the report
+    rather than emit a confidently-wrong answer about an unrelated topic.
+    """
+    target = (claim.get("payload") or {}).get("current_quarter_lang", "")
+    if not target or not comparison_findings:
+        return None
+
+    scored = [
+        (f, _overlap_ratio(target, f.get("current_language", "")))
+        for f in comparison_findings
+    ]
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    best, score = scored[0]
+    if score < 0.3:
+        return None
+
+    if _overlap_ratio(best.get("current_language", ""), current_context) < 0.3:
+        return None
+    return best
+
+
+def _build_typed_answer(
+    claim: dict,
+    report: str,
+    sentiment_scores: list[dict],
+    comparison_findings: list[dict],
+    current_context: str,
+) -> str:
+    """
+    Evaluate the claim-appropriate agent output, not the generic briefing.
+    Sentiment/comparison claims are answered by the specialized agents' own
+    outputs (FinBERT label, shift verdict) — quoting only the exact evidence
+    the agent used. Other claim types keep the report (already relevant).
+    """
+    claim_type = claim.get("claim_type", "")
+
+    if claim_type == "sentiment" and sentiment_scores:
+        pool = [s for s in sentiment_scores if s.get("label") != "neutral"] or sentiment_scores
+        best = max(pool, key=lambda s: s.get("score", 0.0))
+        passage = (best.get("passage", "") or "")[:400]
+        return (f'Sentiment: {best.get("label", "neutral")} '
+                f'(confidence {best.get("score", 0.0):.2f}). Evidence: "{passage}"')
+
+    if claim_type == "comparison":
+        finding = _select_comparison_finding(claim, comparison_findings, current_context)
+        if finding is not None:
+            verdict = "YES" if finding.get("shift_detected") else "NO"
+            desc = finding.get("shift_description") or "No substantive language shift."
+            return f"Language shift vs prior quarter: {verdict}. {desc}"
+        # No finding matches the claim's topic (or it isn't grounded in the
+        # retrieved evidence) — the generic briefing is a safer answer than a
+        # confidently-wrong one about an unrelated topic.
+
+    return report
+
+
 # ── Pipeline runner ───────────────────────────────────────────────────────────
 
-async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str, Any]:
+async def _run_pipeline(
+    query: str,
+    company: str,
+    fiscal_label: str,
+    comparison_quarters: list[str] | None = None,
+) -> dict[str, Any]:
     from graph.build_graph import compiled_graph
     from graph.state import GraphState
     from azure_clients.redis_client import get_report_cached, set_report_cached
 
     cached_report = get_report_cached(query, company, fiscal_label)
     if cached_report:
-        return {"answer": cached_report, "contexts": [], "chunks": [],
+        return {"answer": cached_report, "contexts": [], "gen_contexts": [],
+                "chunks": [], "sentiment_scores": [], "comparison_findings": [],
                 "error": None, "cache_hit": True}
 
     initial_state: GraphState = {
         "company": company,
         "quarter": fiscal_label,
         "query": query,
-        "comparison_quarters": [],
+        "comparison_quarters": comparison_quarters or [],
         "retrieval_results": [],
         "transcript_retrieval_results": [],
         "comparison_findings": [],
@@ -635,15 +744,27 @@ async def _run_pipeline(query: str, company: str, fiscal_label: str) -> dict[str
     try:
         result = await compiled_graph.ainvoke(initial_state)
         chunks = result.get("retrieval_results") or []
+        # Child text — the retrieval unit (context_precision is scored on this).
         contexts = [c.get("content", "") for c in chunks if isinstance(c, dict)]
+        # Parent-expanded text — what the report agent actually reasoned over
+        # (faithfulness / context_recall / judge grounding are scored on this).
+        gen_contexts = [
+            (c.get("parent_content") or c.get("content", ""))
+            for c in chunks if isinstance(c, dict)
+        ]
         report = result.get("report") or ""
         if report and not result.get("error"):
             set_report_cached(query, company, fiscal_label, report)
-        return {"answer": report, "contexts": contexts, "chunks": chunks,
+        return {"answer": report, "contexts": contexts, "gen_contexts": gen_contexts,
+                "chunks": chunks,
+                "sentiment_scores": result.get("sentiment_scores") or [],
+                "comparison_findings": result.get("comparison_findings") or [],
                 "error": result.get("error"), "cache_hit": False}
     except Exception as e:
         log.warning("Pipeline error for query '%s': %s", query[:60], e)
-        return {"answer": "", "contexts": [], "chunks": [], "error": str(e), "cache_hit": False}
+        return {"answer": "", "contexts": [], "gen_contexts": [], "chunks": [],
+                "sentiment_scores": [], "comparison_findings": [],
+                "error": str(e), "cache_hit": False}
 
 
 # ── Main eval loop ────────────────────────────────────────────────────────────
@@ -707,18 +828,29 @@ async def run_eval(
         )
 
         t0 = time.time()
-        pipeline_out = await _run_pipeline(query, company, fiscal_label)
+        pipeline_out = await _run_pipeline(
+            query, company, fiscal_label, comparison_quarters=_comparison_quarters(claim))
         latency_ms = int((time.time() - t0) * 1000)
         time.sleep(3)
 
-        answer = pipeline_out["answer"]
         contexts = pipeline_out["contexts"]
+        gen_contexts = pipeline_out.get("gen_contexts") or contexts
         chunks = pipeline_out["chunks"]
         pipeline_error = pipeline_out["error"]
 
+        # Claim-type answer shaping: grade the specialized agent's output for
+        # sentiment/comparison; the briefing for everything else.
+        answer = _build_typed_answer(
+            claim,
+            pipeline_out["answer"],
+            pipeline_out.get("sentiment_scores") or [],
+            pipeline_out.get("comparison_findings") or [],
+            "\n\n".join(contexts),
+        )
+
         ragas_samples.append({"question": query, "answer": answer,
-                               "contexts": contexts, "ground_truth": ground_truth,
-                               "claim_type": claim_type})
+                               "contexts": contexts, "gen_contexts": gen_contexts,
+                               "ground_truth": ground_truth, "claim_type": claim_type})
 
         gt_anchors = _extract_ground_truth_anchors(claim)
         if gt_anchors:
@@ -749,8 +881,9 @@ async def run_eval(
                     k=k,
                 ))
 
+        # Judge grounding must see the context the report was generated from (parent).
         judge_samples.append({"claim_id": claim_id, "question": query, "answer": answer,
-                               "contexts": contexts, "ground_truth": ground_truth,
+                               "contexts": gen_contexts, "ground_truth": ground_truth,
                                "claim_type": claim_type})
 
         if claim_type == "numeric":
@@ -837,7 +970,7 @@ async def run_eval(
         "run_name": run_name,
         "phase": "2",
         "model": "gpt-5.4-mini",
-        "chunking": "recursive",
+        "chunking": "hierarchical_semantic",
         "embedding_model": "text-embedding-3-small",
         "claims_dir": str(claims_dir),
         "num_claims": len(runnable),

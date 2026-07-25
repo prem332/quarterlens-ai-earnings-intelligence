@@ -294,16 +294,52 @@ def _collect_toc_anchors(soup: BeautifulSoup, form: str) -> dict[tuple[str, str]
     return found
 
 
+def _extract_table(table: Tag) -> str:
+    """
+    Convert an HTML <table> into a row-preserving pipe-delimited text block.
+    Financial tables (segment results, summary metrics) were previously
+    flattened by _text_between into one run-on string with every cell from
+    every row concatenated by a single space — e.g. "Productivity and
+    Business Processes Revenue $ 35,013 $ 29,944 17% ... Intelligent Cloud
+    Revenue $ 34,681 ..." — which destroys which number belongs to which
+    row/period and is the root cause of ambiguous/impure MDA chunks around
+    segment tables. Row boundaries are preserved here instead.
+    """
+    lines: list[str] = []
+    for row in table.find_all("tr"):
+        cells = [c.get_text(" ", strip=True) for c in row.find_all(["td", "th"])]
+        cells = [c for c in cells if c]   # drop empty spacer cells
+        if cells:
+            lines.append(" | ".join(cells))
+    return "\n".join(lines)
+
+
 def _text_between(start: Tag, end: Tag | None) -> str:
     """
     Collect leaf text in document order between start and end (exclusive).
     Walks next_elements (full-tree) and collects only NavigableString leaves
     to avoid double-counting nested containers.
+
+    <table> elements are extracted as structured row-preserving blocks via
+    _extract_table instead of being flattened into the surrounding prose —
+    their descendants are skipped in the leaf-string walk to avoid double
+    counting.
     """
     parts: list[str] = []
+    skip_ids: set[int] = set()
+
     for el in start.next_elements:
         if el is end:
             break
+        if id(el) in skip_ids:
+            continue
+        if isinstance(el, Tag) and el.name == "table":
+            table_text = _extract_table(el)
+            if table_text:
+                parts.append(table_text)
+            skip_ids.update(id(d) for d in el.find_all(True))
+            skip_ids.update(id(d) for d in el.find_all(string=True))
+            continue
         if isinstance(el, NavigableString):
             s = str(el).strip()
             if s:

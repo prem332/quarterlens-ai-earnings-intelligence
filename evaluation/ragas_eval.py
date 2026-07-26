@@ -152,11 +152,22 @@ def _call_llm(client, deployment: str, prompt: str) -> dict:
         return {}
 
 
-def _score_faithfulness(client, deployment: str, answer: str, contexts: list[str]) -> float:
-    """Faithfulness: fraction of answer claims supported by context."""
+def _score_faithfulness(
+    client, deployment: str, answer: str, contexts: list[str], gen_k: int = 8,
+) -> float:
+    """
+    Faithfulness: fraction of answer claims supported by context.
+
+    gen_k caps how many context items the judge sees. It must be >= the number of
+    items the answer was actually generated from — a previous hardcoded cap of 5
+    silently dropped claim-type-specific evidence (sentiment passages,
+    prior-quarter language) that run_baseline_eval appends beyond the 5 retrieval
+    chunks, scoring verbatim-quote answers as 0.0 because their source was never
+    shown to the judge.
+    """
     if not answer.strip() or not contexts:
         return 0.0
-    context_text = "\n\n---\n\n".join(contexts[:5])  # cap at 5 chunks
+    context_text = "\n\n---\n\n".join(contexts[:gen_k])
     prompt = _FAITHFULNESS_PROMPT.format(context=context_text, answer=answer)
     result = _call_llm(client, deployment, prompt)
     claims = result.get("claims", [])
@@ -213,12 +224,18 @@ def _score_context_precision(
 
 
 def _score_context_recall(
-    client, deployment: str, contexts: list[str], ground_truth: str
+    client, deployment: str, contexts: list[str], ground_truth: str, gen_k: int = 8,
 ) -> float:
-    """Context recall: fraction of ground-truth facts covered by context."""
+    """
+    Context recall: fraction of ground-truth facts covered by context.
+
+    gen_k as in _score_faithfulness — must cover every item the answer was
+    generated from, or ground-truth facts present in dropped context are scored
+    as uncovered.
+    """
     if not contexts or not ground_truth.strip():
         return 0.0
-    context_text = "\n\n---\n\n".join(contexts[:5])
+    context_text = "\n\n---\n\n".join(contexts[:gen_k])
     prompt = _CONTEXT_RECALL_PROMPT.format(
         ground_truth=ground_truth, context=context_text
     )
@@ -236,6 +253,7 @@ def run_ragas_eval(
     return_per_sample: bool = False,
     context_precision_k: int = 5,
     context_precision_chunk_chars: int = 300,
+    gen_context_k: int = 8,
 ) -> dict[str, float] | tuple[dict[str, float], list[dict[str, float]]]:
     """
     Run RAGAS-equivalent evaluation over a list of pipeline output samples.
@@ -292,7 +310,7 @@ def run_ragas_eval(
 
         if "faithfulness" in requested:
             scores["faithfulness"].append(
-                _score_faithfulness(client, deployment, answer, gen_contexts)
+                _score_faithfulness(client, deployment, answer, gen_contexts, gen_k=gen_context_k)
             )
         if "answer_relevancy" in requested:
             scores["answer_relevancy"].append(
@@ -307,7 +325,9 @@ def run_ragas_eval(
             )
         if "context_recall" in requested:
             scores["context_recall"].append(
-                _score_context_recall(client, deployment, gen_contexts, ground_truth)
+                _score_context_recall(
+                    client, deployment, gen_contexts, ground_truth, gen_k=gen_context_k
+                )
             )
 
     result = {}

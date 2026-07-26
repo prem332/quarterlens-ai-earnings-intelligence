@@ -11,6 +11,17 @@ in their globally reranked order from retrieval_agent, instead of rebuilding
 and reordering by doc_type. This ensures comparison_agent and report_agent
 operate on the same evidence set with the same ranking.
 
+Two-step extract-then-compare (this session, replaces a single one-shot call):
+a single call asking the LLM to survey the whole current+prior context and
+return an array of "whatever shifts it notices" repeatedly picked the wrong
+topic (a prompt-rules-only rewrite did not fix this — the task itself, not the
+judging criteria, was the problem) and got the shift_detected verdict wrong on
+the majority of sampled claims even after query-anchoring was added. Splitting
+into (1) EXTRACT the specific current+prior statements on QUERY's topic, then
+(2) COMPARE only those two narrow statements, removes the topic-selection
+ambiguity entirely (one targeted finding, not an array to pick from) and gives
+the verdict step a much narrower, less distracting input to reason over.
+
 Tools: fetch_prior_quarter(company, quarters_back) → list[dict]
 LLM: gpt-5-mini via openai_client.achat() (async, Phase 2).
 """
@@ -23,37 +34,41 @@ from tools.fetch_prior_quarter import fetch_prior_quarter
 from azure_clients.openai_client import openai_client
 
 
-_SYSTEM_PROMPT = """\
-You are a financial analyst assistant specialising in earnings disclosure analysis.
-You will be given excerpts from a company's CURRENT quarter filing/transcript and
-one or more PRIOR quarter excerpts on the same topic.
+_EXTRACT_SYSTEM = """\
+You are a financial analyst assistant. You will be given a QUERY naming a specific
+topic, a CURRENT quarter excerpt, and one or more PRIOR quarter excerpts.
 
-You will be given a QUERY naming the specific topic to analyze. Your task is to
-answer that query, not to survey the excerpts broadly for anything noteworthy:
+Your ONLY job here is extraction, not judgment. Do not decide whether anything
+shifted — just locate text.
 
-0. FIND THE QUERY'S TOPIC FIRST. Locate the current-quarter statement most
-   directly relevant to QUERY, and the prior-quarter statement it corresponds
-   to. Your FIRST array element must be this comparison. You may add further
-   elements for other genuine shifts you notice, but the first one must
-   address QUERY — a correct, on-topic "no shift" (shift_detected: false) is a
-   better first element than an off-topic "shift" elsewhere in the excerpts.
+1. Find the verbatim sentence(s) in the CURRENT excerpt that most directly address
+   QUERY. If nothing in CURRENT addresses QUERY at all, say so.
+2. For EACH prior quarter excerpt, find the verbatim sentence(s) addressing that
+   SAME specific topic — the corresponding statement, if one exists. If nothing in
+   a given prior excerpt corresponds to the same specific topic, say so explicitly
+   rather than picking the closest-sounding unrelated sentence — a genuine "no
+   counterpart" is a correct and useful answer, not a failure.
 
-Identify meaningful language shifts: changes in tone, dropped or added phrases,
-hedging language that appeared or disappeared, forward guidance changes.
+Respond ONLY with JSON, no markdown fences:
+{
+  "topic": "<short topic label>",
+  "current_statement": "<verbatim sentence(s) from CURRENT, or null if none addresses QUERY>",
+  "prior_statements": {"<fiscal_label>": "<verbatim sentence(s), or null if no corresponding statement>", ...}
+}"""
 
-Apply these rules when deciding shift_detected — get these right, they are the
-cases analysts most often get wrong:
+_COMPARE_SYSTEM = """\
+You are comparing exactly ONE current-quarter statement against its prior-quarter
+counterpart(s) to decide if the language meaningfully shifted. You are given only
+the extracted statements below — nothing else. Apply these rules when deciding
+shift_detected — get these right, they are the cases analysts most often get wrong:
 
-1. NEW TOPIC, NO PRIOR COUNTERPART → shift_detected: true. If a topic appears in
-   the current excerpts with nothing corresponding in the prior excerpts (e.g. a
-   new investment, new risk disclosure, new commitment), that absence-then-presence
-   IS itself a meaningful shift — an addition. Do not skip it just because there is
-   nothing to diff against.
+1. NEW TOPIC, NO PRIOR COUNTERPART → shift_detected: true. If a prior_statement is
+   null (nothing corresponding was found), that absence-then-presence IS itself a
+   meaningful shift — an addition. Do not skip it just because there is nothing to
+   diff against.
 
-2. VERBATIM-IDENTICAL SENTENCE → shift_detected: false, even if nearby or
-   surrounding text in the same excerpt changed. Judge each specific sentence you
-   are comparing in isolation. Do not let unrelated changes elsewhere in the
-   passage cause you to flag a sentence that itself did not change.
+2. VERBATIM-IDENTICAL SENTENCE → shift_detected: false. Judge the specific
+   statements given in isolation — you have no surrounding text to be misled by.
 
 3. ATTRIBUTION/EXPLANATORY ADDITIONS THAT DON'T CHANGE THE CORE CLAIM →
    shift_detected: false. Adding a secondary explanatory factor (e.g. "and a
@@ -64,22 +79,15 @@ cases analysts most often get wrong:
    quantified risk exposure).
 
 4. REORDERING OR REFORMATTING OF THE SAME CONTENT → shift_detected: false. The
-   same items appearing in a different order, or as bullets vs. prose, is not a
-   language shift.
+   same items in a different order, or as bullets vs. prose, is not a language shift.
 
-5. GROUNDING — shift_description must state only what is explicitly present in
-   the given excerpts. Do not infer intent, motivation, or characterize what
-   management is "now emphasizing" unless that characterization is directly
-   stated in the text. When in doubt, describe less rather than more.
+5. GROUNDING — shift_description must state only what is explicitly present in the
+   given statements. Do not infer intent, motivation, or characterize what
+   management is "now emphasizing" unless directly stated. When in doubt, describe
+   less rather than more.
 
-Respond ONLY with a JSON array. Each element must have:
-  "topic": string,
-  "current_language": string (verbatim excerpt),
-  "prior_language": object {fiscal_label: verbatim excerpt},
-  "shift_detected": boolean,
-  "shift_description": string or null
-
-No preamble, no markdown fences — raw JSON array only."""
+Respond ONLY with JSON, no markdown fences:
+{"shift_detected": boolean, "shift_description": string or null}"""
 
 
 async def comparison_agent(state: GraphState) -> dict:
@@ -131,12 +139,12 @@ async def comparison_agent(state: GraphState) -> dict:
     if not prior_contexts:
         return _empty("all prior quarter fetches failed", t0)
 
-    # Build LLM user message
+    # Build LLM user message for the extract step
     prior_section = "\n\n".join(
         f"--- PRIOR QUARTER: {label} ---\n{ctx}"
         for label, ctx in prior_contexts.items()
     )
-    user_msg = (
+    extract_user_msg = (
         f"COMPANY: {company}\n"
         f"CURRENT QUARTER: {quarter}\n"
         f"QUERY: {query}\n\n"
@@ -145,20 +153,54 @@ async def comparison_agent(state: GraphState) -> dict:
     )
 
     findings: list[ComparisonFinding] = []
-    tokens_used = None
+    tokens_used = 0
+    model_tier = state.get("model_tier", "primary")
 
     try:
-        response = await openai_client.achat_tiered(
+        # ── Step 1: EXTRACT — locate the specific statements, no judgment yet ──
+        extract_resp = await openai_client.achat_tiered(
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": user_msg},
+                {"role": "system", "content": _EXTRACT_SYSTEM},
+                {"role": "user", "content": extract_user_msg},
             ],
-            model_tier=state.get("model_tier", "primary"),
+            model_tier=model_tier,
         )
-        tokens_used = response.usage.total_tokens if response.usage else None
-        raw = response.choices[0].message.content or "[]"
-        parsed = json.loads(raw)
-        findings = [_to_finding(f) for f in parsed if isinstance(f, dict)]
+        tokens_used += extract_resp.usage.total_tokens if extract_resp.usage else 0
+        extracted = json.loads(extract_resp.choices[0].message.content or "{}")
+
+        topic = str(extracted.get("topic", ""))
+        current_statement = extracted.get("current_statement")
+        prior_statements = {
+            label: text for label, text in (extracted.get("prior_statements") or {}).items()
+            if text
+        }
+
+        if not current_statement:
+            return _empty("query's topic not found in current-quarter excerpt", t0)
+
+        # ── Step 2: COMPARE — judge only the narrow extracted pair ──────────────
+        compare_user_msg = (
+            f"CURRENT STATEMENT: {current_statement}\n\n"
+            f"PRIOR STATEMENT(S): "
+            f"{json.dumps(prior_statements) if prior_statements else 'null (no corresponding statement found)'}"
+        )
+        compare_resp = await openai_client.achat_tiered(
+            messages=[
+                {"role": "system", "content": _COMPARE_SYSTEM},
+                {"role": "user", "content": compare_user_msg},
+            ],
+            model_tier=model_tier,
+        )
+        tokens_used += compare_resp.usage.total_tokens if compare_resp.usage else 0
+        verdict = json.loads(compare_resp.choices[0].message.content or "{}")
+
+        findings = [ComparisonFinding(
+            topic=topic,
+            current_language=str(current_statement),
+            prior_language=prior_statements,
+            shift_detected=bool(verdict.get("shift_detected", False)),
+            shift_description=verdict.get("shift_description"),
+        )]
     except json.JSONDecodeError as exc:
         print(f"[comparison_agent] JSON parse failed: {exc}")
     except Exception as exc:
@@ -227,16 +269,6 @@ def _resolve_quarters_back(current_quarter: str, comparison_quarters: list[str])
                 pass
         result[label] = quarters_back
     return result
-
-
-def _to_finding(raw: dict) -> ComparisonFinding:
-    return ComparisonFinding(
-        topic=str(raw.get("topic", "")),
-        current_language=str(raw.get("current_language", "")),
-        prior_language=raw.get("prior_language") or {},
-        shift_detected=bool(raw.get("shift_detected", False)),
-        shift_description=raw.get("shift_description"),
-    )
 
 
 def _empty(reason: str, t0: float) -> dict:

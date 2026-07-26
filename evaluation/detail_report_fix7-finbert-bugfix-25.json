@@ -1,10 +1,10 @@
 {
-  "run_name": "fix7-ctxprec-k1-fullchunk-25",
+  "run_name": "fix7-finbert-bugfix-25",
   "total_claims": 12,
   "pair_type_summary": {
-    "same_filing_diff_section": 20,
-    "same_company_diff_filing": 28,
-    "non_adjacent_same_section": 59,
+    "same_filing_diff_section": 21,
+    "same_company_diff_filing": 20,
+    "non_adjacent_same_section": 66,
     "adjacent_same_section": 13
   },
   "claims": [
@@ -299,7 +299,7 @@
           "content_preview_b": "These decisions may adversely affect our business and results of operations and may not produce the long-term benefits that we expect. We may not be successful in our Reality Labs strategy and investm"
         }
       ],
-      "answer_preview": "## Executive Summary\nThe core business accelerated, while Reality Labs remained a drag with a $(4.43)B operating loss in Q3 FY2025. [FILING]\n\n## Key Financial Metrics\n- Revenue: $51.24B in Q3 FY2025 [FILING]\n- Advertising revenue: $50.08B in Q3 FY2025 [FILING]\n- Family of Apps revenue: $50.77B in Q3"
+      "answer_preview": "## Executive Summary\nMeta Reality Labs revenue was **$470.0M in Q3 FY2025**.\n\n## Key Financial Metrics\n- Reality Labs revenue: **$470.0M** [FILING]\n- Reality Labs operating loss: **$(4.43)B** [FILING]\n\n## Guidance & Language Shifts\n- Management said RL revenue rose **“mostly due to increases in sale"
     },
     {
       "claim_id": "META_FY2025-Q3_ret_002",
@@ -315,24 +315,12 @@
           "section": "mda"
         }
       ],
-      "precision_at_k": 0.6,
-      "duplicate_density": 0.4,
+      "precision_at_k": 0.8,
+      "duplicate_density": 0.6,
       "adjacent_chunk_rate": 0.1,
       "chunks": [
         {
           "rank": 1,
-          "classification": "same_company",
-          "chunk_id": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "accession": "transcript_META_FY2025-Q3",
-          "section": "transcript_part_0",
-          "doc_type": "transcript",
-          "chunk_index": 0,
-          "chunk_total": 19,
-          "score": -7.4625,
-          "content_preview": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator Instructions] This call will be recorded. Thank you very much. Kenneth Dorell, Meta's Director of I"
-        },
-        {
-          "rank": 2,
           "classification": "exact_match",
           "chunk_id": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "accession": "0001628280-25-047240",
@@ -344,7 +332,7 @@
           "content_preview": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other factors are discussed in the section entitled \"—Executive Overview of Third Quarter Results.\" In add"
         },
         {
-          "rank": 3,
+          "rank": 2,
           "classification": "same_accession",
           "chunk_id": "6ebaeb69-a9e4-409d-b55b-8aded2f9f872",
           "accession": "0001628280-25-047240",
@@ -356,7 +344,7 @@
           "content_preview": "We have made significant investments in AI initiatives, including investments in infrastructure and headcount, including specialized technical personnel, to support our efforts to enhance our products, features, and advertising tools, as well as to develop and train our AI models, and expect to cont"
         },
         {
-          "rank": 4,
+          "rank": 3,
           "classification": "exact_match",
           "chunk_id": "e192fb11-17e3-41ad-a49b-6061a887d90b",
           "accession": "0001628280-25-047240",
@@ -368,7 +356,7 @@
           "content_preview": "diversified advertiser base across the globe. Trends impacting advertising spend are also dynamic and interrelated. As a result, it is difficult to identify with precision which advertiser spending decisions are attributable to which trends, and we are unable to quantify the exact impact that each t"
         },
         {
-          "rank": 5,
+          "rank": 4,
           "classification": "exact_match",
           "chunk_id": "35081df1-e721-4bfc-bd20-3c45438f42f2",
           "accession": "0001628280-25-047240",
@@ -378,96 +366,24 @@
           "chunk_total": 45,
           "score": -10.2672,
           "content_preview": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 18 | % | 18 | % | 18 | % Cost of revenue in the three and nine months ended September 30, 2025 increa"
+        },
+        {
+          "rank": 5,
+          "classification": "exact_match",
+          "chunk_id": "3c77611f-4b44-42a8-81ba-8c3b42a40bef",
+          "accession": "0001628280-25-047240",
+          "section": "mda",
+          "doc_type": "10-Q",
+          "chunk_index": 40,
+          "chunk_total": 45,
+          "score": -10.3542,
+          "content_preview": "2025 | 2024\nNet cash provided by operating activities | $ | 79,586 | $ | 63,340\nNet cash used in investing activities | $ | (67,816) | $ | (25,652)\nNet cash used in financing activities | $ | (45,519) | $ | (35,316) Cash Provided by Operating Activities Cash provided by operating activities during t"
         }
       ],
       "chunk_pairs": [
         {
           "rank_a": 1,
           "rank_b": 2,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "mda",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 26,
-          "chunk_index_distance": 26,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 3,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "6ebaeb69-a9e4-409d-b55b-8aded2f9f872",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "risk_factors",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 53,
-          "chunk_index_distance": 53,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "We have made significant investments in AI initiatives, including investments in infrastructure and headcount, including specialized technical personnel, to support our efforts to enhance our products"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 4,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "e192fb11-17e3-41ad-a49b-6061a887d90b",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "mda",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 11,
-          "chunk_index_distance": 11,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "diversified advertiser base across the globe. Trends impacting advertising spend are also dynamic and interrelated. As a result, it is difficult to identify with precision which advertiser spending de"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 5,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "35081df1-e721-4bfc-bd20-3c45438f42f2",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "mda",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 28,
-          "chunk_index_distance": 28,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 1"
-        },
-        {
-          "rank_a": 2,
-          "rank_b": 3,
           "chunk_id_a": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "chunk_id_b": "6ebaeb69-a9e4-409d-b55b-8aded2f9f872",
           "accession_a": "0001628280-25-047240",
@@ -487,8 +403,8 @@
           "content_preview_b": "We have made significant investments in AI initiatives, including investments in infrastructure and headcount, including specialized technical personnel, to support our efforts to enhance our products"
         },
         {
-          "rank_a": 2,
-          "rank_b": 4,
+          "rank_a": 1,
+          "rank_b": 3,
           "chunk_id_a": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "chunk_id_b": "e192fb11-17e3-41ad-a49b-6061a887d90b",
           "accession_a": "0001628280-25-047240",
@@ -508,8 +424,8 @@
           "content_preview_b": "diversified advertiser base across the globe. Trends impacting advertising spend are also dynamic and interrelated. As a result, it is difficult to identify with precision which advertiser spending de"
         },
         {
-          "rank_a": 2,
-          "rank_b": 5,
+          "rank_a": 1,
+          "rank_b": 4,
           "chunk_id_a": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "chunk_id_b": "35081df1-e721-4bfc-bd20-3c45438f42f2",
           "accession_a": "0001628280-25-047240",
@@ -529,8 +445,29 @@
           "content_preview_b": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 1"
         },
         {
-          "rank_a": 3,
-          "rank_b": 4,
+          "rank_a": 1,
+          "rank_b": 5,
+          "chunk_id_a": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
+          "chunk_id_b": "3c77611f-4b44-42a8-81ba-8c3b42a40bef",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 26,
+          "chunk_index_b": 40,
+          "chunk_index_distance": 14,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other ",
+          "content_preview_b": "2025 | 2024\nNet cash provided by operating activities | $ | 79,586 | $ | 63,340\nNet cash used in investing activities | $ | (67,816) | $ | (25,652)\nNet cash used in financing activities | $ | (45,519)"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
           "chunk_id_a": "6ebaeb69-a9e4-409d-b55b-8aded2f9f872",
           "chunk_id_b": "e192fb11-17e3-41ad-a49b-6061a887d90b",
           "accession_a": "0001628280-25-047240",
@@ -550,8 +487,8 @@
           "content_preview_b": "diversified advertiser base across the globe. Trends impacting advertising spend are also dynamic and interrelated. As a result, it is difficult to identify with precision which advertiser spending de"
         },
         {
-          "rank_a": 3,
-          "rank_b": 5,
+          "rank_a": 2,
+          "rank_b": 4,
           "chunk_id_a": "6ebaeb69-a9e4-409d-b55b-8aded2f9f872",
           "chunk_id_b": "35081df1-e721-4bfc-bd20-3c45438f42f2",
           "accession_a": "0001628280-25-047240",
@@ -571,8 +508,29 @@
           "content_preview_b": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 1"
         },
         {
-          "rank_a": 4,
+          "rank_a": 2,
           "rank_b": 5,
+          "chunk_id_a": "6ebaeb69-a9e4-409d-b55b-8aded2f9f872",
+          "chunk_id_b": "3c77611f-4b44-42a8-81ba-8c3b42a40bef",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "risk_factors",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 53,
+          "chunk_index_b": 40,
+          "chunk_index_distance": 13,
+          "same_accession": true,
+          "same_section": false,
+          "same_key": false,
+          "pair_type": "same_filing_diff_section",
+          "content_preview_a": "We have made significant investments in AI initiatives, including investments in infrastructure and headcount, including specialized technical personnel, to support our efforts to enhance our products",
+          "content_preview_b": "2025 | 2024\nNet cash provided by operating activities | $ | 79,586 | $ | 63,340\nNet cash used in investing activities | $ | (67,816) | $ | (25,652)\nNet cash used in financing activities | $ | (45,519)"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
           "chunk_id_a": "e192fb11-17e3-41ad-a49b-6061a887d90b",
           "chunk_id_b": "35081df1-e721-4bfc-bd20-3c45438f42f2",
           "accession_a": "0001628280-25-047240",
@@ -590,9 +548,51 @@
           "pair_type": "non_adjacent_same_section",
           "content_preview_a": "diversified advertiser base across the globe. Trends impacting advertising spend are also dynamic and interrelated. As a result, it is difficult to identify with precision which advertiser spending de",
           "content_preview_b": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 1"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 5,
+          "chunk_id_a": "e192fb11-17e3-41ad-a49b-6061a887d90b",
+          "chunk_id_b": "3c77611f-4b44-42a8-81ba-8c3b42a40bef",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 11,
+          "chunk_index_b": 40,
+          "chunk_index_distance": 29,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "diversified advertiser base across the globe. Trends impacting advertising spend are also dynamic and interrelated. As a result, it is difficult to identify with precision which advertiser spending de",
+          "content_preview_b": "2025 | 2024\nNet cash provided by operating activities | $ | 79,586 | $ | 63,340\nNet cash used in investing activities | $ | (67,816) | $ | (25,652)\nNet cash used in financing activities | $ | (45,519)"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "chunk_id_a": "35081df1-e721-4bfc-bd20-3c45438f42f2",
+          "chunk_id_b": "3c77611f-4b44-42a8-81ba-8c3b42a40bef",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 28,
+          "chunk_index_b": 40,
+          "chunk_index_distance": 12,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "2025 | 2024 | % change | 2025 | 2024 | % change\n(in millions, except percentages)\nCost of revenue | $ | 9,206 | $ | 7,375 | 25 | % | $ | 25,269 | $ | 21,322 | 19 | %\nPercentage of revenue | 18 | % | 1",
+          "content_preview_b": "2025 | 2024\nNet cash provided by operating activities | $ | 79,586 | $ | 63,340\nNet cash used in investing activities | $ | (67,816) | $ | (25,652)\nNet cash used in financing activities | $ | (45,519)"
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta posted $51.24B in revenue for Q3 FY2025. [FILING] Operating income reached $20.54B, while net income fell to $2.71B because the company booked a $15.93B one-time tax charge tied to OBBBA. [FILING]\n\n## Key Financial Metrics\n- Revenue: $51.24B [FILING]\n- Advertising revenue: "
+      "answer_preview": "## Executive Summary\nMeta’s operating cost acceleration in Q3 FY2025 was driven primarily by higher research and development spending, plus a sharp jump in general and administrative costs. R&D rose because of higher employee compensation and infrastructure costs to support AI initiatives, while G&A"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_ret_001",
@@ -614,22 +614,10 @@
       ],
       "precision_at_k": 1.0,
       "duplicate_density": 0.6,
-      "adjacent_chunk_rate": 0.1,
+      "adjacent_chunk_rate": 0.3,
       "chunks": [
         {
           "rank": 1,
-          "classification": "exact_match",
-          "chunk_id": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
-          "accession": "0001045810-25-000230",
-          "section": "risk_factors",
-          "doc_type": "10-Q",
-          "chunk_index": 0,
-          "chunk_total": 41,
-          "score": -0.3171,
-          "content_preview": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the fiscal year ended January 26, 2025 and Item 1A of our Quarterly Reports on Form 10-Q for the fiscal q"
-        },
-        {
-          "rank": 2,
           "classification": "exact_match",
           "chunk_id": "513fe1da-1fcc-4084-9b22-bbb0b6a38eaf",
           "accession": "0001045810-25-000230",
@@ -641,7 +629,7 @@
           "content_preview": "Open-source foundation models are rapidly growing in popularity with developers worldwide. Any regulatory control or other restriction that limits our ability to provide products and services that support third-party applications and models, including applications built on foundation models originat"
         },
         {
-          "rank": 3,
+          "rank": 2,
           "classification": "exact_match",
           "chunk_id": "0984f021-6089-4a08-a719-d2a57024856b",
           "accession": "0001045810-25-000230",
@@ -653,7 +641,7 @@
           "content_preview": "Headquartered in Santa Clara, California, NVIDIA was incorporated in California in April 1993 and reincorporated in Delaware in April 1998. Recent Developments, Future Objectives and Challenges Revenue growth in the third quarter was driven by data center compute and networking platforms for acceler"
         },
         {
-          "rank": 4,
+          "rank": 3,
           "classification": "exact_match",
           "chunk_id": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
           "accession": "0001045810-25-000230",
@@ -665,7 +653,7 @@
           "content_preview": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to several other large and important computationally intensive fields. Fueled by the sustained demand fo"
         },
         {
-          "rank": 5,
+          "rank": 4,
           "classification": "exact_match",
           "chunk_id": "747e28fe-67de-4ff1-a71e-5f31d32645ad",
           "accession": "0001045810-25-000230",
@@ -675,96 +663,24 @@
           "chunk_total": 41,
           "score": -6.2448,
           "content_preview": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan, and China. For example, the French Competition Authority collected information from us regarding ou"
+        },
+        {
+          "rank": 5,
+          "classification": "exact_match",
+          "chunk_id": "e44317b9-af5d-4011-9e83-b53df2a1037b",
+          "accession": "0001045810-25-000230",
+          "section": "risk_factors",
+          "doc_type": "10-Q",
+          "chunk_index": 4,
+          "chunk_total": 41,
+          "score": -7.3474,
+          "content_preview": "Factors that have caused and/or could in the future cause us to underestimate or overestimate demand, and impact the timing and volume of our revenue, include: • changes in product development cycles and time to market; • competing technologies and competitor product releases, announcements or other"
         }
       ],
       "chunk_pairs": [
         {
           "rank_a": 1,
           "rank_b": 2,
-          "chunk_id_a": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
-          "chunk_id_b": "513fe1da-1fcc-4084-9b22-bbb0b6a38eaf",
-          "accession_a": "0001045810-25-000230",
-          "accession_b": "0001045810-25-000230",
-          "section_a": "risk_factors",
-          "section_b": "risk_factors",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 36,
-          "chunk_index_distance": 36,
-          "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
-          "content_preview_a": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f",
-          "content_preview_b": "Open-source foundation models are rapidly growing in popularity with developers worldwide. Any regulatory control or other restriction that limits our ability to provide products and services that sup"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 3,
-          "chunk_id_a": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
-          "chunk_id_b": "0984f021-6089-4a08-a719-d2a57024856b",
-          "accession_a": "0001045810-25-000230",
-          "accession_b": "0001045810-25-000230",
-          "section_a": "risk_factors",
-          "section_b": "mda",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 4,
-          "chunk_index_distance": 4,
-          "same_accession": true,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_filing_diff_section",
-          "content_preview_a": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f",
-          "content_preview_b": "Headquartered in Santa Clara, California, NVIDIA was incorporated in California in April 1993 and reincorporated in Delaware in April 1998. Recent Developments, Future Objectives and Challenges Revenu"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 4,
-          "chunk_id_a": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
-          "chunk_id_b": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
-          "accession_a": "0001045810-25-000230",
-          "accession_b": "0001045810-25-000230",
-          "section_a": "risk_factors",
-          "section_b": "mda",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 3,
-          "chunk_index_distance": 3,
-          "same_accession": true,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_filing_diff_section",
-          "content_preview_a": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f",
-          "content_preview_b": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to s"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 5,
-          "chunk_id_a": "a96c16e3-6595-4796-a59b-bb2830b1d5be",
-          "chunk_id_b": "747e28fe-67de-4ff1-a71e-5f31d32645ad",
-          "accession_a": "0001045810-25-000230",
-          "accession_b": "0001045810-25-000230",
-          "section_a": "risk_factors",
-          "section_b": "risk_factors",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 20,
-          "chunk_index_distance": 20,
-          "same_accession": true,
-          "same_section": true,
-          "same_key": true,
-          "pair_type": "non_adjacent_same_section",
-          "content_preview_a": "Item 1A. Risk Factors Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the f",
-          "content_preview_b": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan,"
-        },
-        {
-          "rank_a": 2,
-          "rank_b": 3,
           "chunk_id_a": "513fe1da-1fcc-4084-9b22-bbb0b6a38eaf",
           "chunk_id_b": "0984f021-6089-4a08-a719-d2a57024856b",
           "accession_a": "0001045810-25-000230",
@@ -784,8 +700,8 @@
           "content_preview_b": "Headquartered in Santa Clara, California, NVIDIA was incorporated in California in April 1993 and reincorporated in Delaware in April 1998. Recent Developments, Future Objectives and Challenges Revenu"
         },
         {
-          "rank_a": 2,
-          "rank_b": 4,
+          "rank_a": 1,
+          "rank_b": 3,
           "chunk_id_a": "513fe1da-1fcc-4084-9b22-bbb0b6a38eaf",
           "chunk_id_b": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
           "accession_a": "0001045810-25-000230",
@@ -805,8 +721,8 @@
           "content_preview_b": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to s"
         },
         {
-          "rank_a": 2,
-          "rank_b": 5,
+          "rank_a": 1,
+          "rank_b": 4,
           "chunk_id_a": "513fe1da-1fcc-4084-9b22-bbb0b6a38eaf",
           "chunk_id_b": "747e28fe-67de-4ff1-a71e-5f31d32645ad",
           "accession_a": "0001045810-25-000230",
@@ -826,8 +742,29 @@
           "content_preview_b": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan,"
         },
         {
-          "rank_a": 3,
-          "rank_b": 4,
+          "rank_a": 1,
+          "rank_b": 5,
+          "chunk_id_a": "513fe1da-1fcc-4084-9b22-bbb0b6a38eaf",
+          "chunk_id_b": "e44317b9-af5d-4011-9e83-b53df2a1037b",
+          "accession_a": "0001045810-25-000230",
+          "accession_b": "0001045810-25-000230",
+          "section_a": "risk_factors",
+          "section_b": "risk_factors",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 36,
+          "chunk_index_b": 4,
+          "chunk_index_distance": 32,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "Open-source foundation models are rapidly growing in popularity with developers worldwide. Any regulatory control or other restriction that limits our ability to provide products and services that sup",
+          "content_preview_b": "Factors that have caused and/or could in the future cause us to underestimate or overestimate demand, and impact the timing and volume of our revenue, include: • changes in product development cycles "
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
           "chunk_id_a": "0984f021-6089-4a08-a719-d2a57024856b",
           "chunk_id_b": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
           "accession_a": "0001045810-25-000230",
@@ -847,8 +784,8 @@
           "content_preview_b": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to s"
         },
         {
-          "rank_a": 3,
-          "rank_b": 5,
+          "rank_a": 2,
+          "rank_b": 4,
           "chunk_id_a": "0984f021-6089-4a08-a719-d2a57024856b",
           "chunk_id_b": "747e28fe-67de-4ff1-a71e-5f31d32645ad",
           "accession_a": "0001045810-25-000230",
@@ -868,8 +805,29 @@
           "content_preview_b": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan,"
         },
         {
-          "rank_a": 4,
+          "rank_a": 2,
           "rank_b": 5,
+          "chunk_id_a": "0984f021-6089-4a08-a719-d2a57024856b",
+          "chunk_id_b": "e44317b9-af5d-4011-9e83-b53df2a1037b",
+          "accession_a": "0001045810-25-000230",
+          "accession_b": "0001045810-25-000230",
+          "section_a": "mda",
+          "section_b": "risk_factors",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 4,
+          "chunk_index_b": 4,
+          "chunk_index_distance": 0,
+          "same_accession": true,
+          "same_section": false,
+          "same_key": false,
+          "pair_type": "same_filing_diff_section",
+          "content_preview_a": "Headquartered in Santa Clara, California, NVIDIA was incorporated in California in April 1993 and reincorporated in Delaware in April 1998. Recent Developments, Future Objectives and Challenges Revenu",
+          "content_preview_b": "Factors that have caused and/or could in the future cause us to underestimate or overestimate demand, and impact the timing and volume of our revenue, include: • changes in product development cycles "
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
           "chunk_id_a": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
           "chunk_id_b": "747e28fe-67de-4ff1-a71e-5f31d32645ad",
           "accession_a": "0001045810-25-000230",
@@ -887,9 +845,51 @@
           "pair_type": "same_filing_diff_section",
           "content_preview_a": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to s",
           "content_preview_b": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan,"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 5,
+          "chunk_id_a": "66580c8e-b098-453b-9ca5-9c64ef000dfa",
+          "chunk_id_b": "e44317b9-af5d-4011-9e83-b53df2a1037b",
+          "accession_a": "0001045810-25-000230",
+          "accession_b": "0001045810-25-000230",
+          "section_a": "mda",
+          "section_b": "risk_factors",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 3,
+          "chunk_index_b": 4,
+          "chunk_index_distance": 1,
+          "same_accession": true,
+          "same_section": false,
+          "same_key": false,
+          "pair_type": "same_filing_diff_section",
+          "content_preview_a": "Overview Our Company and Our Businesses NVIDIA pioneered accelerated computing to help solve the most challenging computational problems. Since our original focus on PC graphics, we have expanded to s",
+          "content_preview_b": "Factors that have caused and/or could in the future cause us to underestimate or overestimate demand, and impact the timing and volume of our revenue, include: • changes in product development cycles "
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "chunk_id_a": "747e28fe-67de-4ff1-a71e-5f31d32645ad",
+          "chunk_id_b": "e44317b9-af5d-4011-9e83-b53df2a1037b",
+          "accession_a": "0001045810-25-000230",
+          "accession_b": "0001045810-25-000230",
+          "section_a": "risk_factors",
+          "section_b": "risk_factors",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 20,
+          "chunk_index_b": 4,
+          "chunk_index_distance": 16,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "Our position in markets relating to AI has led to increased interest in our business from regulators worldwide, including the European Union, the United States, the United Kingdom, South Korea, Japan,",
+          "content_preview_b": "Factors that have caused and/or could in the future cause us to underestimate or overestimate demand, and impact the timing and volume of our revenue, include: • changes in product development cycles "
         }
       ],
-      "answer_preview": "## Executive Summary\nNVIDIA’s FY2026-Q3 filing shows steady operating execution, with revenue growth driven by data center compute and networking platforms for accelerated computing and AI solutions. [FILING] Management said Blackwell architectures represent the majority of Data Center revenue, whil"
+      "answer_preview": "## Executive Summary\nNVIDIA’s China-related risk in Q3 FY2026 centers on export controls, shifting U.S. licensing requirements, potential revenue-sharing fees on licensed sales, and Chinese customer demand disruption from geopolitical scrutiny. [FILING]\n\n## Key Financial Metrics\n- H20 revenue under "
     },
     {
       "claim_id": "NVDA_FY2026-Q3_oos_001",
@@ -1182,7 +1182,7 @@
           "content_preview_b": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRev"
         }
       ],
-      "answer_preview": "## Executive Summary\nNVIDIA delivered a record Q3 FY2026 quarter with revenue of **$57.0B**. Data Center revenue reached **$51.2B**. The quarter also showed strong operating leverage, as operating income rose to **$36.0B** and diluted EPS reached **$1.30**.\n\n## Key Financial Metrics\n- Revenue: **$57"
+      "answer_preview": "## Executive Summary\nGaming revenue was $4.3 billion, up 30% year on year driven by strong demand.\n\n## Key Financial Metrics\n- Gaming revenue: $4.3 billion\n- Gaming year-over-year growth: 30%\n- Gaming revenue was down 1% sequentially as channel inventories have reached more normalized levels heading"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_cmp_001",
@@ -1475,7 +1475,7 @@
           "content_preview_b": "Toshiya Hari: We will now open the call for questions. Operator, would you please poll for questions? Sarah: Thank you. At this time, I would like to remind everyone, in order to ask a question, press"
         }
       ],
-      "answer_preview": "## Executive Summary\nNVIDIA posted $57.0B of revenue in Q3 FY2026, with Compute & Networking driving the increase. [FILING]\nOperating income reached $38.3B and net income reached $31.9B. [FILING]\n\n## Key Financial Metrics\n- Total revenue: $57.0B in Q3 FY2026; $147.8B in the first nine months of FY20"
+      "answer_preview": "## Executive Summary\nNo verified data available.\n\n## Key Financial Metrics\n- OpenAI: letter of intent entered in Q3 FY2026, with no assurance definitive agreements will be signed or completed. [FILING]\n- Anthropic: agreement entered in November 2025, subject to closing conditions, to invest up to $1"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_cmp_004",
@@ -1768,7 +1768,7 @@
           "content_preview_b": "The scope, timing, and requirements of the forthcoming rule remain uncertain. The replacement rule may impose new restrictions on our products or operations and/or add license requirements that could "
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: NO. No substantive language shift."
+      "answer_preview": "Language shift vs prior quarter: NO. The core language about disproportionate impact and competitive disadvantage is effectively unchanged in substance, but the current quarter drops the prior quarter's separate opening sentence that specifically said any new control impacting a wider range of produ"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_ret_004",
@@ -2061,7 +2061,7 @@
           "content_preview_b": "Services | 27,423 | 24,213 | 13 | % | 80,408 | 71,197 | 13 | %\nTotal net sales | $ | 94,036 | $ | 85,777 | 10 | % | $ | 313,695 | $ | 296,105 | 6 | % iPhone iPhone net sales increased during the third"
         }
       ],
-      "answer_preview": "## Executive Summary\nApple posted $94.0B of revenue in Q3 FY2025. [FILING] Total gross margin reached $43.7B and total gross margin percentage improved to 46.5%. [FILING] Cash generation and capital return remained strong, with $21.0B of buybacks and $3.9B of dividends in the quarter. [FILING]\n\n## K"
+      "answer_preview": "## Executive Summary\nTariffs had a negative but limited disclosed impact on Apple in Q3 FY2025: management said products gross margin percentage decreased year over year primarily due to tariffs, partially offset by favorable costs and product mix. Apple also said tariffs and other measures can mate"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_cmp_007",
@@ -2354,7 +2354,7 @@
           "content_preview_b": "Percentage of total net sales | 17 | % | 17 | % | 15 | % | 15 | % Research and Development The growth in research and development (“R&D”) expense during the third quarter and first nine months of 2025"
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. A new explanatory driver was added: the current excerpt now also cites a different mix of services, whereas the prior excerpt only cited higher Services net sales."
+      "answer_preview": "Language shift vs prior quarter: YES. The current quarter adds \"and a different mix of services\" as a primary driver, whereas the prior quarter attributed the increase only to higher Services net sales. The time period also changes from second quarter/first six months to third quarter/first nine mon"
     },
     {
       "claim_id": "META_FY2025-Q3_oos_001",
@@ -2370,8 +2370,8 @@
           "section": "mda"
         }
       ],
-      "precision_at_k": 0.8,
-      "duplicate_density": 0.6,
+      "precision_at_k": 1.0,
+      "duplicate_density": 0.8,
       "adjacent_chunk_rate": 0.0,
       "chunks": [
         {
@@ -2388,18 +2388,6 @@
         },
         {
           "rank": 2,
-          "classification": "same_company",
-          "chunk_id": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "accession": "transcript_META_FY2025-Q3",
-          "section": "transcript_part_0",
-          "doc_type": "transcript",
-          "chunk_index": 0,
-          "chunk_total": 19,
-          "score": -5.5356,
-          "content_preview": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator Instructions] This call will be recorded. Thank you very much. Kenneth Dorell, Meta's Director of I"
-        },
-        {
-          "rank": 3,
           "classification": "exact_match",
           "chunk_id": "d5c5a26e-b931-474b-babc-1c6ee1233310",
           "accession": "0001628280-25-047240",
@@ -2411,7 +2399,7 @@
           "content_preview": "equivalents. Subject to legally available funds and future declaration by our board of directors, we currently intend to continue to pay a quarterly cash dividend and dividend equivalents on our outstanding common stock. Taxes Cash paid for income taxes was $6.29 billion during the nine months ended"
         },
         {
-          "rank": 4,
+          "rank": 3,
           "classification": "exact_match",
           "chunk_id": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
           "accession": "0001628280-25-047240",
@@ -2423,7 +2411,7 @@
           "content_preview": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for additional information regarding legal-related costs and segment employee compensation, respectivel"
         },
         {
-          "rank": 5,
+          "rank": 4,
           "classification": "exact_match",
           "chunk_id": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "accession": "0001628280-25-047240",
@@ -2433,33 +2421,24 @@
           "chunk_total": 45,
           "score": -9.1739,
           "content_preview": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other factors are discussed in the section entitled \"—Executive Overview of Third Quarter Results.\" In add"
+        },
+        {
+          "rank": 5,
+          "classification": "exact_match",
+          "chunk_id": "40f1af79-53bb-4ec7-95e7-50bacdaec8dc",
+          "accession": "0001628280-25-047240",
+          "section": "mda",
+          "doc_type": "10-Q",
+          "chunk_index": 38,
+          "chunk_total": 45,
+          "score": -9.4856,
+          "content_preview": "taxes: the effects of changes in tax law, changes in valuation allowance due to the effects of CAMT, U.S. tax benefits from foreign-derived intangible income, tax effects from share-based compensation, research tax credit, tax effects from capital losses not expected to be utilized, settlement of ta"
         }
       ],
       "chunk_pairs": [
         {
           "rank_a": 1,
           "rank_b": 2,
-          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
-          "chunk_id_b": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "accession_a": "0001628280-25-047240",
-          "accession_b": "transcript_META_FY2025-Q3",
-          "section_a": "mda",
-          "section_b": "transcript_part_0",
-          "doc_type_a": "10-Q",
-          "doc_type_b": "transcript",
-          "chunk_index_a": 5,
-          "chunk_index_b": 0,
-          "chunk_index_distance": 5,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
-          "content_preview_b": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator"
-        },
-        {
-          "rank_a": 1,
-          "rank_b": 3,
           "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
           "chunk_id_b": "d5c5a26e-b931-474b-babc-1c6ee1233310",
           "accession_a": "0001628280-25-047240",
@@ -2480,7 +2459,7 @@
         },
         {
           "rank_a": 1,
-          "rank_b": 4,
+          "rank_b": 3,
           "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
           "chunk_id_b": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
           "accession_a": "0001628280-25-047240",
@@ -2501,7 +2480,7 @@
         },
         {
           "rank_a": 1,
-          "rank_b": 5,
+          "rank_b": 4,
           "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
           "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "accession_a": "0001628280-25-047240",
@@ -2521,71 +2500,29 @@
           "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
         },
         {
+          "rank_a": 1,
+          "rank_b": 5,
+          "chunk_id_a": "fd1399cd-0ac7-4c51-b7d0-d3d669172db8",
+          "chunk_id_b": "40f1af79-53bb-4ec7-95e7-50bacdaec8dc",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 5,
+          "chunk_index_b": 38,
+          "chunk_index_distance": 33,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "Cash, cash equivalents, and marketable securities were $44.45 billion as of September 30, 2025. Effective tax rate was 87% for the three months ended September 30, 2025. This includes a one-time incom",
+          "content_preview_b": "taxes: the effects of changes in tax law, changes in valuation allowance due to the effects of CAMT, U.S. tax benefits from foreign-derived intangible income, tax effects from share-based compensation"
+        },
+        {
           "rank_a": 2,
           "rank_b": 3,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "d5c5a26e-b931-474b-babc-1c6ee1233310",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "mda",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 43,
-          "chunk_index_distance": 43,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "equivalents. Subject to legally available funds and future declaration by our board of directors, we currently intend to continue to pay a quarterly cash dividend and dividend equivalents on our outst"
-        },
-        {
-          "rank_a": 2,
-          "rank_b": 4,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "mda",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 34,
-          "chunk_index_distance": 34,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for"
-        },
-        {
-          "rank_a": 2,
-          "rank_b": 5,
-          "chunk_id_a": "d64d4dde-c1b4-44cd-b50c-a9b8bc0e1a6d",
-          "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
-          "accession_a": "transcript_META_FY2025-Q3",
-          "accession_b": "0001628280-25-047240",
-          "section_a": "transcript_part_0",
-          "section_b": "mda",
-          "doc_type_a": "transcript",
-          "doc_type_b": "10-Q",
-          "chunk_index_a": 0,
-          "chunk_index_b": 26,
-          "chunk_index_distance": 26,
-          "same_accession": false,
-          "same_section": false,
-          "same_key": false,
-          "pair_type": "same_company_diff_filing",
-          "content_preview_a": "Operator: Good afternoon. My name is Christa, and I will be your conference operator today. At this time, I would like to welcome everyone to the Meta Third Quarter Earnings Conference Call. [Operator",
-          "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
-        },
-        {
-          "rank_a": 3,
-          "rank_b": 4,
           "chunk_id_a": "d5c5a26e-b931-474b-babc-1c6ee1233310",
           "chunk_id_b": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
           "accession_a": "0001628280-25-047240",
@@ -2605,8 +2542,8 @@
           "content_preview_b": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for"
         },
         {
-          "rank_a": 3,
-          "rank_b": 5,
+          "rank_a": 2,
+          "rank_b": 4,
           "chunk_id_a": "d5c5a26e-b931-474b-babc-1c6ee1233310",
           "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "accession_a": "0001628280-25-047240",
@@ -2626,8 +2563,29 @@
           "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
         },
         {
-          "rank_a": 4,
+          "rank_a": 2,
           "rank_b": 5,
+          "chunk_id_a": "d5c5a26e-b931-474b-babc-1c6ee1233310",
+          "chunk_id_b": "40f1af79-53bb-4ec7-95e7-50bacdaec8dc",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 43,
+          "chunk_index_b": 38,
+          "chunk_index_distance": 5,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "equivalents. Subject to legally available funds and future declaration by our board of directors, we currently intend to continue to pay a quarterly cash dividend and dividend equivalents on our outst",
+          "content_preview_b": "taxes: the effects of changes in tax law, changes in valuation allowance due to the effects of CAMT, U.S. tax benefits from foreign-derived intangible income, tax effects from share-based compensation"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
           "chunk_id_a": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
           "chunk_id_b": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
           "accession_a": "0001628280-25-047240",
@@ -2645,9 +2603,51 @@
           "pair_type": "non_adjacent_same_section",
           "content_preview_a": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for",
           "content_preview_b": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other "
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 5,
+          "chunk_id_a": "9f436257-6d52-4e6d-b2e5-6ac1cb14d355",
+          "chunk_id_b": "40f1af79-53bb-4ec7-95e7-50bacdaec8dc",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 34,
+          "chunk_index_b": 38,
+          "chunk_index_distance": 4,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "— Commitments and Contingencies, and Note 12 — Segment Information in the notes to the condensed consolidated financial statements included in Part I, Item 1, of this Quarterly Report on Form 10-Q for",
+          "content_preview_b": "taxes: the effects of changes in tax law, changes in valuation allowance due to the effects of CAMT, U.S. tax benefits from foreign-derived intangible income, tax effects from share-based compensation"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "chunk_id_a": "2b35c22b-b8e3-47f9-9173-c25db53a42c6",
+          "chunk_id_b": "40f1af79-53bb-4ec7-95e7-50bacdaec8dc",
+          "accession_a": "0001628280-25-047240",
+          "accession_b": "0001628280-25-047240",
+          "section_a": "mda",
+          "section_b": "mda",
+          "doc_type_a": "10-Q",
+          "doc_type_b": "10-Q",
+          "chunk_index_a": 26,
+          "chunk_index_b": 38,
+          "chunk_index_distance": 12,
+          "same_accession": true,
+          "same_section": true,
+          "same_key": true,
+          "pair_type": "non_adjacent_same_section",
+          "content_preview_a": "and measurement tools. This increase was partially offset by a higher number of ad impressions delivered, especially in geographies and in products, such as Reels, that monetize at lower rates. Other ",
+          "content_preview_b": "taxes: the effects of changes in tax law, changes in valuation allowance due to the effects of CAMT, U.S. tax benefits from foreign-derived intangible income, tax effects from share-based compensation"
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta delivered $51.24B of revenue in Q3 FY2025, with advertising revenue accounting for $50.08B of the total. Operating income rose to $20.54B, and reported net income was $2.71B because the company recorded a $15.93B one-time tax charge tied to OBBBA.  \n\n## Key Financial Metric"
+      "answer_preview": "## Executive Summary\nUsing only disclosed 10-Q figures, net income was $2.709B and the provision for income taxes was $18.954B, including the one-time $15.93B charge related to OBBBA implementation. [FILING]\n\n## Key Financial Metrics\n- Revenue: $51.242B [FILING]\n- Income from operations: $20.535B [F"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_cmp_003",
@@ -2940,7 +2940,7 @@
           "content_preview_b": "Timothy D. Cook: Yes. We did grow in Greater China by 4% during the quarter versus the previous quarter, it was driven by an acceleration by iPhone, although we also had substantial growth on the Mac "
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. The current quarter adds a third-quarter increase in Greater China, driven by higher iPhone and Mac sales, whereas the prior quarter only described a first-half decrease due to lower iPhone sales. The current language also adds Mac as a partially offsetting fact"
+      "answer_preview": "Language shift vs prior quarter: YES. The current quarter changes from a year-over-year decrease in Greater China net sales, driven by lower iPhone sales, to a third-quarter increase driven by higher iPhone and Mac sales."
     },
     {
       "claim_id": "MSFT_FY2026-Q3_oos_001",
@@ -3233,7 +3233,7 @@
           "content_preview_b": "Nine Months Ended March 31, 2026 Compared with Nine Months Ended March 31, 2025 Revenue increased $36.5 billion or 18% driven by growth in Microsoft Cloud. Intelligent Cloud revenue increased driven b"
         }
       ],
-      "answer_preview": "## Executive Summary\nMicrosoft delivered an earnings beat in Q3 FY2026, with management stating results “exceeded expectations across revenue, operating income and earnings per share” on “strong demand and execution.” [TRANSCRIPT] Revenue reached $82.9 billion, up 18%, while EPS rose to $4.27, up 21"
+      "answer_preview": "## Executive Summary\nMicrosoft reported that its AI business annual revenue run rate surpassed **$37 billion** in Q3 FY2026. Management said this run rate grew **123% year-over-year**. [TRANSCRIPT]\n\n## Key Financial Metrics\n- AI business annual revenue run rate: **>$37 billion** [TRANSCRIPT]\n- Year-"
     },
     {
       "claim_id": "MSFT_FY2026-Q3_ret_002",
@@ -3526,7 +3526,7 @@
           "content_preview_b": "Dynamics 365 revenue growth | Revenue from Dynamics 365, including a set of intelligent, cloud-based applications across ERP, CRM, Power Apps, and Power Automate\nAzure and other cloud services revenue"
         }
       ],
-      "answer_preview": "## Executive Summary\nMicrosoft delivered broad-based FY2026-Q3 growth, with revenue at $82.9B, operating income at $38.4B, and diluted EPS at $4.27. [FILING] Azure and other cloud services drove the quarter, with revenue up 40% on demand across the platform and continued growth across all workloads."
+      "answer_preview": "## Executive Summary\nAzure and other cloud services revenue grew 40% driven by demand for services across the platform with continued growth across all workloads.\n\n## Key Financial Metrics\n- Server products and cloud services revenue growth: **32%** [FILING]\n- Microsoft Cloud gross margin percentage"
     }
   ]
 }

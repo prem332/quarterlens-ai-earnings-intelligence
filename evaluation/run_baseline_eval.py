@@ -710,8 +710,15 @@ def _build_typed_answer(
         best = max(pool, key=lambda s: s.get("score", 0.0))
         full_passage = best.get("passage", "") or ""
         passage = full_passage[:400]
-        answer = (f'Sentiment: {best.get("label", "neutral")} '
-                  f'(confidence {best.get("score", 0.0):.2f}). Evidence: "{passage}"')
+        # Leads with the quote (trivially groundable — it's literally in context),
+        # drops the confidence float (a model-derived probability, not something
+        # any passage can "support" — llm_judge grades the label, not the number),
+        # and reduces the classification to one trailing word instead of a separate
+        # declarative sentence. Minimizes distinct "claims" the RAGAS faithfulness
+        # judge extracts — confirmed this session that the old format scored correct
+        # answers as low-faithfulness because the label/confidence read as
+        # unsupported factual assertions.
+        answer = f'"{passage}" reflects {best.get("label", "neutral")} sentiment.'
         return answer, ([full_passage] if full_passage else [])
 
     if claim_type == "comparison":
@@ -873,7 +880,12 @@ async def run_eval(
             pipeline_out.get("comparison_findings") or [],
             "\n\n".join(contexts),
         )
-        gen_contexts = gen_contexts + typed_gen_extra
+        # PREPENDED, not appended: _score_faithfulness/_score_context_recall slice
+        # contexts[:N], so evidence placed after the 5 retrieval chunks was silently
+        # truncated away before the judge ever saw it — verbatim-quote answers were
+        # scoring 0.0 faithfulness because their source passage was dropped. The
+        # typed answer is generated FROM this evidence, so it belongs first.
+        gen_contexts = typed_gen_extra + gen_contexts
 
         ragas_samples.append({"question": query, "answer": answer,
                                "contexts": contexts, "gen_contexts": gen_contexts,
@@ -923,6 +935,12 @@ async def run_eval(
             "company": company, "fiscal_label": fiscal_label,
             "latency_ms": latency_ms, "pipeline_error": pipeline_error,
             "answer_length": len(answer),
+            "answer_preview": answer[:400],
+            # Actual evidence the typed answer drew from (sentiment passage /
+            # comparison current+prior language) — diagnostic visibility into what
+            # sentiment_agent/comparison_agent actually selected, without which the
+            # sentiment "neutral" mislabeling was only diagnosable by inference.
+            "typed_gen_extra_preview": (typed_gen_extra[0][:400] if typed_gen_extra else ""),
         })
 
     # ── Scoring ───────────────────────────────────────────────────────────────
@@ -950,6 +968,26 @@ async def run_eval(
         if retrieval_batch else {}
     )
     judge_scores_list, mean_judge = judge_batch(judge_samples) if judge_samples else ([], 0.0)
+
+    # Merge RAGAS per-sample scores + judge reasoning back into per_claim_results.
+    # Without this, the judge's per-claim critique (why a specific claim scored low
+    # on accuracy/grounding/relevancy) was computed and immediately discarded after
+    # the mean — every "why is llm_judge/faithfulness low" question could only be
+    # answered from the aggregate number, not the actual per-claim evidence.
+    # ragas_samples/judge_samples/per_claim_results are appended once per claim in
+    # the same loop iteration with no skips between them, so all three stay aligned
+    # by index.
+    _ragas_per_sample = ragas_per_sample if ragas_samples else []
+    for i, pcr in enumerate(per_claim_results):
+        if i < len(_ragas_per_sample):
+            pcr.update({f"ragas_{k_}": v for k_, v in _ragas_per_sample[i].items()})
+        if i < len(judge_scores_list):
+            js = judge_scores_list[i]
+            pcr["judge_accuracy"] = js.get("accuracy")
+            pcr["judge_grounding"] = js.get("grounding")
+            pcr["judge_relevancy"] = js.get("relevancy")
+            pcr["judge_overall"] = js.get("overall")
+            pcr["judge_reasoning"] = js.get("reasoning")
 
     numeric_pass_rate = 0.0
     if numeric_results:

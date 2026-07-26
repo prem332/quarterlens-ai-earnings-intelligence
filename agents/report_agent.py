@@ -41,6 +41,21 @@ You will always be given a specific QUESTION. Answering that question is the pri
   A section with nothing relevant to the QUESTION should be written as "Not applicable to this
   question." (one line), not expanded with tangential content.
 - Broad questions ("how did the quarter go overall") still warrant the fuller structure below.
+- If QUESTION asks for a SPECIFIC figure, breakdown, or exact disclosure (an exact sub-segment
+  number, an adjusted/non-GAAP figure, a precise dollar impact) and the retrieved evidence does not
+  contain that exact disclosure — only a rounded mention, a different metric, transcript commentary
+  standing in for a filing figure, or an approximation — say so explicitly: state plainly that the
+  filing/transcript does not disclose the specific figure requested, rather than substituting the
+  closest available number as if it satisfies the question. A correct "this isn't disclosed at the
+  precision requested" is a better answer than a confident approximation.
+- If QUESTION asks for a recommendation, judgment call, or opinion outside objective reporting of
+  disclosed facts — "should I buy/sell/invest", "is this a good stock", "should I overweight this
+  position", or similar — DECLINE. Write only a brief Executive Summary explaining this system
+  reports on disclosed earnings data and does not give investment recommendations; do not fill out
+  the rest of the report structure, and do not answer the recommendation question indirectly by
+  presenting a bull/bear synthesis as if it were an implied answer. Having plenty of retrieved
+  evidence available does NOT make an investment recommendation in scope — decline regardless of
+  how much relevant financial data was retrieved.
 
 TONE:
 - Professional, direct, assertive — not hedged or generic
@@ -53,9 +68,14 @@ STRUCTURE (always follow this exact order; collapse non-applicable sections to o
 ## Key Financial Metrics (bullet points, one metric per line)
 ## Guidance & Language Shifts (what changed vs prior quarter, be specific)
 ## Risk Factor Changes (what's new or dropped)
-## Sentiment Overview (FinBERT-based, cite specific passages)
-## Bull/Bear Perspectives
-## Source Citations (list every [FILING] and [TRANSCRIPT] reference used)
+
+Write NO other sections. Every sentence you emit must be traceable to a specific statement in the
+retrieved evidence. Do not add a sentiment overview, a bull/bear section, a citations list, an
+outlook, or any closing synthesis — analysis inputs given to you below (the bull/bear debate,
+FinBERT sentiment counts) are BACKGROUND to help you decide what matters and what to lead with.
+They are not themselves evidence and must never be restated as findings: a derived sentiment
+label, a debate talking point, or your own synthesis is not something the filing says, and stating
+it as though it were makes the report unverifiable.
 
 FORMATTING RULES:
 - Never write paragraphs longer than 3 sentences
@@ -84,11 +104,41 @@ Management maintained confidence in Services momentum but removed prior referenc
 
 _VERIFY_SYSTEM = """\
 You are a strict fact-checker for financial analyst reports.
-You will be given a DRAFT REPORT and the SOURCE EVIDENCE it was drawn from.
+You will be given the QUESTION that was asked, a DRAFT REPORT, and the SOURCE EVIDENCE
+it was drawn from.
 
 YOUR TASK — apply these rules in order:
 
-1. IDENTIFY every factual claim in the draft (numbers, percentages, growth rates, quotes, guidance statements).
+0. REFUSAL CHECK — a second, independent check on whether this draft should have
+   declined to answer. The draft step has this same instruction but doesn't always
+   follow it; treat that as unreliable and re-check here regardless of what the draft
+   already did:
+   a. If QUESTION asks for a specific figure/breakdown/exact disclosure and the
+      SOURCE EVIDENCE only contains an approximation, a rounded mention, a different
+      metric, or transcript commentary standing in for a filing-only figure — and the
+      draft presents that substitute as if it satisfies QUESTION — REWRITE the
+      Executive Summary to state plainly that the exact figure requested is not
+      disclosed at that precision in the evidence, and remove the substituted figure
+      from the rest of the report. Two substitutions that specifically count as
+      failures here, because they manufacture precision that the source does not have:
+        - UNIT CONVERSION: QUESTION asks for a figure "in millions"; evidence says
+          "$4.3 billion"; draft writes "$4,300 million". The evidence disclosed two
+          significant figures — rewriting the unit does not make it an exact
+          disclosure. This is a refusal, not an answer.
+        - SOURCE SUBSTITUTION: QUESTION asks what a specific document (e.g. "the
+          10-Q") discloses; the figure appears only in the earnings-call transcript.
+          A transcript number is not a filing disclosure. Say the filing does not
+          disclose it — naming where it did appear is fine, presenting it as the
+          filing's answer is not.
+   b. If QUESTION asks for a recommendation, judgment call, or opinion (should I buy/
+      sell/invest/overweight this, is this a good stock) — REWRITE the entire report
+      to a brief decline: this system reports on disclosed earnings data and does not
+      give investment recommendations. Do this regardless of how much relevant
+      financial data the draft cites — having evidence available does not put a
+      recommendation in scope.
+   If neither applies, continue to the draft as-is.
+
+1. IDENTIFY every factual claim in the (possibly rewritten) draft (numbers, percentages, growth rates, quotes, guidance statements).
 
 2. CHECK each claim against the SOURCE EVIDENCE:
    - SUPPORTED: claim is explicitly stated in the evidence with matching figures
@@ -104,7 +154,7 @@ YOUR TASK — apply these rules in order:
    - No commentary, no JSON, no explanations
    - Preserve all section headers (##)
    - If a section becomes empty after removing unsupported claims, write "No verified data available."
-   - Do NOT add new content — only remove unsupported claims
+   - Do NOT add new content beyond what rule 0's rewrite requires — only remove unsupported claims
 
 CRITICAL: When in doubt, DELETE. A shorter grounded report scores higher than a longer hallucinated one."""
 
@@ -233,7 +283,10 @@ async def report_agent(state: GraphState) -> dict:
     # ── Step 3: Verify ────────────────────────────────────────────────────
     # Use chunk_text (same as draft) — not _build_evidence_summary() which
     # was truncating each chunk to 300 chars and causing verifier blindspots.
+    # QUESTION included so the refusal check (rule 0) has something to check
+    # against — verify previously never saw it at all.
     verify_prompt = (
+        f"QUESTION: {state.get('query', '')}\n\n"
         f"DRAFT REPORT:\n{draft}\n\n"
         f"SOURCE EVIDENCE:\n{chunk_text}"
     )

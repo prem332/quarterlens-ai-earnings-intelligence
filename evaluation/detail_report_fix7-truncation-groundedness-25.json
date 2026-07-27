@@ -1,5 +1,5 @@
 {
-  "run_name": "fix7-finbert-bugfix-25",
+  "run_name": "fix7-truncation-groundedness-25",
   "total_claims": 12,
   "pair_type_summary": {
     "same_filing_diff_section": 21,
@@ -299,7 +299,7 @@
           "content_preview_b": "These decisions may adversely affect our business and results of operations and may not produce the long-term benefits that we expect. We may not be successful in our Reality Labs strategy and investm"
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta Reality Labs revenue was **$470.0M in Q3 FY2025**.\n\n## Key Financial Metrics\n- Reality Labs revenue: **$470.0M** [FILING]\n- Reality Labs operating loss: **$(4.43)B** [FILING]\n\n## Guidance & Language Shifts\n- Management said RL revenue rose **“mostly due to increases in sale"
+      "answer_preview": "## Executive Summary\nMeta Reality Labs revenue was $470M in Q3 FY2025.\n\n## Key Financial Metrics\n- Reality Labs revenue: $470M\n\n## Guidance & Language Shifts\nMeta said Reality Labs revenue in Q3 FY2025 increased by $200M, or 74%, versus Q3 FY2024, mostly due to higher sales of Meta Quest and AI glas"
     },
     {
       "claim_id": "META_FY2025-Q3_ret_002",
@@ -592,7 +592,7 @@
           "content_preview_b": "2025 | 2024\nNet cash provided by operating activities | $ | 79,586 | $ | 63,340\nNet cash used in investing activities | $ | (67,816) | $ | (25,652)\nNet cash used in financing activities | $ | (45,519)"
         }
       ],
-      "answer_preview": "## Executive Summary\nMeta’s operating cost acceleration in Q3 FY2025 was driven primarily by higher research and development spending, plus a sharp jump in general and administrative costs. R&D rose because of higher employee compensation and infrastructure costs to support AI initiatives, while G&A"
+      "answer_preview": "## Executive Summary\nMeta’s operating cost acceleration in Q3 FY2025 came primarily from higher research and development spending and higher general and administrative expense. The filing says R&D rose on higher employee compensation and infrastructure costs to support AI initiatives, while G&A incr"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_ret_001",
@@ -889,7 +889,7 @@
           "content_preview_b": "Factors that have caused and/or could in the future cause us to underestimate or overestimate demand, and impact the timing and volume of our revenue, include: • changes in product development cycles "
         }
       ],
-      "answer_preview": "## Executive Summary\nNVIDIA’s China-related risk in Q3 FY2026 centers on export controls, shifting U.S. licensing requirements, potential revenue-sharing fees on licensed sales, and Chinese customer demand disruption from geopolitical scrutiny. [FILING]\n\n## Key Financial Metrics\n- H20 revenue under "
+      "answer_preview": "## Executive Summary\nNVIDIA’s China-related risk in Q3 FY2026 centered on U.S. export controls, temporary and potentially burdensome licenses, possible new revenue-sharing requirements, and the risk that customers in China and other regions shift to alternatives. Its disclosed China-related financia"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_oos_001",
@@ -1182,7 +1182,7 @@
           "content_preview_b": "Third Quarter of Fiscal Year 2026 Summary Three Months Ended | Quarter-over-Quarter Change | Year-over-Year Change\nOct 26, 2025 | Jul 27, 2025 | Oct 27, 2024\n($ in millions, except per share data)\nRev"
         }
       ],
-      "answer_preview": "## Executive Summary\nGaming revenue was $4.3 billion, up 30% year on year driven by strong demand.\n\n## Key Financial Metrics\n- Gaming revenue: $4.3 billion\n- Gaming year-over-year growth: 30%\n- Gaming revenue was down 1% sequentially as channel inventories have reached more normalized levels heading"
+      "answer_preview": "## Executive Summary\nNVIDIA Gaming revenue was $4,300 million in Q3 FY2026.\n\n## Key Financial Metrics\n- Gaming revenue: $4,300 million\n\n## Guidance & Language Shifts\nNot applicable to this question.\n\n## Risk Factor Changes\nNot applicable to this question."
     },
     {
       "claim_id": "NVDA_FY2026-Q3_cmp_001",
@@ -1475,7 +1475,7 @@
           "content_preview_b": "Toshiya Hari: We will now open the call for questions. Operator, would you please poll for questions? Sarah: Thank you. At this time, I would like to remind everyone, in order to ask a question, press"
         }
       ],
-      "answer_preview": "## Executive Summary\nNo verified data available.\n\n## Key Financial Metrics\n- OpenAI: letter of intent entered in Q3 FY2026, with no assurance definitive agreements will be signed or completed. [FILING]\n- Anthropic: agreement entered in November 2025, subject to closing conditions, to invest up to $1"
+      "answer_preview": "## Executive Summary\nYes — the language shifted in Q3 FY2026 to add explicit disclosure around new strategic investments in OpenAI and Anthropic, along with broader language that the company expects to continue investing in strategic partnerships.\n\n## Key Financial Metrics\n- OpenAI: entered into a l"
     },
     {
       "claim_id": "NVDA_FY2026-Q3_cmp_004",
@@ -1768,7 +1768,7 @@
           "content_preview_b": "The scope, timing, and requirements of the forthcoming rule remain uncertain. The replacement rule may impose new restrictions on our products or operations and/or add license requirements that could "
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: NO. The core language about disproportionate impact and competitive disadvantage is effectively unchanged in substance, but the current quarter drops the prior quarter's separate opening sentence that specifically said any new control impacting a wider range of produ"
+      "answer_preview": "Language shift vs prior quarter: YES. The current statement says export controls have in the past and may in the future negatively impact demand not only in China, but also in other markets such as Europe, Latin America, and Southeast Asia. It also adds that export controls increase the risk of inve"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_ret_004",
@@ -2061,7 +2061,7 @@
           "content_preview_b": "Services | 27,423 | 24,213 | 13 | % | 80,408 | 71,197 | 13 | %\nTotal net sales | $ | 94,036 | $ | 85,777 | 10 | % | $ | 313,695 | $ | 296,105 | 6 | % iPhone iPhone net sales increased during the third"
         }
       ],
-      "answer_preview": "## Executive Summary\nTariffs had a negative but limited disclosed impact on Apple in Q3 FY2025: management said products gross margin percentage decreased year over year primarily due to tariffs, partially offset by favorable costs and product mix. Apple also said tariffs and other measures can mate"
+      "answer_preview": "## Executive Summary\nTariffs had a negative impact on Apple’s Q3 FY2025 results by pressuring Products gross margin. Management said Products gross margin percentage decreased in Q3 FY2025 due primarily to tariffs and a different mix of products, partially offset by favorable costs.\n\n## Key Financia"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_cmp_007",
@@ -2354,7 +2354,7 @@
           "content_preview_b": "Percentage of total net sales | 17 | % | 17 | % | 15 | % | 15 | % Research and Development The growth in research and development (“R&D”) expense during the third quarter and first nine months of 2025"
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. The current quarter adds \"and a different mix of services\" as a primary driver, whereas the prior quarter attributed the increase only to higher Services net sales. The time period also changes from second quarter/first six months to third quarter/first nine mon"
+      "answer_preview": "Language shift vs prior quarter: NO. The current statement says Services gross margin increased during the third quarter and first nine months of 2025 compared to the same periods in 2024 due primarily to higher Services net sales and a different mix of services. The prior statement said Services gr"
     },
     {
       "claim_id": "META_FY2025-Q3_oos_001",
@@ -2647,7 +2647,7 @@
           "content_preview_b": "taxes: the effects of changes in tax law, changes in valuation allowance due to the effects of CAMT, U.S. tax benefits from foreign-derived intangible income, tax effects from share-based compensation"
         }
       ],
-      "answer_preview": "## Executive Summary\nUsing only disclosed 10-Q figures, net income was $2.709B and the provision for income taxes was $18.954B, including the one-time $15.93B charge related to OBBBA implementation. [FILING]\n\n## Key Financial Metrics\n- Revenue: $51.242B [FILING]\n- Income from operations: $20.535B [F"
+      "answer_preview": "## Executive Summary\nMeta’s 10-Q does not disclose an adjusted EPS excluding the one-time tax charge for Q3 FY2025. The filing discloses reported net income of $2.709B and notes the tax charge, but it does not provide the adjusted EPS figure requested.\n\n## Key Financial Metrics\n- Net income: $2.709B"
     },
     {
       "claim_id": "AAPL_FY2025-Q3_cmp_003",
@@ -2940,7 +2940,7 @@
           "content_preview_b": "Timothy D. Cook: Yes. We did grow in Greater China by 4% during the quarter versus the previous quarter, it was driven by an acceleration by iPhone, although we also had substantial growth on the Mac "
         }
       ],
-      "answer_preview": "Language shift vs prior quarter: YES. The current quarter changes from a year-over-year decrease in Greater China net sales, driven by lower iPhone sales, to a third-quarter increase driven by higher iPhone and Mac sales."
+      "answer_preview": "Language shift vs prior quarter: YES. Greater China net sales changed from decreasing in the prior period to increasing in the current quarter, with the stated driver changing from lower net sales of iPhone to higher net sales of iPhone and Mac."
     },
     {
       "claim_id": "MSFT_FY2026-Q3_oos_001",
@@ -3233,7 +3233,7 @@
           "content_preview_b": "Nine Months Ended March 31, 2026 Compared with Nine Months Ended March 31, 2025 Revenue increased $36.5 billion or 18% driven by growth in Microsoft Cloud. Intelligent Cloud revenue increased driven b"
         }
       ],
-      "answer_preview": "## Executive Summary\nMicrosoft reported that its AI business annual revenue run rate surpassed **$37 billion** in Q3 FY2026. Management said this run rate grew **123% year-over-year**. [TRANSCRIPT]\n\n## Key Financial Metrics\n- AI business annual revenue run rate: **>$37 billion** [TRANSCRIPT]\n- Year-"
+      "answer_preview": "## Executive Summary\nMicrosoft said its AI business annual revenue run rate surpassed $37 billion in Q3 FY2026. The company also said that run rate was growing 123% year-over-year.\n\n## Key Financial Metrics\n- AI business annual revenue run rate: surpassed $37 billion\n- Year-over-year growth in AI bu"
     },
     {
       "claim_id": "MSFT_FY2026-Q3_ret_002",
@@ -3526,7 +3526,7 @@
           "content_preview_b": "Dynamics 365 revenue growth | Revenue from Dynamics 365, including a set of intelligent, cloud-based applications across ERP, CRM, Power Apps, and Power Automate\nAzure and other cloud services revenue"
         }
       ],
-      "answer_preview": "## Executive Summary\nAzure and other cloud services revenue grew 40% driven by demand for services across the platform with continued growth across all workloads.\n\n## Key Financial Metrics\n- Server products and cloud services revenue growth: **32%** [FILING]\n- Microsoft Cloud gross margin percentage"
+      "answer_preview": "## Executive Summary\nAzure and other cloud services revenue grew 40% in Q3 FY2026.\n\n## Key Financial Metrics\n- Azure and other cloud services revenue growth: 40%\n- Server products and cloud services revenue: $7.8B, up 32%\n- Microsoft Cloud gross margin percentage: 66%\n- Operating income: $38.4B, up "
     }
   ]
 }

@@ -726,8 +726,18 @@ def _build_typed_answer(
         if finding is not None:
             verdict = "YES" if finding.get("shift_detected") else "NO"
             desc = finding.get("shift_description") or "No substantive language shift."
-            answer = f"Language shift vs prior quarter: {verdict}. {desc}"
-            extra = [finding.get("current_language", ""), *finding.get("prior_language", {}).values()]
+            current_lang = finding.get("current_language", "")
+            prior_langs = [v for v in finding.get("prior_language", {}).values() if v]
+            # Leads with the verbatim quotes (self-evidently grounded, same principle
+            # validated for sentiment) before the verdict/description — desc is
+            # LLM-synthesized and was flagged in this session's own judge reasoning as
+            # sometimes inventing framing ("a subtraction/contrast...") not literally
+            # in the excerpts, which the faithfulness judge marks unsupported.
+            quotes = f'Current: "{current_lang}"' if current_lang else ""
+            if prior_langs:
+                quotes += (" " if quotes else "") + f'Prior: "{" / ".join(prior_langs)}"'
+            answer = f"{quotes} Shift: {verdict}. {desc}".strip()
+            extra = [current_lang, *prior_langs]
             return answer, [e for e in extra if e]
         # No finding matches the claim's topic (or it isn't grounded in the
         # retrieved evidence) — the generic briefing is a safer answer than a

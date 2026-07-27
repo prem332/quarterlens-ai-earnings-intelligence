@@ -596,6 +596,11 @@ def _aggregate_ragas_by_type(
     for sample, ps in zip(samples, per_sample):
         ct = sample.get("claim_type", "unknown")
         for metric, val in ps.items():
+            # Skip non-numeric per-sample fields (e.g. context_recall_facts, the
+            # judge's raw fact-list diagnostic) — this loop aggregates metric
+            # scores only, not arbitrary per-sample payloads.
+            if not isinstance(val, (int, float)):
+                continue
             by_type.setdefault(ct, {}).setdefault(metric, []).append(val)
             if ct in _RAGAS_RETRIEVAL_SUBSET_TYPES:
                 subset.setdefault(metric, []).append(val)

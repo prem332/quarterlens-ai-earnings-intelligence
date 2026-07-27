@@ -270,10 +270,11 @@ async def report_agent(state: GraphState) -> dict:
     )
 
     # ── Step 2: Draft ─────────────────────────────────────────────────────
-    # chunk_text is built once and reused in verify — ensures draft and
-    # verifier operate on identical evidence, not a truncated summary.
+    # chunk_text and extra_evidence are built once and reused in verify —
+    # ensures draft and verifier operate on identical evidence, not a subset.
     chunk_text = _build_chunk_text(state)
-    draft_prompt = _build_draft_prompt(state, chunk_text, debate_summary)
+    extra_evidence = _build_extra_evidence(state)
+    draft_prompt = _build_draft_prompt(state, chunk_text, extra_evidence, debate_summary)
     draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt, model_tier)
     total_tokens += tokens
 
@@ -281,14 +282,23 @@ async def report_agent(state: GraphState) -> dict:
         return _empty("draft generation failed", t0)
 
     # ── Step 3: Verify ────────────────────────────────────────────────────
-    # Use chunk_text (same as draft) — not _build_evidence_summary() which
-    # was truncating each chunk to 300 chars and causing verifier blindspots.
-    # QUESTION included so the refusal check (rule 0) has something to check
-    # against — verify previously never saw it at all.
+    # Use chunk_text + extra_evidence — the exact same evidence the draft was
+    # given, not chunk_text alone. Verify previously only saw chunk_text, so a
+    # correctly-grounded fact the draft pulled from findings_text/sentiment_summary/
+    # validations_text (e.g. a validated growth rate) had nothing for verify to
+    # confirm it against and was deleted by rule 3's "not explicitly stated in
+    # evidence" — a real bug, not just an eval-measurement gap: it could strip
+    # correct content from the live report. QUESTION included so the refusal
+    # check (rule 0) has something to check against — verify previously never
+    # saw it at all.
+    findings_text, sentiment_summary, validations_text = extra_evidence
     verify_prompt = (
         f"QUESTION: {state.get('query', '')}\n\n"
         f"DRAFT REPORT:\n{draft}\n\n"
-        f"SOURCE EVIDENCE:\n{chunk_text}"
+        f"SOURCE EVIDENCE:\n{chunk_text}\n\n"
+        f"=== LANGUAGE SHIFT ANALYSIS ===\n{findings_text}\n\n"
+        f"=== SENTIMENT ANALYSIS (FinBERT) ===\n{sentiment_summary}\n\n"
+        f"=== NUMERIC VALIDATION ===\n{validations_text}"
     )
     verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt, model_tier)
     total_tokens += tokens
@@ -332,11 +342,15 @@ def _build_chunk_text(state: GraphState, max_chunks: int = 8) -> str:
     )
 
 
-def _build_draft_prompt(state: GraphState, chunk_text: str, debate_summary: str = "") -> str:
-    company = state["company"]
-    quarter = state["quarter"]
-    query = state.get("query", "")
-
+def _build_extra_evidence(state: GraphState) -> tuple[str, str, str]:
+    """
+    Language-shift / sentiment / numeric-validation text blocks the draft is given
+    alongside chunk_text. Returns (findings_text, sentiment_summary, validations_text)
+    so the caller can also pass them to verify — verify previously only saw
+    chunk_text, so any correctly-grounded fact the draft pulled from one of these
+    three (e.g. a validated growth rate) had no evidence to be confirmed against
+    and was deleted by verify's own "not explicitly stated in evidence" rule.
+    """
     findings: list[ComparisonFinding] = state.get("comparison_findings") or []
     findings_text = "\n".join(
         f"- {f['topic']}: shift={'YES' if f['shift_detected'] else 'no'} — {f.get('shift_description') or 'no change'}"
@@ -362,6 +376,18 @@ def _build_draft_prompt(state: GraphState, chunk_text: str, debate_summary: str 
             + (f" (Δ{v['delta_pct']:.2f}%)" if v["delta_pct"] is not None else "")
         )
     validations_text = "\n".join(val_lines) or "No validations performed."
+
+    return findings_text, sentiment_summary, validations_text
+
+
+def _build_draft_prompt(
+    state: GraphState, chunk_text: str, extra_evidence: tuple[str, str, str],
+    debate_summary: str = "",
+) -> str:
+    company = state["company"]
+    quarter = state["quarter"]
+    query = state.get("query", "")
+    findings_text, sentiment_summary, validations_text = extra_evidence
 
     debate_section = (
         f"\n=== BULL/BEAR DEBATE (CrewAI) ===\n{debate_summary}\n"

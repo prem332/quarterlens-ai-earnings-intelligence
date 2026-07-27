@@ -76,7 +76,10 @@ Respond ONLY with valid JSON, no markdown:
 """
 
 _CONTEXT_PRECISION_PROMPT = """\
-You are evaluating whether retrieved context chunks are relevant to the question.
+You are evaluating whether retrieved context chunks are relevant to a question,
+in the sense used for retrieval evaluation: would a competent analyst find this
+chunk useful when researching the answer, even if it doesn't by itself contain
+the complete, precise answer?
 
 Question: {question}
 Ground truth answer: {ground_truth}
@@ -84,8 +87,13 @@ Ground truth answer: {ground_truth}
 Retrieved chunks:
 {chunks}
 
-For each chunk (numbered from 1), state whether it is relevant to answering
-the question given the ground truth (yes/no).
+For each chunk (numbered from 1), mark it relevant (yes) if it discusses the
+same topic, company, metric, or event as the question/ground truth — even if it
+only covers part of the answer, provides supporting context, or approaches the
+topic from an adjacent angle (e.g. a related risk factor, a different but
+connected metric in the same section). Mark it not relevant (no) only if it is
+about a genuinely different topic, company, or time period than what's being
+asked.
 
 Respond ONLY with valid JSON, no markdown:
 {{
@@ -106,6 +114,15 @@ Retrieved context:
 
 Task: List the key facts from the ground truth. For each fact, state whether
 it is covered by the retrieved context (yes/no).
+
+Special case — if a fact is a statement that a figure or metric is NOT disclosed,
+not available, or only disclosed elsewhere (e.g. "the filing does not report X"
+or "X is only mentioned on the earnings call, not in the 10-Q"), mark it covered
+if the retrieved context is consistent with that absence — i.e. it does not
+itself contain that specific figure — rather than requiring the context to
+explicitly state that the figure is missing. A context that simply never
+mentions X cannot textually confirm its own silence about X, but the absence
+of a contradicting figure IS what covering an absence-type fact means.
 
 Respond ONLY with valid JSON, no markdown:
 {{
@@ -225,16 +242,22 @@ def _score_context_precision(
 
 def _score_context_recall(
     client, deployment: str, contexts: list[str], ground_truth: str, gen_k: int = 8,
-) -> float:
+) -> tuple[float, list[dict]]:
     """
     Context recall: fraction of ground-truth facts covered by context.
 
     gen_k as in _score_faithfulness — must cover every item the answer was
     generated from, or ground-truth facts present in dropped context are scored
     as uncovered.
+
+    Returns (score, facts) — facts is the judge's raw per-fact breakdown
+    ({"fact": str, "covered": bool}), previously discarded after computing the
+    score. Needed to diagnose cases like an out_of_scope claim's ground truth
+    mixing an absence-fact with a separately-checkable positive fact, where the
+    aggregate score alone doesn't say which fact(s) actually failed.
     """
     if not contexts or not ground_truth.strip():
-        return 0.0
+        return 0.0, []
     context_text = "\n\n---\n\n".join(contexts[:gen_k])
     prompt = _CONTEXT_RECALL_PROMPT.format(
         ground_truth=ground_truth, context=context_text
@@ -242,9 +265,9 @@ def _score_context_recall(
     result = _call_llm(client, deployment, prompt)
     facts = result.get("facts", [])
     if not facts:
-        return 0.0
+        return 0.0, []
     covered = sum(1 for f in facts if f.get("covered", False))
-    return round(covered / len(facts), 4)
+    return round(covered / len(facts), 4), facts
 
 
 def run_ragas_eval(
@@ -295,6 +318,7 @@ def run_ragas_eval(
     client, deployment = _get_client()
 
     scores: dict[str, list[float]] = {m: [] for m in requested}
+    recall_facts: list[list[dict]] = []
 
     for i, s in enumerate(samples):
         question = s.get("question", "")
@@ -324,11 +348,11 @@ def run_ragas_eval(
                 )
             )
         if "context_recall" in requested:
-            scores["context_recall"].append(
-                _score_context_recall(
-                    client, deployment, gen_contexts, ground_truth, gen_k=gen_context_k
-                )
+            recall_score, facts = _score_context_recall(
+                client, deployment, gen_contexts, ground_truth, gen_k=gen_context_k
             )
+            scores["context_recall"].append(recall_score)
+            recall_facts.append(facts)
 
     result = {}
     for m in requested:
@@ -343,7 +367,10 @@ def run_ragas_eval(
 
     if return_per_sample:
         per_sample = [
-            {m: scores[m][i] for m in requested}
+            {
+                **{m: scores[m][i] for m in requested},
+                **({"context_recall_facts": recall_facts[i]} if "context_recall" in requested else {}),
+            }
             for i in range(len(samples))
         ]
         return result, per_sample

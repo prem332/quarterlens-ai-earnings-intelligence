@@ -12,6 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 from azure_clients.key_vault_client import kv
+from data_pipeline.manifest_io import (
+    exists_or_warn, provenance, read_manifest, write_manifest,
+)
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -70,22 +73,17 @@ def embed_chunks(
 
 
 def run(chunk_manifest_path: str, out_root: str) -> None:
-    manifest_p = Path(chunk_manifest_path)
-    if not manifest_p.exists():
-        raise FileNotFoundError(f"Chunk manifest not found: {chunk_manifest_path}")
-
+    chunk_manifest = read_manifest(chunk_manifest_path, "Chunk manifest")
 
     deployment = kv.get_secret("AZURE-OPENAI-EMBEDDING-DEPLOYMENT")
 
-    chunk_manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
     out_root_p = Path(out_root)
     client = make_client()
     embedding_manifest: list[dict] = []
 
     for entry in chunk_manifest:
         chunks_path = Path(entry["chunks_path"])
-        if not chunks_path.exists():
-            log.warning("Missing chunk file, skipping: %s", chunks_path)
+        if not exists_or_warn(chunks_path, "chunk file", log):
             continue
 
         chunks = json.loads(chunks_path.read_text(encoding="utf-8"))
@@ -107,16 +105,14 @@ def run(chunk_manifest_path: str, out_root: str) -> None:
                  entry["ticker"], entry["fiscal_label"], len(embedded), out_file.name)
 
         embedding_manifest.append({
-            **{k: entry[k] for k in
-               ("ticker", "cik", "fiscal_label", "form", "report_date", "accession")},
+            **provenance(entry),
             "chunk_count":     entry["chunk_count"],
             "embedded_count":  len(embedded),
             "embeddings_path": str(out_file),
         })
 
-    embedding_manifest_path = out_root_p / "embedding_manifest.json"
-    embedding_manifest_path.write_text(
-        json.dumps(embedding_manifest, indent=2), encoding="utf-8"
+    embedding_manifest_path = write_manifest(
+        out_root_p / "embedding_manifest.json", embedding_manifest
     )
 
     total = sum(e["embedded_count"] for e in embedding_manifest)

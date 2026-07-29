@@ -23,7 +23,7 @@ ambiguity entirely (one targeted finding, not an array to pick from) and gives
 the verdict step a much narrower, less distracting input to reason over.
 
 Tools: fetch_prior_quarter(company, quarters_back) → list[dict]
-LLM: gpt-5-mini via openai_client.achat() (async, Phase 2).
+LLM: gpt-5-mini via openai_client.achat_tiered() (async, Phase 2).
 """
 
 import asyncio

@@ -135,24 +135,6 @@ class CosmosDecisionLogClient:
         )
         return items
 
-    def get_agent_errors(self, run_id: str) -> list[dict]:
-        """
-        Fetch only error entries for a run — useful for debugging failed pipelines.
-        """
-        query = (
-            "SELECT * FROM c WHERE c.run_id = @run_id AND c.status = 'error' "
-            "ORDER BY c.timestamp ASC"
-        )
-        params = [{"name": "@run_id", "value": run_id}]
-
-        return list(
-            self._container.query_items(
-                query=query,
-                parameters=params,
-                partition_key=run_id,
-            )
-        )
-
 
 # Module-level singleton
 cosmos_decision_log = CosmosDecisionLogClient()

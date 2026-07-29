@@ -87,33 +87,6 @@ class AISearchClient:
         )
         return hits
 
-    def vector_only_search(
-        self,
-        query_vector: list[float],
-        top_k: int = DEFAULT_TOP_K,
-        filters: Optional[str] = None,
-    ) -> list[dict]:
-        """
-        Pure vector search — used when no keyword query is available.
-        """
-        vector_query = VectorizedQuery(
-            vector=query_vector,
-            k_nearest_neighbors=top_k,
-            fields=VECTOR_FIELD,
-        )
-
-        results = self._client.search(
-            search_text=None,
-            vector_queries=[vector_query],
-            filter=filters,
-            top=top_k,
-            select="*",
-        )
-
-        hits = [dict(r) | {"score": r["@search.score"]} for r in results]
-        logger.debug("AISearchClient: vector-only search returned %d results", len(hits))
-        return hits
-
     def filter_search(self, filters: str, top: int = 50) -> list[dict]:
         """
         Filter-only fetch (no scoring) — used for hierarchical sibling lookup by

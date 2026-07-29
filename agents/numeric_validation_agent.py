@@ -15,6 +15,7 @@ Tools: calculate_metric(statement_data, formula) — deterministic SQL/Python ca
 import json
 import time
 from graph.state import GraphState, DecisionLogEntry, NumericValidation
+from agents._common import ms, skipped
 from tools.calculate_metric import calculate_metric
 from azure_clients.openai_client import openai_client
 
@@ -93,7 +94,7 @@ def numeric_validation_agent(state: GraphState) -> dict:
         "output_summary": f"{len(validations)} validated, {mismatches} mismatches",
         "confidence": 1.0 if mismatches == 0 else round(1 - mismatches / max(len(validations), 1), 2),
         "tokens_used": tokens_used,
-        "latency_ms": round((time.time() - t0) * 1000, 1),
+        "latency_ms": ms(t0),
     }
 
     return {
@@ -159,16 +160,4 @@ def _compare(
 
 
 def _empty(reason: str, t0: float) -> dict:
-    entry: DecisionLogEntry = {
-        "agent": "numeric_validation_agent",
-        "tool_called": None,
-        "input_summary": reason,
-        "output_summary": "skipped",
-        "confidence": None,
-        "tokens_used": None,
-        "latency_ms": round((time.time() - t0) * 1000, 1),
-    }
-    return {
-        "numeric_validations": [],
-        "decision_log_entries": [entry],
-    }
+    return skipped("numeric_validation_agent", "numeric_validations", [], reason, t0)

@@ -30,6 +30,7 @@ import asyncio
 import json
 import time
 from graph.state import GraphState, DecisionLogEntry, ComparisonFinding
+from agents._common import ms, skipped
 from tools.fetch_prior_quarter import fetch_prior_quarter
 from azure_clients.openai_client import openai_client
 
@@ -213,7 +214,7 @@ async def comparison_agent(state: GraphState) -> dict:
         "output_summary": f"{len(findings)} findings, {sum(f['shift_detected'] for f in findings)} shifts detected",
         "confidence": None,
         "tokens_used": tokens_used,
-        "latency_ms": round((time.time() - t0) * 1000, 1),
+        "latency_ms": ms(t0),
     }
 
     return {
@@ -272,16 +273,4 @@ def _resolve_quarters_back(current_quarter: str, comparison_quarters: list[str])
 
 
 def _empty(reason: str, t0: float) -> dict:
-    entry: DecisionLogEntry = {
-        "agent": "comparison_agent",
-        "tool_called": None,
-        "input_summary": reason,
-        "output_summary": "skipped",
-        "confidence": None,
-        "tokens_used": None,
-        "latency_ms": round((time.time() - t0) * 1000, 1),
-    }
-    return {
-        "comparison_findings": [],
-        "decision_log_entries": [entry],
-    }
+    return skipped("comparison_agent", "comparison_findings", [], reason, t0)

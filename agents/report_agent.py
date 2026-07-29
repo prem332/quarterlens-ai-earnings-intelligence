@@ -27,6 +27,7 @@ from graph.state import (
     GraphState, DecisionLogEntry,
     ComparisonFinding, SentimentScore, NumericValidation,
 )
+from agents._common import ms, skipped
 from azure_clients.openai_client import openai_client
 
 
@@ -318,7 +319,7 @@ async def report_agent(state: GraphState) -> dict:
         "output_summary": f"report drafted and verified, len={len(final_report)}",
         "confidence": None,
         "tokens_used": total_tokens,
-        "latency_ms": round((time.time() - t0) * 1000, 1),
+        "latency_ms": ms(t0),
     }
 
     return {
@@ -450,16 +451,4 @@ async def _llm_call(system: str, user: str, model_tier: str = "primary") -> tupl
 
 
 def _empty(reason: str, t0: float) -> dict:
-    entry: DecisionLogEntry = {
-        "agent": "report_agent",
-        "tool_called": None,
-        "input_summary": reason,
-        "output_summary": "skipped",
-        "confidence": None,
-        "tokens_used": None,
-        "latency_ms": round((time.time() - t0) * 1000, 1),
-    }
-    return {
-        "report": "",
-        "decision_log_entries": [entry],
-    }
+    return skipped("report_agent", "report", "", reason, t0)

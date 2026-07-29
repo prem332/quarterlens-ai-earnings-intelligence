@@ -6,7 +6,6 @@ from typing import Optional
 from tools.search_documents import search_documents
 
 # Ordered fiscal quarter sequence — used for offset arithmetic
-_QUARTER_ORDER = ["Q1", "Q2", "Q3", "Q4"]
 
 
 def _parse_fiscal_label(label: str) -> tuple[int, int]:

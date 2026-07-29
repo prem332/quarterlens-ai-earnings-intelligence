@@ -25,7 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 log = logging.getLogger(__name__)
 
-_monitor_client = None
 _setup_done = False
 
 

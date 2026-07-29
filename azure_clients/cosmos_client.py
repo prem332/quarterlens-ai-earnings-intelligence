@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
+from azure.cosmos import CosmosClient, PartitionKey
 from azure_clients.key_vault_client import kv
 
 logger = logging.getLogger(__name__)

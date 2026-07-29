@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 # Fields must match the index schema created by data_pipeline/indexer.py
 VECTOR_FIELD = "embedding"
-TEXT_FIELD = "content"
 DEFAULT_TOP_K = 5
 
 

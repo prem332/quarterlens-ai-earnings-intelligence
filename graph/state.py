@@ -14,7 +14,7 @@ Design notes:
 """
 
 import operator
-from typing import Annotated, Any
+from typing import Annotated
 from typing_extensions import TypedDict
 
 

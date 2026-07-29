@@ -17,7 +17,6 @@ gpt-5-mini behaviour notes (from Azure portal sample code):
 """
 
 import logging
-from collections.abc import Iterator
 from typing import Optional
 
 try:
@@ -133,52 +132,6 @@ class OpenAIClient:
         return response
 
     # ------------------------------------------------------------------
-    # Chat completions (async) — used by async agent nodes (Phase 2)
-    # ------------------------------------------------------------------
-
-    async def achat(
-        self,
-        messages: list[dict],
-        tools: Optional[list[dict]] = None,
-        tool_choice: Optional[str] = None,
-        max_tokens: int = _DEFAULT_MAX_TOKENS,
-        max_completion_tokens: Optional[int] = None,
-    ) -> object:
-        """
-        Async non-streaming chat completion.
-        Mirrors chat() exactly — use in async agent nodes with await.
-
-        Args:
-            messages:               OpenAI message list.
-            tools:                  Tool schemas for function calling (optional).
-            tool_choice:            "auto" | "none" | specific tool name (optional).
-            max_tokens:             Alias for max_completion_tokens (kept for compat).
-            max_completion_tokens:  Max tokens. Must be >= 4096 for gpt-5-mini.
-
-        Returns:
-            The full ChatCompletion response object.
-        """
-        limit = max_completion_tokens or max_tokens
-        limit = max(limit, _MIN_SAFE_TOKENS)
-
-        kwargs = dict(
-            model=self._chat_deployment,
-            messages=messages,
-            max_completion_tokens=limit,
-        )
-        if tools:
-            kwargs["tools"] = tools
-        if tool_choice:
-            kwargs["tool_choice"] = tool_choice
-
-        response = await self._async_client.chat.completions.create(**kwargs)
-        logger.debug(
-            "OpenAIClient.achat: %d prompt + %d completion tokens",
-            response.usage.prompt_tokens,
-            response.usage.completion_tokens,
-        )
-        return response
-
     # ------------------------------------------------------------------
     # Tiered async chat — model routing (Phase 2)
     # ------------------------------------------------------------------
@@ -241,39 +194,6 @@ class OpenAIClient:
             response.usage.completion_tokens,
         )
         return response
-
-    # ------------------------------------------------------------------
-    # Streaming (sync only — streaming stays sync for Phase 1/2)
-    # ------------------------------------------------------------------
-
-    def chat_stream(
-        self,
-        messages: list[dict],
-        temperature: float = 1.0,
-        max_tokens: int = _DEFAULT_MAX_TOKENS,
-    ) -> Iterator[str]:
-        """
-        Streaming chat completion — yields text deltas as they arrive.
-
-        Args:
-            messages:    OpenAI message list.
-            temperature: Ignored — gpt-5-mini does not support this parameter.
-            max_tokens:  Max tokens. Enforced minimum of 4096.
-
-        Yields:
-            Text delta strings as they stream from the API.
-        """
-        limit = max(max_tokens, _MIN_SAFE_TOKENS)
-        stream = self._client.chat.completions.create(
-            model=self._chat_deployment,
-            messages=messages,
-            max_completion_tokens=limit,
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk.choices[0].delta if chunk.choices else None
-            if delta and delta.content:
-                yield delta.content
 
     # ------------------------------------------------------------------
     # Embeddings

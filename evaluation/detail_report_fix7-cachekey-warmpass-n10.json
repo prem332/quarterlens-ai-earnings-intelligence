@@ -1,0 +1,116 @@
+{
+  "run_name": "fix7-cachekey-warmpass-n10",
+  "total_claims": 5,
+  "pair_type_summary": {},
+  "claims": [
+    {
+      "claim_id": "META_FY2025-Q3_oos_001",
+      "claim_type": "out_of_scope",
+      "company": "META",
+      "fiscal_label": "FY2025-Q3",
+      "difficulty": "hard",
+      "edge_case": "unanswerable",
+      "query": "what was Meta's adjusted EPS excluding the one-time tax charge in Q3 FY2025 as filed in the 10-Q",
+      "ground_truth_anchors": [
+        {
+          "accession": "0001628280-25-047240",
+          "section": "mda"
+        }
+      ],
+      "precision_at_k": 0.0,
+      "duplicate_density": 0.0,
+      "adjacent_chunk_rate": 0.0,
+      "chunks": [],
+      "chunk_pairs": [],
+      "answer_preview": "## Executive Summary\nMeta’s 10-Q does **not** disclose an adjusted EPS excluding the one-time tax charge for Q3 FY2025. The filing reports diluted EPS of **$1.05** and net income of **$2.71B**, and says the quarter included a **$15.93B** one-time income tax charge related to OBBBA implementation. [F"
+    },
+    {
+      "claim_id": "NVDA_FY2026-Q3_cmp_004",
+      "claim_type": "comparison",
+      "company": "NVDA",
+      "fiscal_label": "FY2026-Q3",
+      "difficulty": "medium",
+      "edge_case": "boilerplate_reword",
+      "query": "Did this language shift from the prior quarter? Export controls have and are likely in the future to have a disproportionate impact on NVIDIA and may disadvantage us against certain of our competitors",
+      "ground_truth_anchors": [
+        {
+          "accession": "0001045810-25-000230",
+          "section": "risk_factors"
+        }
+      ],
+      "precision_at_k": 0.0,
+      "duplicate_density": 0.0,
+      "adjacent_chunk_rate": 0.0,
+      "chunks": [],
+      "chunk_pairs": [],
+      "answer_preview": "## Executive Summary\nNo verified data available.\n\n## Key Financial Metrics\n- $4.5 billion H20 charge in Q1 FY2026 for excess inventory and purchase obligations, tied to new export requirements. [FILING]\n- Approximately $50 million of H20 revenue under U.S. licenses as of the filing date. [FILING]\n\n#"
+    },
+    {
+      "claim_id": "AAPL_FY2025-Q3_ret_004",
+      "claim_type": "retrieval",
+      "company": "AAPL",
+      "fiscal_label": "FY2025-Q3",
+      "difficulty": "hard",
+      "edge_case": "cross_document",
+      "query": "what was the impact of tariffs on Apple in Q3 2025",
+      "ground_truth_anchors": [
+        {
+          "accession": "0000320193-25-000073",
+          "section": "mda"
+        }
+      ],
+      "precision_at_k": 0.0,
+      "duplicate_density": 0.0,
+      "adjacent_chunk_rate": 0.0,
+      "chunks": [],
+      "chunk_pairs": [],
+      "answer_preview": "## Executive Summary\nTariffs weighed on Apple’s Q3 FY2025 gross margin and product profitability, and the filing says tariffs partially offset the benefit from favorable costs and product mix. Apple also said the ultimate impact remains uncertain and could materially affect its business, results of "
+    },
+    {
+      "claim_id": "NVDA_FY2026-Q3_ret_001",
+      "claim_type": "retrieval",
+      "company": "NVDA",
+      "fiscal_label": "FY2026-Q3",
+      "difficulty": "hard",
+      "edge_case": "multi_section",
+      "query": "what are NVIDIA's China-related risks and financial exposure in Q3 FY2026",
+      "ground_truth_anchors": [
+        {
+          "accession": "0001045810-25-000230",
+          "section": "mda"
+        },
+        {
+          "accession": "0001045810-25-000230",
+          "section": "risk_factors"
+        }
+      ],
+      "precision_at_k": 0.0,
+      "duplicate_density": 0.0,
+      "adjacent_chunk_rate": 0.0,
+      "chunks": [],
+      "chunk_pairs": [],
+      "answer_preview": "## Executive Summary\nNVIDIA’s China-related risk in Q3 FY2026 centers on export controls, licensing uncertainty, and potential new U.S. government fees or conditions on licensed sales into China. Its disclosed China-related financial exposure includes approximately $50 million in H20 revenue under A"
+    },
+    {
+      "claim_id": "NVDA_FY2026-Q3_cmp_001",
+      "claim_type": "comparison",
+      "company": "NVDA",
+      "fiscal_label": "FY2026-Q3",
+      "difficulty": "hard",
+      "edge_case": "risk_factor_added",
+      "query": "Did this language shift from the prior quarter? In the third quarter of fiscal year 2026, we entered into a letter of intent with an opportunity to invest in OpenAI. In November 2025, we entered into ",
+      "ground_truth_anchors": [
+        {
+          "accession": "0001045810-25-000230",
+          "section": "risk_factors"
+        }
+      ],
+      "precision_at_k": 0.0,
+      "duplicate_density": 0.0,
+      "adjacent_chunk_rate": 0.0,
+      "chunks": [],
+      "chunk_pairs": [],
+      "answer_preview": "## Executive Summary\nNo verified data available.\n\n## Key Financial Metrics\n- OpenAI: entered into a letter of intent in Q3 FY2026 for an opportunity to invest [FILING]\n- Anthropic: entered into an agreement in November 2025 to invest up to $10 billion, subject to certain closing conditions [FILING]\n"
+    }
+  ]
+}

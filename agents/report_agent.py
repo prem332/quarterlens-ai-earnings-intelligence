@@ -261,7 +261,7 @@ async def report_agent(state: GraphState) -> dict:
 
     t0 = time.time()
     total_tokens = 0
-    model_tier = state.get("report_model_tier") or state.get("model_tier", "primary")
+    model_tier = state.get("model_tier", "primary")
 
     # ── Step 1: Bull/Bear debate (CrewAI) ─────────────────────────────────
     evidence_summary = _build_evidence_summary(state)

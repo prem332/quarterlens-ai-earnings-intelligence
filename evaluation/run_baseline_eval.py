@@ -394,7 +394,6 @@ async def _run_pipeline(
         "report": "",
         "decision_log_entries": [],
         "model_tier": "primary",
-        "report_model_tier": "primary",
         "error": None,
     }
 

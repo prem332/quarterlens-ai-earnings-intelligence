@@ -17,6 +17,7 @@ import asyncio
 import re
 import time
 from graph.state import GraphState, DecisionLogEntry, SentimentScore
+from agents._common import ms, skipped
 from tools.run_finbert import run_finbert
 from data_pipeline.chunking.sentences import split_sentences
 
@@ -147,7 +148,7 @@ async def sentiment_agent(state: GraphState) -> dict:
         "output_summary": summary,
         "confidence":    None,
         "tokens_used":   None,
-        "latency_ms":    round((time.time() - t0) * 1000, 1),
+        "latency_ms":    ms(t0),
     }
 
     return {
@@ -157,16 +158,4 @@ async def sentiment_agent(state: GraphState) -> dict:
 
 
 def _empty(reason: str, t0: float) -> dict:
-    entry: DecisionLogEntry = {
-        "agent":         "sentiment_agent",
-        "tool_called":   None,
-        "input_summary": reason,
-        "output_summary": "skipped",
-        "confidence":    None,
-        "tokens_used":   None,
-        "latency_ms":    round((time.time() - t0) * 1000, 1),
-    }
-    return {
-        "sentiment_scores":     [],
-        "decision_log_entries": [entry],
-    }
+    return skipped("sentiment_agent", "sentiment_scores", [], reason, t0)

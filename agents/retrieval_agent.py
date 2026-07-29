@@ -41,6 +41,7 @@ import time
 from collections import defaultdict
 
 from graph.state import GraphState, DecisionLogEntry, RetrievalResult
+from agents._common import ms
 from tools.search_documents import search_documents, mmr_rerank
 from tools.rerank_documents import rerank_documents
 
@@ -192,7 +193,7 @@ def retrieval_agent(state: GraphState) -> dict:
         ),
         "confidence":  None,
         "tokens_used": None,
-        "latency_ms":  round((time.time() - t0) * 1000, 1),
+        "latency_ms":  ms(t0),
     }
 
     return {

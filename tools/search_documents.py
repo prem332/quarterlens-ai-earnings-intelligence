@@ -149,7 +149,7 @@ def search_documents(
 
     # L2 cache — raw candidates cached so re-runs within TTL skip AI Search
     if use_cache and company and quarter:
-        cached = get_retrieval_cached(query, company, quarter)
+        cached = get_retrieval_cached(query, company, quarter, doc_type=doc_type or "all")
         if cached is not None:
             return {"results": cached, "count": len(cached)}
 
@@ -185,7 +185,7 @@ def search_documents(
         })
 
     if use_cache and company and quarter and results:
-        set_retrieval_cached(query, company, quarter, results)
+        set_retrieval_cached(query, company, quarter, results, doc_type=doc_type or "all")
 
     return {"results": results, "count": len(results)}
 

@@ -81,6 +81,47 @@ _SECTION_PREAMBLE_PHRASES = (
     "item 1a risk factors",
 )
 
+# Demoting the operator's chunk_index==0 introduction just shifted the problem
+# one slot over: the executive's opening remarks and early call-transition
+# turns (chunk_index 1-3) are real content, not empty boilerplate, but broadly
+# summarize the whole quarter (or are administrative, like "we'll now open the
+# call for questions") and
+# can still crowd out a segment-specific answer (e.g. a CFO's "we delivered
+# $57B revenue..." opener winning rank-1 over the specific Gaming-segment
+# figure actually asked about). Can't pattern-match this the way "Operator:"
+# was matched — every speaker turn starts with a name, so name-matching would
+# false-positive on genuinely on-topic later turns too. Use topical overlap
+# with the query instead, same technique validated in sentiment_agent.py, but
+# only for early transcript turns specifically (opening remarks are where this
+# failure mode actually occurs) and with stopwords excluded (unlike
+# sentiment_agent's version) since query/chunk share common words too easily
+# otherwise, diluting the signal.
+#   EARLY_TURN_OVERLAP_THRESHOLD=0 python evaluation/run_baseline_eval.py --run-name ablate-noearlyturn
+_EARLY_TURN_MAX_INDEX = 3
+_EARLY_TURN_OVERLAP_THRESHOLD: float = float(
+    os.environ.get("EARLY_TURN_OVERLAP_THRESHOLD", "0.25")
+)
+_WORD_RE = re.compile(r"[a-z0-9]+")
+_STOPWORDS = {
+    "the", "a", "an", "is", "was", "were", "are", "be", "been", "being",
+    "in", "on", "at", "to", "of", "for", "and", "or", "but", "with", "as",
+    "by", "from", "this", "that", "these", "those", "it", "its", "we", "our",
+    "what", "which", "who", "how", "did", "do", "does", "will", "would",
+    "q1", "q2", "q3", "q4", "fy", "fy2025", "fy2026",
+}
+
+
+def _tokens(text: str) -> set[str]:
+    return {w for w in _WORD_RE.findall(text.lower()) if w not in _STOPWORDS}
+
+
+def _topic_overlap(query: str, text: str) -> float:
+    """Fraction of query's non-stopword tokens also present in text."""
+    qt = _tokens(query)
+    if not qt:
+        return 1.0  # nothing to compare against — don't demote on no signal
+    return len(qt & _tokens(text)) / len(qt)
+
 
 def retrieval_agent(state: GraphState) -> dict:
     if state.get("error"):
@@ -126,7 +167,7 @@ def retrieval_agent(state: GraphState) -> dict:
         chunks=mmr_candidates,
         top_k=len(mmr_candidates),
     )
-    ranked = _demote_boilerplate(ranked)
+    ranked = _demote_boilerplate(ranked, query)
 
     # ── 7. Optional diversity cap (disabled by default) ───────────────────
     final = _apply_diversity_cap(ranked, _MAX_CHUNKS_PER_SECTION, _FINAL_TOP_K)
@@ -198,33 +239,50 @@ def _dedup_across_sources(
     return deduped_filing, deduped_transcript
 
 
-def _is_boilerplate(chunk: dict) -> bool:
+def _is_boilerplate(chunk: dict, query: str = "") -> bool:
     """
-    Narrow, high-precision signature for procedural/boilerplate chunks that
-    carry a clean literal keyword match but no substantive content — the exact
-    failure mode found this session: a transcript operator's introduction
-    ranked #1 for an "operating cost" query (stem overlap), a risk-factors
-    Item 1A preamble ranked #1 for a company-risk query (lexical "risk(s)"
-    match). Both are chunk_index==0 of their section/transcript.
+    Two signatures for chunks that can win the cross-encoder argmax without
+    being on-topic for the specific question:
+
+    1. Narrow, high-precision pattern match: a transcript operator's
+       introduction (stem overlap on "operator"/"operating"), a risk-factors
+       Item 1A preamble (lexical "risk(s)" match) — both chunk_index==0,
+       near-zero substantive content regardless of query.
+    2. Early transcript turns (chunk_index 1-3, right after the operator's
+       introduction) that are real content but broadly summarize the whole
+       quarter rather than the specific topic asked about — judged by low
+       topical overlap with the query, not a fixed pattern (see module note).
     """
-    if int(chunk.get("chunk_index", -1)) != 0:
-        return False
+    idx = int(chunk.get("chunk_index", -1))
     content = (chunk.get("content") or "").strip()
-    if chunk.get("doc_type") == "transcript":
-        return bool(_TRANSCRIPT_OPERATOR_RE.match(content))
-    if (chunk.get("section") or "").lower() in ("risk_factors", "business"):
-        lowered = content.lower()[:200]
-        return any(p in lowered for p in _SECTION_PREAMBLE_PHRASES)
+
+    if idx == 0:
+        if chunk.get("doc_type") == "transcript":
+            if _TRANSCRIPT_OPERATOR_RE.match(content):
+                return True
+        elif (chunk.get("section") or "").lower() in ("risk_factors", "business"):
+            lowered = content.lower()[:200]
+            if any(p in lowered for p in _SECTION_PREAMBLE_PHRASES):
+                return True
+
+    if (
+        chunk.get("doc_type") == "transcript"
+        and 0 <= idx <= _EARLY_TURN_MAX_INDEX
+        and query
+        and _topic_overlap(query, content) < _EARLY_TURN_OVERLAP_THRESHOLD
+    ):
+        return True
+
     return False
 
 
-def _demote_boilerplate(ranked: list[dict]) -> list[dict]:
+def _demote_boilerplate(ranked: list[dict], query: str = "") -> list[dict]:
     """Subtract the penalty from rerank_score for boilerplate chunks and re-sort.
     See _BOILERPLATE_PENALTY docstring above — demotes, never removes, a candidate."""
     out = []
     for chunk in ranked:
         c = dict(chunk)
-        if _is_boilerplate(c):
+        if _is_boilerplate(c, query):
             c["rerank_score"] = c.get("rerank_score", 0.0) - _BOILERPLATE_PENALTY
         out.append(c)
     out.sort(key=lambda c: c["rerank_score"], reverse=True)

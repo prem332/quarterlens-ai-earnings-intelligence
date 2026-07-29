@@ -5,8 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from api.middleware.guardrails import GuardrailsMiddleware
-from api.middleware.rate_limiter import RateLimiterMiddleware
 from api.routes import analysis, reports, evidence, export
 from observability.azure_monitor_setup import setup_azure_monitor
 from observability.phoenix_setup import setup_phoenix
@@ -32,9 +30,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Phase 3 middleware — pass-through for now
-app.add_middleware(GuardrailsMiddleware)
-app.add_middleware(RateLimiterMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],

@@ -41,8 +41,11 @@ def _text(doc: dict) -> str:
         "",
     ]
     for v in doc.get("numeric_validations", []):
-        status = "✓" if v.get("verified") else "✗"
-        lines.append(f"{status}  {v.get('claim')}  —  filed: {v.get('filed_value')}  stated: {v.get('stated_value')}")
+        status = "✓" if v.get("match") else "✗"
+        lines.append(
+            f"{status}  {v.get('claim')}  —  "
+            f"stated: {v.get('claimed_value')}  filing-derived: {v.get('calculated_value')}"
+        )
     return "\n".join(lines)
 
 
@@ -94,8 +97,11 @@ async def export_docx(run_id: str):
         if doc.get("numeric_validations"):
             document.add_heading("Numeric Validations", level=1)
             for v in doc["numeric_validations"]:
-                status = "✓" if v.get("verified") else "✗"
-                document.add_paragraph(f"{status}  {v.get('claim')}  —  filed: {v.get('filed_value')}  stated: {v.get('stated_value')}")
+                status = "✓" if v.get("match") else "✗"
+                document.add_paragraph(
+                    f"{status}  {v.get('claim')}  —  "
+                    f"stated: {v.get('claimed_value')}  filing-derived: {v.get('calculated_value')}"
+                )
         buf = io.BytesIO()
         document.save(buf)
         buf.seek(0)

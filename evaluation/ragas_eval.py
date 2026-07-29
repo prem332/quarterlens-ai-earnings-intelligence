@@ -61,15 +61,28 @@ If the answer is empty or makes no claims, return {{"claims": []}}
 """
 
 _ANSWER_RELEVANCY_PROMPT = """\
-You are evaluating whether an answer is relevant to the question.
+You are evaluating whether an answer is relevant to the question, in the sense
+used for retrieval/RAG evaluation: does the answer engage with what was asked,
+using the evidence available, even if the question is phrased as a claim to
+verify rather than a literal question, or the correct response is to explain
+why something can't be answered?
 
 Question: {question}
 Answer: {answer}
 
 Score the relevancy from 0.0 to 1.0:
-  1.0 = answer directly and completely addresses the question
-  0.5 = answer partially addresses the question
-  0.0 = answer is off-topic or empty
+  1.0 = the answer directly engages with the question/claim — this includes:
+        confirming or refuting a stated claim/verdict, correctly explaining
+        why a request can't be fulfilled (e.g. a figure isn't disclosed, a
+        recommendation is out of scope), or directly answering a literal
+        question.
+  0.5 = the answer is on-topic but incomplete, hedged, or only tangentially
+        engages with what was asked.
+  0.0 = the answer is off-topic, empty, or ignores the question/claim entirely.
+
+Do not penalize an answer for not providing a number/fact when correctly
+explaining that the number/fact isn't available — that IS a directly relevant
+answer to an unanswerable request.
 
 Respond ONLY with valid JSON, no markdown:
 {{"score": <float 0.0-1.0>, "reason": "<one sentence>"}}
@@ -333,8 +346,14 @@ def run_ragas_eval(
         log.debug("Scoring sample %d/%d", i + 1, len(samples))
 
         if "faithfulness" in requested:
+            # faithfulness_answer, when provided, is a quote-only variant graded
+            # instead of the full answer — a self-asserted classification label/
+            # verdict isn't something a passage can "support" the way a quote
+            # can. answer_relevancy/context_precision below still use the full
+            # `answer` — they need the label to judge relevance/accuracy.
+            faith_answer = s.get("faithfulness_answer") or answer
             scores["faithfulness"].append(
-                _score_faithfulness(client, deployment, answer, gen_contexts, gen_k=gen_context_k)
+                _score_faithfulness(client, deployment, faith_answer, gen_contexts, gen_k=gen_context_k)
             )
         if "answer_relevancy" in requested:
             scores["answer_relevancy"].append(

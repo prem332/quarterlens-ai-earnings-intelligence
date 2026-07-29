@@ -693,20 +693,32 @@ def _build_typed_answer(
     sentiment_scores: list[dict],
     comparison_findings: list[dict],
     current_context: str,
-) -> tuple[str, list[str]]:
+) -> tuple[str, list[str], str | None]:
     """
     Evaluate the claim-appropriate agent output, not the generic briefing.
     Sentiment/comparison claims are answered by the specialized agents' own
     outputs (FinBERT label, shift verdict) — quoting only the exact evidence
     the agent used. Other claim types keep the report (already relevant).
 
-    Returns (answer, extra_gen_contexts). extra_gen_contexts is the actual
-    evidence the typed answer draws from — a transcript passage FinBERT scored
-    (sourced from the larger pre-rerank transcript_retrieval_results pool, not
-    necessarily in the final top-k retrieval_results) or prior-quarter language
-    comparison_agent fetched separately (never merged into retrieval_results).
-    Without this, faithfulness/context_recall/judge grounding get scored
-    against context the typed answer never actually had access to.
+    Returns (answer, extra_gen_contexts, faithfulness_answer).
+    extra_gen_contexts is the actual evidence the typed answer draws from — a
+    transcript passage FinBERT scored (sourced from the larger pre-rerank
+    transcript_retrieval_results pool, not necessarily in the final top-k
+    retrieval_results) or prior-quarter language comparison_agent fetched
+    separately (never merged into retrieval_results). Without this,
+    faithfulness/context_recall/judge grounding get scored against context the
+    typed answer never actually had access to.
+
+    faithfulness_answer, when not None, is a quote-only variant graded for
+    faithfulness specifically instead of `answer` — a self-asserted
+    classification label/verdict is the system's own computed judgment, not a
+    fact any passage can "support" the way a quote can (confirmed this session:
+    the exact same answer scored faithfulness 0.0 on one run and 1.0 on another
+    for the identical claim/format — judge instability specifically on the
+    label clause, not a real groundedness difference). llm_judge/answer_relevancy
+    still see the full `answer` including the label — they need it to grade
+    accuracy, and llm_judge already handles it well (consistently 4.5-5.0 on
+    these same claims).
     """
     claim_type = claim.get("claim_type", "")
 
@@ -715,16 +727,9 @@ def _build_typed_answer(
         best = max(pool, key=lambda s: s.get("score", 0.0))
         full_passage = best.get("passage", "") or ""
         passage = full_passage[:400]
-        # Leads with the quote (trivially groundable — it's literally in context),
-        # drops the confidence float (a model-derived probability, not something
-        # any passage can "support" — llm_judge grades the label, not the number),
-        # and reduces the classification to one trailing word instead of a separate
-        # declarative sentence. Minimizes distinct "claims" the RAGAS faithfulness
-        # judge extracts — confirmed this session that the old format scored correct
-        # answers as low-faithfulness because the label/confidence read as
-        # unsupported factual assertions.
         answer = f'"{passage}" reflects {best.get("label", "neutral")} sentiment.'
-        return answer, ([full_passage] if full_passage else [])
+        faithfulness_answer = f'"{passage}"'
+        return answer, ([full_passage] if full_passage else []), faithfulness_answer
 
     if claim_type == "comparison":
         finding = _select_comparison_finding(claim, comparison_findings, current_context)
@@ -733,22 +738,21 @@ def _build_typed_answer(
             desc = finding.get("shift_description") or "No substantive language shift."
             current_lang = finding.get("current_language", "")
             prior_langs = [v for v in finding.get("prior_language", {}).values() if v]
-            # Leads with the verbatim quotes (self-evidently grounded, same principle
-            # validated for sentiment) before the verdict/description — desc is
-            # LLM-synthesized and was flagged in this session's own judge reasoning as
-            # sometimes inventing framing ("a subtraction/contrast...") not literally
-            # in the excerpts, which the faithfulness judge marks unsupported.
             quotes = f'Current: "{current_lang}"' if current_lang else ""
             if prior_langs:
                 quotes += (" " if quotes else "") + f'Prior: "{" / ".join(prior_langs)}"'
             answer = f"{quotes} Shift: {verdict}. {desc}".strip()
             extra = [current_lang, *prior_langs]
-            return answer, [e for e in extra if e]
+            # Faithfulness-only variant drops "Shift: X. {desc}" — desc is
+            # LLM-synthesized (this session's own judge reasoning flagged one
+            # inventing framing not literally in the excerpts) and the verdict
+            # word is a classification, same reasoning as sentiment's label.
+            return answer, [e for e in extra if e], (quotes or None)
         # No finding matches the claim's topic (or it isn't grounded in the
         # retrieved evidence) — the generic briefing is a safer answer than a
         # confidently-wrong one about an unrelated topic.
 
-    return report, []
+    return report, [], None
 
 
 # ── Pipeline runner ───────────────────────────────────────────────────────────
@@ -888,7 +892,7 @@ async def run_eval(
         # is the evidence that answer actually draws from outside retrieval_results
         # (a transcript passage, or prior-quarter language) — folded into gen_contexts
         # so faithfulness/context_recall/judge grounding see what the answer used.
-        answer, typed_gen_extra = _build_typed_answer(
+        answer, typed_gen_extra, faithfulness_answer = _build_typed_answer(
             claim,
             pipeline_out["answer"],
             pipeline_out.get("sentiment_scores") or [],
@@ -903,6 +907,7 @@ async def run_eval(
         gen_contexts = typed_gen_extra + gen_contexts
 
         ragas_samples.append({"question": query, "answer": answer,
+                               "faithfulness_answer": faithfulness_answer,
                                "contexts": contexts, "gen_contexts": gen_contexts,
                                "ground_truth": ground_truth, "claim_type": claim_type})
 

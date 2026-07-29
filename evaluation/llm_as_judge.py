@@ -53,6 +53,13 @@ Be strict but fair — a score of 3 means acceptable, 4 means good, 5 means exce
 
 accuracy:
   - numeric: Is the figure exact or within reasonable tolerance? Wrong number = 1.
+    If the ground truth answer states "Verdict: match", the filed/derived value has
+    already been confirmed to match the system's stated figure within the
+    appropriate tolerance (e.g. an executive-rounded percentage like 30% for a
+    filed 29.6%) — score this as accurate (5), do not re-derive or re-judge the
+    tolerance yourself. Only score low if the ground truth states
+    "Verdict: mismatch", or the answer's figure contradicts the ground truth's
+    own filed value in a way the stated verdict doesn't already account for.
   - out_of_scope: Did the system correctly refuse to answer? Refusal = 5, hallucinated answer = 1.
   - comparison: Did it correctly identify/miss the language shift?
   - retrieval/sentiment: Does the answer match the ground truth?

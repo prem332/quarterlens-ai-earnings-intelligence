@@ -22,19 +22,59 @@ def _load(run_id: str) -> dict:
     return json.loads(blob.download_blob(CONTAINER, path))
 
 
+def _supporting_chunk(doc: dict, fiscal_label: str) -> dict:
+    """
+    Best available retrieved chunk backing a claim from `fiscal_label`.
+
+    numeric_validations don't carry a chunk reference, so this scopes by the
+    filing coordinate the validation actually used and prefers a filing chunk
+    (the claim is checked *against the filing*). Returns {} when nothing
+    matches, rather than guessing.
+    """
+    results = doc.get("retrieval_results") or []
+    scoped = [c for c in results if c.get("fiscal_label") == fiscal_label] or results
+    filings = [c for c in scoped if c.get("doc_type", "").lower() != "transcript"]
+    return (filings or scoped or [{}])[0]
+
+
 def _extract_claims(doc: dict) -> list[ClaimEvidence]:
-    claims = []
-    for entry in doc.get("decision_log_entries", []):
-        if entry.get("type") == "claim":
-            claims.append(ClaimEvidence(
-                claim_id=entry["claim_id"],
-                claim_text=entry["claim_text"],
-                source_section=entry.get("section", ""),
-                source_paragraph=entry.get("source_text", ""),
-                confidence=entry.get("confidence", 0.0),
-                doc_type=entry.get("doc_type", ""),
-                quarter=entry.get("quarter", doc["quarter"]),
-            ))
+    """
+    Claim-level evidence for the run.
+
+    Sourced from numeric_validations — the pipeline's actual claim-verification
+    output, where each entry is a verbatim executive statement checked against
+    the filed figures. (This previously read decision_log_entries looking for
+    entry["type"] == "claim"; DecisionLogEntry has no `type` field and no agent
+    ever emitted one, so it always returned an empty list.)
+
+    confidence is the verification verdict, not a model probability: 1.0 when
+    the claim matched the filed value, 0.0 when it did not.
+    """
+    claims: list[ClaimEvidence] = []
+    for i, v in enumerate(doc.get("numeric_validations") or []):
+        claim_text = v.get("claim") or ""
+        if not claim_text:
+            continue
+        fiscal_label = v.get("source_fiscal_label") or doc.get("quarter", "")
+        chunk = _supporting_chunk(doc, fiscal_label)
+
+        detail = (
+            f"Metric: {v.get('metric') or 'n/a'}. "
+            f"Stated: {v.get('claimed_value')}. "
+            f"Filing-derived: {v.get('calculated_value')}. "
+            f"Verdict: {'match' if v.get('match') else 'mismatch'}."
+        )
+        source_text = chunk.get("content") or chunk.get("parent_content") or ""
+
+        claims.append(ClaimEvidence(
+            claim_id=f"nv-{i}",
+            claim_text=claim_text,
+            source_section=chunk.get("section", ""),
+            source_paragraph=f"{detail}\n\n{source_text}".strip(),
+            confidence=1.0 if v.get("match") else 0.0,
+            doc_type=chunk.get("doc_type") or "transcript",
+            quarter=fiscal_label,
+        ))
     return claims
 
 

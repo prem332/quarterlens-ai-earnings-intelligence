@@ -30,9 +30,9 @@ _FILTER_MAP = {
     "quarter":  "fiscal_label",
 }
 
-# MMR defaults — kept here so _mmr_rerank remains importable from retrieval_agent
-_MMR_FETCH_K = 20
-_MMR_LAMBDA  = 0.5
+# Default relevance/diversity balance for mmr_rerank. retrieval_agent always
+# passes lambda_param explicitly (env-ablatable there); this is the fallback.
+_MMR_LAMBDA = 0.5
 
 
 def _build_odata_filter(
@@ -118,11 +118,6 @@ def search_documents(
     company:  Optional[str] = None,
     quarter:  Optional[str] = None,
     top: int = 5,
-    mmr: bool = False,             # no-op — reranking is now in retrieval_agent
-    mmr_fetch_k: int = _MMR_FETCH_K,
-    mmr_lambda: float = _MMR_LAMBDA,
-    rerank: bool = False,          # no-op — reranking is now in retrieval_agent
-    rerank_top_k: int = 5,
     use_cache: bool = True,
 ) -> dict:
     """
@@ -138,9 +133,8 @@ def search_documents(
         company:    OData filter on 'ticker' field.
         quarter:    OData filter on 'fiscal_label' field.
         top:        Number of raw candidates to return from AI Search.
-        mmr:        Deprecated no-op. Pass mmr=False.
-        rerank:     Deprecated no-op. Pass rerank=False.
-        use_cache:  Enable L2 retrieval cache (keyed on query+company+quarter).
+        use_cache:  Enable L2 retrieval cache (keyed on
+                    query+company+quarter+doc_type).
 
     Returns:
         {'results': list[dict], 'count': int}

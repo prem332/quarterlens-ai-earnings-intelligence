@@ -100,8 +100,6 @@ def build_index() -> SearchIndex:
 
 def recreate_index(client: SearchIndexClient) -> None:
     import time
-    from azure.search.documents import SearchClient
-    from azure_clients.key_vault_client import kv as _kv
 
     existing = [i for i in client.list_index_names()]
     if INDEX_NAME in existing:

@@ -331,8 +331,6 @@ def _raw_search(
             company=company,
             quarter=quarter,
             top=_CANDIDATE_K,
-            mmr=False,
-            rerank=False,
             use_cache=True,
         )
         return result.get("results", [])

@@ -19,7 +19,6 @@ log = logging.getLogger("embedding")
 
 API_VERSION = "2024-10-21"      # stable; supports text-embedding-3-small
 BATCH_SIZE = 100                # chunks per embedding request
-EMBED_DIM = 1536                # text-embedding-3-small native dimension
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2.0             # seconds, doubled per retry
 

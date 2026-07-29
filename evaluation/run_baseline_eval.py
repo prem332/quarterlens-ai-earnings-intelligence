@@ -10,10 +10,9 @@ Supports phased evaluation (cost control):
 
 Stratified sampling ensures all claim types are represented even in small runs.
 
-Phase 3 addition: retrieval error analysis integrated into every eval run.
-For each claim with ground truth anchors, top-5 chunks are classified as:
-  exact_match, same_accession, same_company, irrelevant
-Duplicate density and adjacent chunk rate also computed and logged to MLflow.
+Computes exactly the 7 locked headline metrics (RAGAS faithfulness/answer_relevancy/
+context_precision/context_recall, precision@k, recall@k, LLM-as-judge) plus L1/L2/L3
+cache hit-rate stats — see evaluation/FINAL_REPORT.md.
 
 Usage:
     python evaluation/run_baseline_eval.py --dry-run
@@ -27,7 +26,6 @@ import argparse
 import asyncio
 import json
 import logging
-import math
 import os
 import random
 import re
@@ -227,396 +225,6 @@ def _extract_ground_truth_anchors(claim: dict) -> list[dict]:
             e = _extract_anchor(a)
             if e: anchors.append(e)
     return anchors
-
-
-# ── Numeric scoring (improved — handles %, pp, floor statements, unit normalization) ──
-
-_FLOOR_WORDS = ("exceeded", "over", "more than", "greater than", "at least", "north of", "above")
-
-
-def _parse_value(v) -> float | None:
-    if v is None:
-        return None
-    s = str(v).strip().lower().replace(',', '').strip()
-    if '/' in s:
-        s = s.split('/')[0].strip()
-    s = s.replace('%', '').replace('$', '').strip()
-    multiplier = 1.0
-    if 'billion' in s:
-        multiplier = 1_000.0
-        s = s.replace('billion', '').strip()
-    elif 'million' in s:
-        s = s.replace('million', '').strip()
-    m = re.search(r'-?\d+\.?\d*', s)
-    if not m:
-        return None
-    try:
-        return float(m.group()) * multiplier
-    except ValueError:
-        return None
-
-
-def _score_numeric(claim: dict, answer: str) -> dict:
-    gt = claim.get("ground_truth") or {}
-    payload = claim.get("payload") or {}
-    filed_raw = gt.get("filed_value")
-    stated_raw = payload.get("stated_value")
-    tolerance = gt.get("tolerance_rule", "exact")
-    unit = str(gt.get("unit", "")).lower()
-
-    if filed_raw is None or stated_raw is None:
-        return {"numeric_pass": None, "numeric_delta": None,
-                "filed_value": filed_raw, "stated_value": stated_raw,
-                "tolerance_rule": tolerance, "note": "missing filed_value or stated_value"}
-
-    stated_str = str(stated_raw).lower()
-    is_floor_statement = any(w in stated_str for w in _FLOOR_WORDS)
-
-    filed_f = _parse_value(filed_raw)
-    stated_f = _parse_value(stated_raw)
-
-    # Unit normalization: bare billions (e.g. 3.54 in "billion people" unit)
-    if "billion" in unit and filed_f is not None and abs(filed_f) < 1000:
-        filed_f = filed_f * 1_000.0
-
-    if filed_f is None or stated_f is None:
-        return {"numeric_pass": None, "numeric_delta": None,
-                "filed_value": filed_raw, "stated_value": stated_raw,
-                "tolerance_rule": tolerance,
-                "note": f"could not parse: filed={filed_raw} stated={stated_raw}"}
-
-    delta = abs(filed_f - stated_f)
-
-    if is_floor_statement and str(tolerance).strip().startswith("exact"):
-        return {"numeric_pass": False, "numeric_delta": round(delta, 4),
-                "filed_value": filed_f, "stated_value": stated_f,
-                "tolerance_rule": tolerance, "note": "floor statement not accepted as exact"}
-
-    tol_str = str(tolerance).lower()
-    if tol_str.startswith("exact"):
-        passed = delta == 0.0
-    elif "abs<=" in tol_str:
-        stated_portion = str(stated_raw).split('/')[0].strip()
-        stated_is_pct = ("%" in stated_portion) and not any(
-            u in stated_portion.lower() for u in ("billion", "million", "$")
-        )
-        band = None
-        for m in re.finditer(r"abs<=\s*([\d.]+)\s*(pp|m)?", tol_str):
-            num = float(m.group(1))
-            kind = m.group(2)
-            if stated_is_pct and kind == "pp":
-                band = num
-                break
-            if (not stated_is_pct) and kind == "m":
-                band = num
-                break
-            if band is None:
-                band = num
-        passed = band is not None and delta <= band
-    else:
-        passed = delta == 0.0
-
-    return {"numeric_pass": passed, "numeric_delta": round(delta, 4),
-            "filed_value": filed_f, "stated_value": stated_f, "tolerance_rule": tolerance}
-
-
-# ── Retrieval error analysis helpers (Phase 3) ────────────────────────────────
-
-def _classify_chunk(chunk: dict, gt_anchors: list[dict], claim: dict) -> str:
-    """
-    Classify a retrieved chunk against ground truth anchors.
-    Returns: exact_match | same_accession | same_company | irrelevant
-    """
-    chunk_acc = chunk.get("accession", "").strip()
-    chunk_sec = chunk.get("section", "").strip().lower()
-    chunk_company = chunk.get("company", "").strip().upper()
-    chunk_quarter = chunk.get("quarter", "").strip()
-
-    claim_company = claim.get("company", "").strip().upper()
-    claim_quarter = claim.get("fiscal_label", "").strip()
-
-    gt_accs = {a["accession"].strip() for a in gt_anchors}
-    gt_keys = {(a["accession"].strip(), a["section"].strip().lower()) for a in gt_anchors}
-
-    if (chunk_acc, chunk_sec) in gt_keys:
-        return "exact_match"
-    if chunk_acc in gt_accs:
-        return "same_accession"
-    if chunk_company == claim_company and chunk_quarter == claim_quarter:
-        return "same_company"
-    return "irrelevant"
-
-
-def _duplicate_density(chunks: list[dict]) -> float:
-    """Fraction of top-k chunks sharing accession+section with another chunk."""
-    if len(chunks) <= 1:
-        return 0.0
-    keys = [(c.get("accession", ""), c.get("section", "").lower()) for c in chunks]
-    seen: set = set()
-    dupes = 0
-    for k in keys:
-        if k in seen:
-            dupes += 1
-        seen.add(k)
-    return round(dupes / len(chunks), 4)
-
-
-def _adjacent_chunk_rate(chunks: list[dict]) -> float:
-    """
-    Fraction of chunk pairs with abs(chunk_index diff) <= 2 and same accession.
-    High rate → MMR not diversifying within a document.
-    """
-    if len(chunks) <= 1:
-        return 0.0
-    pairs = 0
-    adjacent = 0
-    for i in range(len(chunks)):
-        for j in range(i + 1, len(chunks)):
-            pairs += 1
-            if chunks[i].get("accession") == chunks[j].get("accession"):
-                idx_i = chunks[i].get("chunk_index", -1)
-                idx_j = chunks[j].get("chunk_index", -1)
-                if idx_i >= 0 and idx_j >= 0 and abs(idx_i - idx_j) <= 2:
-                    adjacent += 1
-    return round(adjacent / pairs, 4) if pairs > 0 else 0.0
-
-
-def _compute_chunk_pair_similarities(chunks: list[dict]) -> list[dict]:
-    """
-    Compute pairwise cosine similarities between top-k chunks for duplicate analysis.
-    Uses the rerank_score as a proxy when embeddings aren't available.
-    Returns list of pair dicts with classification.
-    """
-    pairs = []
-    for i in range(len(chunks)):
-        for j in range(i + 1, len(chunks)):
-            a, b = chunks[i], chunks[j]
-            same_acc = a.get("accession", "") == b.get("accession", "")
-            same_sec = a.get("section", "").lower() == b.get("section", "").lower()
-            same_key = same_acc and same_sec
-            idx_dist = (
-                abs(a.get("chunk_index", -1) - b.get("chunk_index", -1))
-                if a.get("chunk_index", -1) >= 0 and b.get("chunk_index", -1) >= 0
-                else -1
-            )
-            # Classify the duplicate pair type
-            if same_key:
-                if idx_dist >= 0 and idx_dist <= 2:
-                    pair_type = "adjacent_same_section"
-                else:
-                    pair_type = "non_adjacent_same_section"
-            elif same_acc:
-                pair_type = "same_filing_diff_section"
-            elif a.get("company") == b.get("company") and a.get("quarter") == b.get("quarter"):
-                pair_type = "same_company_diff_filing"
-            else:
-                pair_type = "different_company"
-
-            pairs.append({
-                "rank_a": i + 1,
-                "rank_b": j + 1,
-                "chunk_id_a": a.get("chunk_id", ""),
-                "chunk_id_b": b.get("chunk_id", ""),
-                "accession_a": a.get("accession", ""),
-                "accession_b": b.get("accession", ""),
-                "section_a": a.get("section", ""),
-                "section_b": b.get("section", ""),
-                "doc_type_a": a.get("doc_type", ""),
-                "doc_type_b": b.get("doc_type", ""),
-                "chunk_index_a": a.get("chunk_index", -1),
-                "chunk_index_b": b.get("chunk_index", -1),
-                "chunk_index_distance": idx_dist,
-                "same_accession": same_acc,
-                "same_section": same_sec,
-                "same_key": same_key,
-                "pair_type": pair_type,
-                "content_preview_a": a.get("content", "")[:200],
-                "content_preview_b": b.get("content", "")[:200],
-            })
-    return pairs
-
-
-def _build_detail_report(
-    claim: dict,
-    chunks: list[dict],
-    gt_anchors: list[dict],
-    classifications: list[str],
-    answer: str,
-    k: int,
-) -> dict:
-    """Build a full per-claim detail record for the --detail-report output."""
-    top_k = chunks[:k]
-    chunk_details = []
-    for rank, (chunk, cls) in enumerate(zip(top_k, classifications), start=1):
-        chunk_details.append({
-            "rank":          rank,
-            "classification": cls,
-            "chunk_id":      chunk.get("chunk_id", ""),
-            "accession":     chunk.get("accession", ""),
-            "section":       chunk.get("section", ""),
-            "doc_type":      chunk.get("doc_type", ""),
-            "chunk_index":   chunk.get("chunk_index", -1),
-            "chunk_total":   chunk.get("chunk_total", -1),
-            "score":         round(float(chunk.get("score", 0.0)), 4),
-            "content_preview": chunk.get("content", "")[:300],
-        })
-
-    return {
-        "claim_id":            claim.get("claim_id", ""),
-        "claim_type":          claim.get("claim_type", ""),
-        "company":             claim.get("company", ""),
-        "fiscal_label":        claim.get("fiscal_label", ""),
-        "difficulty":          claim.get("difficulty", ""),
-        "edge_case":           claim.get("edge_case", ""),
-        "query":               _build_query(claim)[:200],
-        "ground_truth_anchors": gt_anchors,
-        "precision_at_k":      round(
-            sum(1 for c in classifications if c == "exact_match") / k, 4
-        ) if k else 0.0,
-        "duplicate_density":   _duplicate_density(top_k),
-        "adjacent_chunk_rate": _adjacent_chunk_rate(top_k),
-        "chunks":              chunk_details,
-        "chunk_pairs":         _compute_chunk_pair_similarities(top_k),
-        "answer_preview":      answer[:300],
-    }
-    """
-    Aggregate retrieval error classifications across all claims.
-    Returns summary dict suitable for MLflow logging.
-    """
-    if not error_analysis_batch:
-        return {}
-
-    total_chunks = 0
-    counts = {"exact_match": 0, "same_accession": 0, "same_company": 0, "irrelevant": 0}
-    dup_densities = []
-    adj_rates = []
-
-    for item in error_analysis_batch:
-        for cls in item["classifications"]:
-            counts[cls] = counts.get(cls, 0) + 1
-            total_chunks += 1
-        dup_densities.append(item["duplicate_density"])
-        adj_rates.append(item["adjacent_chunk_rate"])
-
-    rates = {k: round(v / total_chunks, 4) if total_chunks else 0.0
-             for k, v in counts.items()}
-
-    dominant = max(
-        {"same_accession": counts["same_accession"],
-         "same_company": counts["same_company"],
-         "irrelevant": counts["irrelevant"]},
-        key=lambda k: {"same_accession": counts["same_accession"],
-                       "same_company": counts["same_company"],
-                       "irrelevant": counts["irrelevant"]}[k]
-    )
-
-    return {
-        "retrieval_exact_match_rate":    rates["exact_match"],
-        "retrieval_same_accession_rate": rates["same_accession"],
-        "retrieval_same_company_rate":   rates["same_company"],
-        "retrieval_irrelevant_rate":     rates["irrelevant"],
-        "retrieval_duplicate_density":   round(sum(dup_densities) / len(dup_densities), 4),
-        "retrieval_adjacent_chunk_rate": round(sum(adj_rates) / len(adj_rates), 4),
-        "retrieval_dominant_failure":    dominant,
-    }
-
-
-def _compute_error_analysis(error_analysis_batch: list[dict]) -> dict:
-    """
-    Aggregate retrieval error classifications across all claims.
-    Returns summary dict suitable for MLflow logging.
-    """
-    if not error_analysis_batch:
-        return {}
-
-    total_chunks = 0
-    counts = {"exact_match": 0, "same_accession": 0, "same_company": 0, "irrelevant": 0}
-    dup_densities = []
-    adj_rates = []
-
-    for item in error_analysis_batch:
-        for cls in item["classifications"]:
-            counts[cls] = counts.get(cls, 0) + 1
-            total_chunks += 1
-        dup_densities.append(item["duplicate_density"])
-        adj_rates.append(item["adjacent_chunk_rate"])
-
-    rates = {k: round(v / total_chunks, 4) if total_chunks else 0.0
-             for k, v in counts.items()}
-
-    dominant = max(
-        {"same_accession": counts["same_accession"],
-         "same_company": counts["same_company"],
-         "irrelevant": counts["irrelevant"]},
-        key=lambda k: {"same_accession": counts["same_accession"],
-                       "same_company": counts["same_company"],
-                       "irrelevant": counts["irrelevant"]}[k]
-    )
-
-    return {
-        "retrieval_exact_match_rate":    rates["exact_match"],
-        "retrieval_same_accession_rate": rates["same_accession"],
-        "retrieval_same_company_rate":   rates["same_company"],
-        "retrieval_irrelevant_rate":     rates["irrelevant"],
-        "retrieval_duplicate_density":   round(sum(dup_densities) / len(dup_densities), 4),
-        "retrieval_adjacent_chunk_rate": round(sum(adj_rates) / len(adj_rates), 4),
-        "retrieval_dominant_failure":    dominant,
-    }
-
-
-# ── RAGAS per-claim-type aggregation (measurement correction) ─────────────────
-
-# Claim types where context_precision measures something meaningful: retrieved
-# chunks are judged against a ground_truth that actually describes filing
-# content. Excludes numeric/sentiment (terse categorical ground_truth, e.g.
-# "Filed value: …", "Expected sentiment: …" — no chunk-level relevance signal)
-# AND out_of_scope (ground_truth is a refusal string, e.g. "Expected behavior:
-# refuse…" — retrieved financial prose structurally has ~0 overlap with a
-# refusal description regardless of retrieval quality, so out_of_scope
-# context_precision is a constant ~0.00 that dilutes the subset rather than
-# measuring anything). out_of_scope still gets its own ragas_*_out_of_scope
-# metric from the by-claim-type loop below, and still contributes to
-# precision@5/recall@5 via _extract_ground_truth_anchors — this constant only
-# controls the RAGAS retrieval_subset aggregate.
-_RAGAS_RETRIEVAL_SUBSET_TYPES = {"retrieval", "comparison"}
-
-
-def _aggregate_ragas_by_type(
-    samples: list[dict], per_sample: list[dict[str, float]]
-) -> dict[str, float]:
-    """
-    Break RAGAS per-sample scores down by claim type + a retrieval-relevant subset.
-
-    Uses the per-sample scores already computed by run_ragas_eval — no extra LLM
-    calls. Returns a flat {metric_key: value} dict (floats + counts) for MLflow.
-    """
-    by_type: dict[str, dict[str, list[float]]] = {}
-    subset: dict[str, list[float]] = {}
-
-    for sample, ps in zip(samples, per_sample):
-        ct = sample.get("claim_type", "unknown")
-        for metric, val in ps.items():
-            # Skip non-numeric per-sample fields (e.g. context_recall_facts, the
-            # judge's raw fact-list diagnostic) — this loop aggregates metric
-            # scores only, not arbitrary per-sample payloads.
-            if not isinstance(val, (int, float)):
-                continue
-            by_type.setdefault(ct, {}).setdefault(metric, []).append(val)
-            if ct in _RAGAS_RETRIEVAL_SUBSET_TYPES:
-                subset.setdefault(metric, []).append(val)
-
-    out: dict[str, float] = {}
-    for ct, metrics in by_type.items():
-        for metric, vals in metrics.items():
-            out[f"ragas_{metric}_{ct}"] = round(sum(vals) / len(vals), 4) if vals else 0.0
-        out[f"ragas_n_{ct}"] = len(next(iter(metrics.values()), []))
-
-    for metric, vals in subset.items():
-        out[f"ragas_{metric}_retrieval_subset"] = (
-            round(sum(vals) / len(vals), 4) if vals else 0.0
-        )
-    out["ragas_n_retrieval_subset"] = len(next(iter(subset.values()), []))
-    return out
 
 
 # ── Claim-type answer shaping ─────────────────────────────────────────────────
@@ -825,7 +433,6 @@ async def run_eval(
     dry_run: bool = False,
     max_claims: int | None = None,
     seed: int = 42,
-    detail_report: bool = False,
 ) -> dict[str, Any]:
     from evaluation.ragas_eval import run_ragas_eval
     from evaluation.precision_recall_at_k import compute_batch_retrieval_metrics
@@ -853,10 +460,7 @@ async def run_eval(
     ragas_samples: list[dict] = []
     retrieval_batch: list[dict] = []
     judge_samples: list[dict] = []
-    numeric_results: list[dict] = []
     per_claim_results: list[dict] = []
-    error_analysis_batch: list[dict] = []   # Phase 3: retrieval error classification
-    detail_reports: list[dict] = []          # --detail-report: per-claim chunk detail
 
     for claim_idx, claim in enumerate(runnable, start=1):
         claim_id = claim.get("claim_id", str(uuid.uuid4()))
@@ -916,39 +520,10 @@ async def run_eval(
             retrieval_batch.append({"claim_id": claim_id, "retrieved_chunks": chunks,
                                     "ground_truth_anchors": gt_anchors})
 
-            # Phase 3: classify each top-k chunk against ground truth
-            top_k_chunks = chunks[:k]
-            classifications = [
-                _classify_chunk(c, gt_anchors, claim) for c in top_k_chunks
-            ]
-            error_analysis_batch.append({
-                "claim_id":           claim_id,
-                "claim_type":         claim_type,
-                "classifications":    classifications,
-                "duplicate_density":  _duplicate_density(top_k_chunks),
-                "adjacent_chunk_rate": _adjacent_chunk_rate(top_k_chunks),
-            })
-
-            # --detail-report: build full per-claim chunk detail record
-            if detail_report:
-                detail_reports.append(_build_detail_report(
-                    claim=claim,
-                    chunks=chunks,
-                    gt_anchors=gt_anchors,
-                    classifications=classifications,
-                    answer=answer,
-                    k=k,
-                ))
-
         # Judge grounding must see the context the report was generated from (parent).
         judge_samples.append({"claim_id": claim_id, "question": query, "answer": answer,
                                "contexts": gen_contexts, "ground_truth": ground_truth,
                                "claim_type": claim_type})
-
-        if claim_type == "numeric":
-            num_result = _score_numeric(claim, answer)
-            num_result["claim_id"] = claim_id
-            numeric_results.append(num_result)
 
         per_claim_results.append({
             "claim_id": claim_id, "claim_type": claim_type,
@@ -974,14 +549,9 @@ async def run_eval(
             context_precision_k=_CONTEXT_PRECISION_K,
             context_precision_chunk_chars=_CONTEXT_PRECISION_CHUNK_CHARS,
         )
-        ragas_by_type = _aggregate_ragas_by_type(ragas_samples, ragas_per_sample)
-        log.info(
-            "context_precision — overall=%.4f retrieval_subset=%.4f",
-            ragas_scores.get("context_precision", 0.0),
-            ragas_by_type.get("ragas_context_precision_retrieval_subset", 0.0),
-        )
+        log.info("context_precision = %.4f", ragas_scores.get("context_precision", 0.0))
     else:
-        ragas_scores, ragas_by_type = {}, {}
+        ragas_scores = {}
 
     retrieval_scores = (
         compute_batch_retrieval_metrics(retrieval_batch, k=k)
@@ -1009,47 +579,15 @@ async def run_eval(
             pcr["judge_overall"] = js.get("overall")
             pcr["judge_reasoning"] = js.get("reasoning")
 
-    numeric_pass_rate = 0.0
-    if numeric_results:
-        passed = sum(1 for r in numeric_results if r.get("numeric_pass") is True)
-        numeric_pass_rate = round(passed / len(numeric_results), 4)
-        log.info("Numeric pass rate: %.4f (%d/%d)", numeric_pass_rate, passed, len(numeric_results))
-
-    # Phase 3: aggregate retrieval error analysis
-    error_analysis_metrics = _compute_error_analysis(error_analysis_batch)
-    if error_analysis_metrics:
-        log.info(
-            "Retrieval error analysis: exact=%.3f same_acc=%.3f same_co=%.3f irrelevant=%.3f "
-            "dup_density=%.3f adj_rate=%.3f dominant=%s",
-            error_analysis_metrics.get("retrieval_exact_match_rate", 0),
-            error_analysis_metrics.get("retrieval_same_accession_rate", 0),
-            error_analysis_metrics.get("retrieval_same_company_rate", 0),
-            error_analysis_metrics.get("retrieval_irrelevant_rate", 0),
-            error_analysis_metrics.get("retrieval_duplicate_density", 0),
-            error_analysis_metrics.get("retrieval_adjacent_chunk_rate", 0),
-            error_analysis_metrics.get("retrieval_dominant_failure", "unknown"),
-        )
-
     from azure_clients.redis_client import get_cache_stats
     cache_stats = get_cache_stats()
 
-    # Separate string fields from numeric fields for MLflow compatibility
-    error_analysis_numeric = {k: v for k, v in error_analysis_metrics.items()
-                               if isinstance(v, (int, float))}
-    error_analysis_string = {k: v for k, v in error_analysis_metrics.items()
-                              if isinstance(v, str)}
-
     metrics = {
         **{f"ragas_{k_}": v for k_, v in ragas_scores.items()},
-        **ragas_by_type,   # per-claim-type + retrieval-subset context_precision breakdown
         f"precision_at_{k}": retrieval_scores.get("mean_precision_at_k", 0.0),
         f"recall_at_{k}": retrieval_scores.get("mean_recall_at_k", 0.0),
         "llm_judge_mean": mean_judge,
-        "numeric_pass_rate": numeric_pass_rate,
-        "total_claims": len(runnable),
-        "pipeline_errors": sum(1 for r in per_claim_results if r["pipeline_error"]),
         **{f"cache_{k_}": v for k_, v in cache_stats.items()},
-        **error_analysis_numeric,   # Phase 3: numeric retrieval error metrics only
     }
 
     params = {
@@ -1065,40 +603,14 @@ async def run_eval(
         "num_claims": len(runnable),
         "max_claims_filter": max_claims or "all",
         "stratified_seed": seed,
-        **error_analysis_string,    # Phase 3: string fields (dominant_failure) go to params
     }
 
     with start_run(run_name=run_name, tags={"phase": "2", "variant": run_name}):
         log_eval_results(metrics=metrics, params=params)
         log_per_claim_results(per_claim_results)
 
-    # Save detail report if requested
-    if detail_report and detail_reports:
-        # Summarize pair type distribution across all claims
-        pair_type_counts: dict[str, int] = {}
-        for dr in detail_reports:
-            for pair in dr.get("chunk_pairs", []):
-                pt = pair.get("pair_type", "unknown")
-                pair_type_counts[pt] = pair_type_counts.get(pt, 0) + 1
-
-        detail_output = {
-            "run_name": run_name,
-            "total_claims": len(detail_reports),
-            "pair_type_summary": pair_type_counts,
-            "claims": detail_reports,
-        }
-        detail_path = Path(f"evaluation/detail_report_{run_name}.json")
-        detail_path.write_text(
-            json.dumps(detail_output, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-        log.info("Detail report saved to %s", detail_path)
-        print(f"\nDetail report: {detail_path}")
-        print(f"Pair type distribution: {pair_type_counts}")
-
-    # Final report scope, per explicit user directive: only these 7 headline metrics
-    # + cache hit-rate breakdown. `metrics` itself stays full (MLflow logging, detail
-    # report, per-type diagnostics all still get everything) — this only trims what
-    # gets printed as the final report.
+    # `metrics` only ever contains the 7 headline metrics + cache stats now,
+    # so this whitelist is just fixed print ordering, not a trim.
     _report_keys = [
         "ragas_faithfulness", "ragas_answer_relevancy",
         "ragas_context_precision", "ragas_context_recall",
@@ -1135,11 +647,6 @@ def main() -> None:
         help="Limit to N stratified claims for cost control (e.g. 5, 10, 25, 50, 75)."
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "--detail-report", action="store_true",
-        help="Save per-claim chunk detail + duplicate pair analysis to JSON. "
-             "Use with --max-claims 25 for cost control."
-    )
     args = parser.parse_args()
 
     asyncio.run(run_eval(
@@ -1149,7 +656,6 @@ def main() -> None:
         dry_run=args.dry_run,
         max_claims=args.max_claims,
         seed=args.seed,
-        detail_report=args.detail_report,
     ))
 
 

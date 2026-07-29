@@ -92,9 +92,16 @@ def _get_redis():
         return None
 
 
-def _cache_key(prefix: str, query: str, company: str, quarter: str) -> str:
-    """Deterministic cache key from query coordinates."""
-    raw = f"{query.strip().lower()}::{company.upper()}::{quarter.upper()}"
+def _cache_key(prefix: str, query: str, company: str, quarter: str, doc_type: str = "all") -> str:
+    """Deterministic cache key from query coordinates.
+
+    doc_type must be part of the key: retrieval_agent runs the filing pass
+    (doc_type=None) and transcript pass (doc_type="transcript") back-to-back
+    with identical query+company+quarter. Without doc_type in the key, the
+    second call collides with the first call's cache entry and silently
+    returns the wrong pass's results instead of running its own filtered
+    search (confirmed via direct reproduction — see fix commit)."""
+    raw = f"{query.strip().lower()}::{company.upper()}::{quarter.upper()}::{(doc_type or 'all').lower()}"
     digest = hashlib.sha256(raw.encode()).hexdigest()[:16]
     return f"{prefix}::{digest}"
 
@@ -127,22 +134,24 @@ def get_retrieval_cached(
     query: str,
     company: str,
     quarter: str,
+    doc_type: str = "all",
 ) -> Optional[list[dict]]:
     """
     L2 cache get — returns cached chunk list or None.
-    TTL: 30 minutes.
+    TTL: 30 minutes. doc_type distinguishes the filing pass (None/"all") from
+    the transcript pass — see _cache_key docstring for why this matters.
     """
     global _l2_hits, _l2_misses
     client = _get_redis()
     if client is None:
         return None
 
-    key = _cache_key("retrieval", query, company, quarter)
+    key = _cache_key("retrieval", query, company, quarter, doc_type)
     try:
         value = client.get(key)
         if value:
             _l2_hits += 1
-            logger.info("L2 cache HIT: retrieval for %s/%s", company, quarter)
+            logger.info("L2 cache HIT: retrieval for %s/%s (doc_type=%s)", company, quarter, doc_type)
             return json.loads(value)
         _l2_misses += 1
         return None
@@ -156,13 +165,14 @@ def set_retrieval_cached(
     company: str,
     quarter: str,
     chunks: list[dict],
+    doc_type: str = "all",
 ) -> None:
     """L2 cache set — stores chunk list in Redis with 30min TTL."""
     client = _get_redis()
     if client is None:
         return
 
-    key = _cache_key("retrieval", query, company, quarter)
+    key = _cache_key("retrieval", query, company, quarter, doc_type)
     try:
         client.setex(key, _L2_TTL_SECONDS, json.dumps(chunks))
         logger.debug("L2 cache SET: retrieval for %s/%s", company, quarter)

@@ -16,7 +16,6 @@ The supervisor owns two nodes:
 """
 
 import time
-import uuid
 from graph.state import GraphState, DecisionLogEntry
 from agents._common import log_entry, ms
 from azure_clients.cosmos_client import cosmos_decision_log

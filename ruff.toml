@@ -1,0 +1,15 @@
+# Pin the rule set explicitly. Ruff's no-config default has drifted across
+# versions to a much broader opinionated style ruleset — confirmed empirically
+# on this repo: 173 findings with zero config, 68% auto-fixable style nits
+# (import sorting, `Optional` vs `| None`, blind-except, refurb suggestions),
+# not bugs. None of that was ever curated for this codebase, and leaving it
+# unpinned means ci.yml's lint step fails on drift alone, blocking anything
+# gated behind it (e.g. the docker-build job) for reasons unrelated to
+# correctness.
+#
+# E9 (syntax errors) + F (pyflakes — unused imports, undefined names, etc.)
+# catch real bugs. Everything else is left off deliberately.
+line-length = 120
+
+[lint]
+select = ["E9", "F"]

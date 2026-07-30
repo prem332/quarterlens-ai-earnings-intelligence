@@ -21,6 +21,9 @@ jobs:
   eval-gate:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     uses: ./.github/workflows/eval_gate.yml
+    permissions:
+      id-token: write   # passed down to eval_gate.yml's smoke-test job for OIDC
+      contents: read
     secrets: inherit
 
   build-and-push:

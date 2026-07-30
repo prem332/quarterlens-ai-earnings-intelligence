@@ -36,6 +36,18 @@ def _get_cross_encoder():
     return _cross_encoder
 
 
+def warm_up() -> None:
+    """
+    Force the lazy singleton to load now instead of on first request.
+
+    Measured cost: ~18s (weight load, CPU-only, ~80MB). Call once from the API
+    server's startup lifespan so that cost lands on process boot instead of on
+    whichever user's request happens to be first — same model, same lazy
+    singleton, just triggered earlier.
+    """
+    _get_cross_encoder()
+
+
 # ---------------------------------------------------------------------------
 # Public tool function
 # ---------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,18 +6,23 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from api.routes import analysis, reports, evidence, export
+from api.routes import analysis, reports, export
 from observability.azure_monitor_setup import setup_azure_monitor
 from observability.phoenix_setup import setup_phoenix
 from observability.langfuse_setup import setup_langfuse, flush_langfuse
+from tools.rerank_documents import warm_up as warm_up_cross_encoder
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: initialise observability. Shutdown: flush Langfuse events."""
+    """Startup: initialise observability + warm the cross-encoder. Shutdown: flush Langfuse events."""
     setup_azure_monitor()   # Azure Monitor first — sets up OTEL provider
     setup_phoenix()         # Phoenix cloud tracing
     setup_langfuse()        # Langfuse LLM call monitoring
+    # Loads the reranker model now (~18s, one-time) instead of on whichever
+    # user's request happens to be first. to_thread so it doesn't block the
+    # event loop from serving /api/health while it loads.
+    await asyncio.to_thread(warm_up_cross_encoder)
     yield
     flush_langfuse()
 
@@ -40,7 +46,6 @@ app.add_middleware(
 # API routers
 app.include_router(analysis.router)
 app.include_router(reports.router)
-app.include_router(evidence.router)
 app.include_router(export.router)
 
 

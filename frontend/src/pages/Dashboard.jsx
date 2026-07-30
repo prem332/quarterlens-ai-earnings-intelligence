@@ -38,7 +38,15 @@ export default function Dashboard() {
           <button
             key={c}
             className="card btn"
-            style={{ justifyContent: "center", fontFamily: "var(--mono)", fontSize: 14, cursor: "pointer" }}
+            style={{
+              justifyContent: "center",
+              fontFamily: "var(--mono)",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "var(--accent)",
+              borderColor: "var(--accent-dim)",
+            }}
             onClick={() => navigate(`/new?company=${c}`)}
           >
             {c}

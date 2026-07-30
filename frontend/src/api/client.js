@@ -29,10 +29,6 @@ export const api = {
   getReport: (runId) => request(`/reports/${runId}`),
   deleteReport: (runId) => request(`/reports/${runId}`, { method: "DELETE" }),
 
-  // Evidence
-  listClaims: (runId) => request(`/evidence/${runId}/claims`),
-  getClaim: (runId, claimId) => request(`/evidence/${runId}/claims/${claimId}`),
-
   // Export
   exportPdf: (runId) => fetch(`${BASE}/export/${runId}/pdf`, { method: "POST" }),
   exportDocx: (runId) => fetch(`${BASE}/export/${runId}/docx`, { method: "POST" }),

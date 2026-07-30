@@ -3,7 +3,6 @@ import Dashboard from "./pages/Dashboard";
 import NewAnalysis from "./pages/NewAnalysis";
 import AnalysisReport from "./pages/AnalysisReport";
 import ReportHistory from "./pages/ReportHistory";
-import EvidenceExplorer from "./pages/EvidenceExplorer";
 
 const NAV = [
   { to: "/",          label: "Dashboard"  },
@@ -36,8 +35,6 @@ export default function App() {
           <Route path="/new"                           element={<NewAnalysis />} />
           <Route path="/history"                       element={<ReportHistory />} />
           <Route path="/report/:runId"                 element={<AnalysisReport />} />
-          <Route path="/report/:runId/evidence"        element={<EvidenceExplorer />} />
-          <Route path="/report/:runId/evidence/:claimId" element={<EvidenceExplorer />} />
           <Route path="*"                              element={<Navigate to="/" replace />} />
         </Routes>
       </main>

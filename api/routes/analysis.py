@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from api.guardrails import check_query
 from api.schemas.requests import AnalysisRequest
 from api.schemas.responses import AnalysisResponse, RunStatusResponse
 from api.schemas.shared import RunStatus
@@ -115,6 +116,16 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
 
 @router.post("/run", response_model=RunStatusResponse, status_code=202)
 async def run_analysis(req: AnalysisRequest):
+    # Input guardrails run here — before the run is even registered, let
+    # alone before compiled_graph.ainvoke() reaches an Azure OpenAI call.
+    # A rejected query never spends a token and is never sent to the LLM.
+    verdict = check_query(req.query)
+    if not verdict.allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Query rejected by input guardrails ({verdict.category}): {verdict.reason}",
+        )
+
     run_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
 

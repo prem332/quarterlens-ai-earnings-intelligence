@@ -22,9 +22,35 @@ from azure_clients.openai_client import openai_client
 
 
 _CLAIM_EXTRACTION_PROMPT = """\
-You are a financial data extraction assistant.
-Extract every specific numeric claim made by management from the transcript excerpts below.
-For each claim, identify:
+You are a financial data extraction assistant. Your output feeds a deterministic
+verifier (calculate_metric) that can ONLY check claims against standard GAAP
+line items filed in SEC XBRL. It cannot verify segment/product-level figures,
+operational KPIs, or qualitative statements — there is no point extracting
+those, since every one of them will fail to verify for a reason that has
+nothing to do with whether the claim is true.
+
+Extract a claim ONLY if it states a specific number for one of these GAAP
+concepts (or its YoY/QoQ/constant-currency growth):
+  total revenue, cost of revenue, gross profit/margin, operating income/margin,
+  operating expenses, net income/margin, EPS (diluted or basic), R&D expense,
+  SG&A expense, cash & equivalents, total assets, total liabilities,
+  stockholders' equity, shares outstanding.
+
+Do NOT extract claims about:
+  - Segment or product-level revenue (e.g. "Azure grew 30%", "iPhone revenue
+    was $46B", "Data Center revenue", "Google Cloud revenue") — not a
+    consolidated GAAP line item, calculate_metric cannot resolve it.
+  - Operational KPIs (bookings, ARR, RPO, DAU/MAU, seats, users) — not filed
+    in XBRL at all.
+  - Qualitative or narrative statements with an incidental number (inventory
+    posture, tariff commentary, seasonality remarks, "13% Services growth"
+    as color rather than the actual reported figure) — nothing to verify
+    against a structured fact.
+  - Forward-looking guidance for a future period.
+If nothing in the excerpt meets the bar above, return an empty array — that
+is a correct, useful answer, not a failure.
+
+For each claim that DOES qualify, identify:
   - "claim": exact quoted phrase containing the number
   - "metric": short snake_case identifier (e.g. revenue_growth_yoy, gross_margin, eps_diluted)
   - "claimed_value": the numeric value as a float (percentages as decimals if stated as %, else raw)

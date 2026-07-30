@@ -42,8 +42,21 @@ def numeric_validation_agent(state: GraphState) -> dict:
     quarter = state["quarter"]
     retrieval_results = state.get("retrieval_results") or []
 
-    # Step 1: pull transcript chunks to extract claims from
-    transcript_text = _concat_transcript(retrieval_results)
+    # Step 1: pull transcript chunks to extract claims from.
+    #
+    # Source is transcript_retrieval_results (the dedicated transcript pool),
+    # not retrieval_results. Scavenging the merged top-5 for doc_type=transcript
+    # is unreliable by construction: top-5 is the globally reranked filing+
+    # transcript mix, so it frequently contains ZERO transcript chunks (observed
+    # on NVDA_FY2026-Q3_cmp_001 and _cmp_004), in which case claim extraction
+    # got an empty string and this agent returned nothing at all. Same bug class
+    # as sentiment_agent's — graph/state.py defines
+    # transcript_retrieval_results as the transcript pool for exactly this.
+    #
+    # Falls back to the old path so behavior degrades rather than breaks if the
+    # field is ever absent (e.g. state built by an older caller).
+    transcript_pool = state.get("transcript_retrieval_results") or retrieval_results
+    transcript_text = _concat_transcript(transcript_pool)
     if not transcript_text.strip():
         return _empty("no transcript content for claim extraction", t0)
 
@@ -106,14 +119,26 @@ def numeric_validation_agent(state: GraphState) -> dict:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _concat_transcript(retrieval_results: list, max_chars: int = 6000) -> str:
+    """
+    Concatenate transcript chunk text up to a character budget.
+
+    Skips (does not stop at) a chunk that would overflow the budget. This used
+    to `break`, which meant a single oversized chunk at the front discarded
+    every chunk behind it — and the restored transcript chunking has chunks of
+    6,974-16,256 chars, so the FIRST chunk routinely blew a 6,000-char budget
+    and this returned "". Claim extraction then had no text and the agent
+    produced zero validations. Measured on the seed-42 sample: 3 of 3 numeric
+    claims got an empty string despite each having 12 transcript chunks
+    available, most of them comfortably small (771-2,615 chars).
+    """
     parts: list[str] = []
     total = 0
     for r in retrieval_results:
         if r.get("doc_type", "").lower() not in ("transcript", "earnings_call"):
             continue
         text = r.get("content", "")
-        if total + len(text) > max_chars:
-            break
+        if not text or total + len(text) > max_chars:
+            continue
         parts.append(text)
         total += len(text)
     return "\n\n".join(parts)

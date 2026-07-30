@@ -20,6 +20,12 @@ Exit code 0 = pipeline is healthy enough to deploy. Non-zero = don't deploy.
 import asyncio
 import sys
 import time
+from pathlib import Path
+
+# Run directly with `python evaluation/smoke_test.py` (as deploy.yml does),
+# not `python -m`, so the repo root isn't on sys.path automatically -- same
+# gap run_baseline_eval.py already works around this same way.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from graph.build_graph import compiled_graph
 from graph.state import GraphState

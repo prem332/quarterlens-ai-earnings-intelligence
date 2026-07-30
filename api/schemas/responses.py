@@ -65,13 +65,3 @@ class ReportSummary(BaseModel):
     status: RunStatus
     created_at: datetime
     report_snippet: str | None = None   # first 200 chars of report
-
-
-class ClaimEvidence(BaseModel):
-    claim_id: str
-    claim_text: str
-    source_section: str
-    source_paragraph: str
-    confidence: float
-    doc_type: str       # "10-Q", "10-K", or "transcript"
-    quarter: Quarter

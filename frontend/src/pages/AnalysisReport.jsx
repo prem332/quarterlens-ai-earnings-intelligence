@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { api } from "../api/client";
 
 function Section({ title, children }) {
@@ -15,7 +15,6 @@ function Section({ title, children }) {
 
 export default function AnalysisReport() {
   const { runId } = useParams();
-  const navigate  = useNavigate();
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState(null);
@@ -55,9 +54,6 @@ export default function AnalysisReport() {
           <p className="dim mono" style={{ fontSize: 12 }}>run/{runId.slice(0, 8)}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-ghost" onClick={() => navigate(`/report/${runId}/evidence`)}>
-            Evidence Explorer
-          </button>
           <button className="btn btn-ghost" onClick={() => download("pdf")}>Export PDF</button>
           <button className="btn btn-ghost" onClick={() => download("docx")}>Export DOCX</button>
         </div>

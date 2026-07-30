@@ -37,9 +37,17 @@ concepts (or its YoY/QoQ/constant-currency growth):
   stockholders' equity, shares outstanding.
 
 Do NOT extract claims about:
-  - Segment or product-level revenue (e.g. "Azure grew 30%", "iPhone revenue
-    was $46B", "Data Center revenue", "Google Cloud revenue") — not a
-    consolidated GAAP line item, calculate_metric cannot resolve it.
+  - Segment or product-level figures of ANY kind — revenue, margin, or growth.
+    "Azure grew 30%", "iPhone revenue was $46B", "Data Center revenue",
+    "Products gross margin was 35.9%", "the Q2 Services margin" — none of these
+    are consolidated GAAP line items and calculate_metric cannot resolve them.
+    Only the COMPANY-WIDE consolidated figure qualifies.
+  - Changes, deltas, and growth rates — "up 340 basis points sequentially",
+    "grew 5% year over year", "margin improved 110 bps". The verifier checks a
+    single filed value for ONE period and is given no prior period to difference
+    against, so every change claim fails for a reason unrelated to its truth.
+    Extract the LEVEL if one is also stated ("gross margin was 47.1%, up 20 bps"
+    -> extract 47.1 as gross_margin); otherwise skip the sentence.
   - Operational KPIs (bookings, ARR, RPO, DAU/MAU, seats, users) — not filed
     in XBRL at all.
   - Statements where the NUMBER ITSELF is not one of the GAAP concepts above
@@ -65,11 +73,23 @@ is a correct, useful answer, not a failure.
 For each claim that DOES qualify, identify:
   - "claim": exact quoted phrase containing the number
   - "metric": short snake_case identifier (e.g. revenue_growth_yoy, gross_margin, eps_diluted)
-  - "claimed_value": the numeric value as a float (percentages as decimals if stated as %, else raw)
+  - "claimed_value": the number EXACTLY as written, as a float. Do NOT convert,
+    rescale, or do any arithmetic on it:
+      "49.3%"           -> 49.3
+      "340 basis points"-> 340
+      "$95.4 billion"   -> 95.4
+      "$44,867 million" -> 44867
+    The verifier rescales deterministically using "claimed_unit"; converting
+    here corrupts that and produces false mismatches.
+  - "claimed_unit": the unit the number is STATED in. Exactly one of:
+      "percent"       — "49.3%", "up 62 percent"
+      "basis_points"  — "340 basis points", "70 bps"
+      "usd"           — "$1.65", "EPS of $1.65"
+      "usd_thousands" — "$4,300 thousand"
+      "usd_millions"  — "$44,867 million"
+      "usd_billions"  — "$95.4 billion"
+      "ratio"         — a bare multiplier with no unit, e.g. "1.4x"
   - "value_type": "percentage" | "absolute" | "ratio"
-  - "period": fiscal quarter the claim refers to, in the exact format "FY2025-Q2"
-    (four-digit year, dash, Q + quarter number — this must match calculate_metric's
-    fiscal_label format exactly, or the lookup will silently find nothing)
 
 Respond ONLY with a JSON array. No preamble, no markdown fences."""
 
@@ -109,11 +129,14 @@ def numeric_validation_agent(state: GraphState) -> dict:
     # Step 3: validate each claim against SQL financial_facts
     validations: list[NumericValidation] = []
     tokens_used = 0
+    period = _normalize_period(quarter)
+
+    skipped_unverifiable = 0
 
     for claim_obj in raw_claims:
         claimed_metric = claim_obj.get("metric", "")
         claimed_value = claim_obj.get("claimed_value")
-        period = _normalize_period(claim_obj.get("period"), quarter)
+        claimed_unit = (claim_obj.get("claimed_unit") or "").strip().lower()
 
         try:
             calc_result = calculate_metric(
@@ -122,13 +145,42 @@ def numeric_validation_agent(state: GraphState) -> dict:
                 metric=claimed_metric,
                 prior_fiscal_label=None,  # growth metrics need prior period — not available from transcript extraction
             )
-            calculated_value = calc_result.get("value")  # fixed: was "value" key mismatch
-            match, delta_pct = _compare(claimed_value, calculated_value, claim_obj.get("value_type"))
         except Exception as exc:  # noqa: BLE001
             print(f"[numeric_validation_agent] calculate_metric failed for {claimed_metric}: {exc}")
-            calculated_value = None
-            match = False
-            delta_pct = None
+            skipped_unverifiable += 1
+            continue
+
+        calculated_value = calc_result.get("value")
+        calc_unit = calc_result.get("unit") or ""
+
+        # ── Emit ONLY claims that were actually checked ───────────────────
+        # "Couldn't check it" is not "the executive was wrong". These used to
+        # be appended with calculated_value=None / match=False, which the UI
+        # renders as a ✗ next to the quote — an accusation against a figure
+        # nobody verified, and the reason a run could show a 0% pass rate with
+        # an empty Filed column on every row. Segment metrics, growth metrics
+        # (no prior period is passed), and unaliased metrics all land here.
+        if calculated_value is None:
+            print(f"[numeric_validation_agent] unverifiable, skipping '{claimed_metric}': {calc_result.get('error')}")
+            skipped_unverifiable += 1
+            continue
+
+        # A basis-point figure is always a CHANGE. If the metric resolved to a
+        # LEVEL (unit "%") rather than a change (unit "pp"), the two describe
+        # different quantities and the comparison is a category error that
+        # always reports a ~100% delta — e.g. "margin improved 110 bps"
+        # (1.1 pp) scored against a filed 49.27% level. The prompt asks the
+        # model to skip change claims; it does not reliably comply, so this is
+        # the deterministic backstop.
+        if claimed_unit == "basis_points" and not calc_unit.lower().startswith("pp"):
+            print(f"[numeric_validation_agent] delta-vs-level mismatch, skipping '{claimed_metric}'")
+            skipped_unverifiable += 1
+            continue
+
+        # Rescale onto calculate_metric's own unit before comparing —
+        # the two sides use different conventions by design.
+        claimed_value = _rescale_claimed(claimed_value, claimed_unit, calc_unit)
+        match, delta_pct = _compare(claimed_value, calculated_value, claim_obj.get("value_type"))
 
         validations.append(NumericValidation(
             claim=str(claim_obj.get("claim", "")),
@@ -145,7 +197,10 @@ def numeric_validation_agent(state: GraphState) -> dict:
         "agent": "numeric_validation_agent",
         "tool_called": "calculate_metric",
         "input_summary": f"company={company} quarter={quarter} claims={len(raw_claims)}",
-        "output_summary": f"{len(validations)} validated, {mismatches} mismatches",
+        "output_summary": (
+            f"{len(validations)} validated, {mismatches} mismatches, "
+            f"{skipped_unverifiable} unverifiable"
+        ),
         "confidence": 1.0 if mismatches == 0 else round(1 - mismatches / max(len(validations), 1), 2),
         "tokens_used": tokens_used,
         "latency_ms": ms(t0),
@@ -159,33 +214,80 @@ def numeric_validation_agent(state: GraphState) -> dict:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _normalize_period(period: str | None, fallback: str) -> str:
-    """
-    Canonicalize the LLM-extracted period into the "FY2025-Q2" format
-    calculate_metric/financial_facts actually key on.
+# Factors that convert a claimed value into the scale calculate_metric returns.
+#
+# calculate_metric emits percentage-family values in PERCENTAGE POINTS
+# (gross_margin -> 47.0506, unit "%"; margin deltas -> unit "pp") and
+# currency-family values in RAW USD (revenue -> 95359000000.0, unit "USD";
+# eps -> 1.65, unit "USD/shares"). The extraction prompt asks for the number as
+# literally written. These bridge the two.
+_PERCENT_POINT_SCALE = {
+    "percent":      1.0,     # "49.3%"            -> 49.3 pp
+    "basis_points": 0.01,    # "340 basis points" ->  3.4 pp
+    "ratio":        100.0,   # 0.493              -> 49.3 pp
+}
+_USD_SCALE = {
+    "usd":           1.0,
+    "usd_thousands": 1e3,
+    "usd_millions":  1e6,    # "$44,867 million"  -> 4.4867e10
+    "usd_billions":  1e9,    # "$95.4 billion"    -> 9.54e10
+}
 
-    The extraction prompt now asks for this format directly, but LLMs don't
-    reliably follow format instructions — this is a defensive second layer.
-    Confirmed as the root cause of a 100% numeric-validation failure rate: the
-    prompt previously suggested "Q2_FY2025" as the example, the LLM followed
-    it literally, and calculate_metric's fiscal_label lookup silently found
-    nothing for every single claim (verified directly: calculate_metric(...,
-    fiscal_label="Q4_FY2025") -> value=None, "No fact found"; the identical
-    call with fiscal_label="FY2025-Q4" -> the real filed value). Reuses
-    tools.fetch_prior_quarter._parse_fiscal_label, which already accepts both
-    the canonical and legacy formats (comparison_agent imports it the same way).
 
-    Falls back to `fallback` — the state's own known-correct quarter — when the
-    extracted string can't be parsed as a quarter at all (missing, or the LLM
-    described a period in free text instead of a Q#/year pair).
+def _rescale_claimed(
+    claimed: float | None,
+    claimed_unit: str | None,
+    calc_unit: str | None,
+) -> float | None:
     """
-    if period:
-        try:
-            q_idx, year = _parse_fiscal_label(period)
-            return f"FY{year}-Q{q_idx + 1}"
-        except ValueError:
-            pass
-    return fallback
+    Put the claimed value on the same scale as calculate_metric's value.
+
+    Root cause of a confirmed false mismatch: the agent read calculate_metric's
+    `value` and threw away its `unit`, so a claim of "the gross margin of 49.3%"
+    (extracted as 0.493 under the old decimal-fraction instruction) was compared
+    against a filed 47.0506 — a 98.95% "delta" reported as the executive
+    misstating a figure that was actually right to within 2.3 points. Verified
+    against the only stored run in blob history that ever produced both values.
+
+    Unknown/absent unit falls through at 1.0 — with the current prompt that is
+    the correct identity for `percent`, the dominant case, and never invents a
+    conversion the model did not state.
+    """
+    if claimed is None:
+        return None
+    unit = (claimed_unit or "").strip().lower()
+    calc = (calc_unit or "").strip().lower()
+    if calc.startswith("%") or calc.startswith("pp"):
+        return claimed * _PERCENT_POINT_SCALE.get(unit, 1.0)
+    if calc.startswith("usd"):
+        return claimed * _USD_SCALE.get(unit, 1.0)
+    return claimed
+
+
+def _normalize_period(quarter: str) -> str:
+    """
+    Canonicalize the STATE's quarter into the "FY2025-Q2" format
+    calculate_metric/financial_facts key on.
+
+    The period deliberately does NOT come from the LLM any more. The transcript
+    pool this agent extracts from is retrieved with an OData filter of
+    `fiscal_label eq '<quarter>'`, so every chunk is from that quarter by
+    construction — the model has strictly less information than the state does,
+    and was measurably getting it wrong: on AAPL FY2026-Q2 all 12 retrieved
+    chunks carried fiscal_label "FY2026-Q2" and the model still reported
+    "FY2025-Q2". The claim "the gross margin of 49.3%" then got checked against
+    FY2025-Q2's filed 47.0506 instead of FY2026-Q2's 49.2706 and was reported as
+    a mismatch — a false accusation against a figure that was accurate to 0.06%.
+
+    (An earlier bug in the same spot: the prompt suggested "Q2_FY2025", the model
+    echoed that format, and every lookup silently found nothing. Canonicalizing
+    here guards the format regardless of who supplies the label.)
+    """
+    try:
+        q_idx, year = _parse_fiscal_label(quarter)
+        return f"FY{year}-Q{q_idx + 1}"
+    except ValueError:
+        return quarter
 
 
 def _concat_transcript(retrieval_results: list, max_chars: int = 6000) -> str:

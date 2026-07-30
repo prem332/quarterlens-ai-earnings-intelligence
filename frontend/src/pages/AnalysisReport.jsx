@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import { api } from "../api/client";
+
+// report_agent tags every retained sentence [FILING] / [TRANSCRIPT] so verify
+// can check provenance — real, load-bearing data, not decoration. Stripped
+// here for display only; the underlying text (and the export endpoints,
+// which read the same field) is untouched.
+function stripCitationTags(text) {
+  return (text || "").replace(/\s*\[(FILING|TRANSCRIPT)\]/g, "");
+}
 
 function Section({ title, children }) {
   return (
@@ -77,7 +86,9 @@ export default function AnalysisReport() {
       {/* Report text */}
       {data.report && (
         <Section title="Executive Summary">
-          <p style={{ fontSize: 14, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{data.report}</p>
+          <div className="markdown-body">
+            <ReactMarkdown>{stripCitationTags(data.report)}</ReactMarkdown>
+          </div>
         </Section>
       )}
 
@@ -92,7 +103,7 @@ export default function AnalysisReport() {
                   <td style={{ width: 20 }}>
                     {v.match ? <span className="check">✓</span> : <span className="cross">✗</span>}
                   </td>
-                  <td>{v.claim}</td>
+                  <td>{stripCitationTags(v.claim)}</td>
                   <td className="mono">{v.calculated_value ?? "—"}</td>
                   <td className="mono">{v.claimed_value ?? "—"}</td>
                   <td className="mono" style={{ color: v.delta_pct != null && Math.abs(v.delta_pct) > 1 ? "var(--red)" : "var(--text-dim)" }}>
@@ -117,18 +128,18 @@ export default function AnalysisReport() {
                   : <span className="badge badge-completed">no shift</span>}
               </div>
               {f.shift_description && (
-                <p className="dim" style={{ fontSize: 13, marginBottom: 10 }}>{f.shift_description}</p>
+                <p className="dim" style={{ fontSize: 13, marginBottom: 10 }}>{stripCitationTags(f.shift_description)}</p>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
                 <div>
                   <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 4 }}>CURRENT</p>
-                  <p style={{ lineHeight: 1.5 }}>{f.current_language}</p>
+                  <p style={{ lineHeight: 1.5 }}>{stripCitationTags(f.current_language)}</p>
                 </div>
                 <div>
                   {Object.entries(f.prior_language || {}).map(([fiscalLabel, excerpt]) => (
                     <div key={fiscalLabel} style={{ marginBottom: 8 }}>
                       <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 4 }}>{fiscalLabel}</p>
-                      <p style={{ lineHeight: 1.5 }}>{excerpt}</p>
+                      <p style={{ lineHeight: 1.5 }}>{stripCitationTags(excerpt)}</p>
                     </div>
                   ))}
                 </div>
@@ -147,15 +158,15 @@ export default function AnalysisReport() {
                 <span
                   className="badge"
                   style={{
-                    background: s.label === "positive" ? "#0d2e20" : s.label === "negative" ? "#2e0d0d" : "#1a1f2e",
-                    color: s.label === "positive" ? "var(--green)" : s.label === "negative" ? "var(--red)" : "var(--text-dim)",
+                    background: s.label === "positive" ? "#0d2e20" : s.label === "negative" ? "#2e0d0d" : "#2a2510",
+                    color: s.label === "positive" ? "var(--green)" : s.label === "negative" ? "var(--red)" : "var(--yellow)",
                     flexShrink: 0,
                     marginTop: 2,
                   }}
                 >
                   {s.label}
                 </span>
-                <p style={{ fontSize: 13, lineHeight: 1.5 }}>"{s.passage}"</p>
+                <p style={{ fontSize: 13, lineHeight: 1.5 }}>"{stripCitationTags(s.passage)}"</p>
                 <span className="mono dim" style={{ fontSize: 11, flexShrink: 0, marginTop: 3 }}>{(s.score * 100).toFixed(0)}%</span>
               </div>
             ))}

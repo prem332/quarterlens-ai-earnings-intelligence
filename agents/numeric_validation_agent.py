@@ -42,11 +42,23 @@ Do NOT extract claims about:
     consolidated GAAP line item, calculate_metric cannot resolve it.
   - Operational KPIs (bookings, ARR, RPO, DAU/MAU, seats, users) — not filed
     in XBRL at all.
-  - Qualitative or narrative statements with an incidental number (inventory
-    posture, tariff commentary, seasonality remarks, "13% Services growth"
-    as color rather than the actual reported figure) — nothing to verify
-    against a structured fact.
-  - Forward-looking guidance for a future period.
+  - Statements where the NUMBER ITSELF is not one of the GAAP concepts above
+    (inventory posture, a count of product models, a tariff rate, "13%
+    Services growth" — Services is a segment, not the consolidated figure)
+    — nothing to verify against a structured fact, regardless of topic.
+  - Forward-looking guidance for a FUTURE period (e.g. "next quarter we
+    expect...").
+
+IMPORTANT — do not confuse "has qualitative color attached" with "not
+extractable": a sentence stating an actual GAAP figure for the CURRENT/PAST
+period is extractable even if it also explains WHY, or compares it to prior
+guidance. Extract the figure; ignore the surrounding color.
+  - Extractable: "Gross margin was 46.5%, at the high end of our guidance
+    range, driven by favorable costs." -> gross_margin = 0.465. The
+    explanation doesn't disqualify the actual reported figure.
+  - NOT extractable: "We had some build-ahead inventory within our supply
+    chain." -> no GAAP concept is stated at all, regardless of phrasing.
+
 If nothing in the excerpt meets the bar above, return an empty array — that
 is a correct, useful answer, not a failure.
 

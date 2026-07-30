@@ -67,10 +67,6 @@ export default function AnalysisReport() {
   if (error)   return <p className="error-msg">{error}</p>;
   if (!data)   return null;
 
-  const passRate = data.numeric_validations.length > 0
-    ? (data.numeric_validations.filter(v => v.match).length / data.numeric_validations.length * 100).toFixed(0)
-    : null;
-
   return (
     <div>
       {/* Header */}
@@ -87,51 +83,12 @@ export default function AnalysisReport() {
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
-        {[
-          { label: "Retrieval chunks",    value: data.retrieval_results.length },
-          { label: "Numeric checks",      value: data.numeric_validations.length },
-          { label: "Pass rate",           value: passRate != null ? `${passRate}%` : "—" },
-          { label: "Sentiment signals",   value: data.sentiment_scores.length },
-        ].map(({ label, value }) => (
-          <div key={label} className="card" style={{ textAlign: "center" }}>
-            <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--mono)", color: "var(--text-hi)" }}>{value}</p>
-            <p style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>{label}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Report text */}
       {data.report && (
         <Section title="Executive Summary">
           <div className="markdown-body">
             <ReactMarkdown>{stripCitationTags(data.report)}</ReactMarkdown>
           </div>
-        </Section>
-      )}
-
-      {/* Numeric validations */}
-      {data.numeric_validations.length > 0 && (
-        <Section title="Numeric Validation">
-          <table>
-            <thead><tr><th></th><th>Claim</th><th>Filed</th><th>Stated</th><th>Δ%</th></tr></thead>
-            <tbody>
-              {data.numeric_validations.map((v, i) => (
-                <tr key={i}>
-                  <td style={{ width: 20 }}>
-                    {v.match ? <span className="check">✓</span> : <span className="cross">✗</span>}
-                  </td>
-                  <td>{stripCitationTags(v.claim)}</td>
-                  <td className="mono">{v.calculated_value ?? "—"}</td>
-                  <td className="mono">{v.claimed_value ?? "—"}</td>
-                  <td className="mono" style={{ color: v.delta_pct != null && Math.abs(v.delta_pct) > 1 ? "var(--red)" : "var(--text-dim)" }}>
-                    {v.delta_pct != null ? `${v.delta_pct > 0 ? "+" : ""}${v.delta_pct.toFixed(1)}%` : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </Section>
       )}
 
@@ -166,32 +123,6 @@ export default function AnalysisReport() {
               </div>
             </div>
           ))}
-        </Section>
-      )}
-
-      {/* Sentiment */}
-      {data.sentiment_scores.length > 0 && (
-        <Section title="Sentiment Signals (FinBERT)" count={data.sentiment_scores.length}
-                 collapsible defaultOpen={false}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {data.sentiment_scores.map((s, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <span
-                  className="badge"
-                  style={{
-                    background: s.label === "positive" ? "#0d2e20" : s.label === "negative" ? "#2e0d0d" : "#2a2510",
-                    color: s.label === "positive" ? "var(--green)" : s.label === "negative" ? "var(--red)" : "var(--yellow)",
-                    flexShrink: 0,
-                    marginTop: 2,
-                  }}
-                >
-                  {s.label}
-                </span>
-                <p style={{ fontSize: 13, lineHeight: 1.5 }}>"{stripCitationTags(s.passage)}"</p>
-                <span className="mono dim" style={{ fontSize: 11, flexShrink: 0, marginTop: 3 }}>{(s.score * 100).toFixed(0)}%</span>
-              </div>
-            ))}
-          </div>
         </Section>
       )}
     </div>

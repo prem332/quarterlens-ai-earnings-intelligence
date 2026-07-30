@@ -231,13 +231,21 @@ def _ranked_context(chunks: list[dict], max_chars: int = 4000) -> str:
     For retrieval_results this is the global rerank order from retrieval_agent.
     For prior-quarter hits this is the fetch order from fetch_prior_quarter.
     No reordering by doc_type — the reranker already determined the best order.
+
+    Skips (does not stop at) a chunk that would overflow the budget. This used
+    to `break`, so one oversized chunk at the front discarded everything behind
+    it and returned "" — and these are parent-expanded blocks, which are large
+    by construction. Measured on the seed-42 sample: 5 of 10 claims got an empty
+    current-quarter excerpt, including comparison claims, meaning the LLM was
+    asked to compare against nothing. Same bug as numeric_validation_agent's
+    _concat_transcript.
     """
     parts: list[str] = []
     total = 0
     for chunk in chunks:
         text = chunk.get("parent_content") or chunk.get("content", "")
-        if total + len(text) > max_chars:
-            break
+        if not text or total + len(text) > max_chars:
+            continue
         parts.append(text)
         total += len(text)
     return "\n\n".join(parts)

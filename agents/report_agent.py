@@ -21,6 +21,7 @@ The openai_client wrapper enforces this minimum automatically.
 import os
 import asyncio
 import time
+import openai
 from crewai import Agent, Task, Crew, LLM
 from azure_clients.key_vault_client import kv
 from graph.state import (
@@ -29,6 +30,15 @@ from graph.state import (
 )
 from agents._common import ms, skipped
 from azure_clients.openai_client import openai_client
+
+# Retry/backoff for draft + verify calls — same curve as
+# data_pipeline/embedding.py's _embed_batch. Added after the parallelized
+# bull/bear debate (two simultaneous calls instead of sequential) made 429s
+# from the gpt-5-mini dev deployment (10K TPM) more likely to land right as
+# draft was about to run: draft had zero retry, so one 429 collapsed the
+# entire report to empty instead of just costing a few extra seconds.
+_MAX_RETRIES = 3
+_RETRY_BACKOFF = 2.0  # seconds, doubled per retry
 
 
 _DRAFT_SYSTEM = """\
@@ -154,7 +164,15 @@ YOUR TASK — apply these rules in order:
 4. RETURN the corrected report text ONLY.
    - No commentary, no JSON, no explanations
    - Preserve all section headers (##)
+   - PRESERVE SENTENCES YOU KEEP VERBATIM, including their [FILING] / [TRANSCRIPT]
+     citation tags. You are a deleter, not an editor: a retained sentence must come
+     through character-for-character. Do not paraphrase, re-word, compress, or drop
+     the tags — an untagged sentence is unattributable and defeats the point of
+     verifying it.
    - If a section becomes empty after removing unsupported claims, write "No verified data available."
+     EXCEPT the Executive Summary: it must always say something useful. If its claims
+     don't survive, replace it with one sentence naming what the evidence does not
+     establish (rule 0a's phrasing), not the bare "No verified data available."
    - Do NOT add new content beyond what rule 0's rewrite requires — only remove unsupported claims
 
 CRITICAL: When in doubt, DELETE. A shorter grounded report scores higher than a longer hallucinated one."""
@@ -180,78 +198,87 @@ def _make_crewai_llm(model_tier: str) -> LLM:
 
 
 # ── CrewAI bull/bear debate ───────────────────────────────────────────────────
+#
+# Bull and bear cases are independent — neither reads the other's output — but
+# CrewAI's default Process.sequential ran them as two LLM calls back to back
+# inside one Crew, serializing two calls that have nothing to wait on each
+# other for. Split into two single-agent, single-task crews so report_agent
+# can run them concurrently via asyncio.gather(to_thread(...), to_thread(...))
+# instead of one crew.kickoff() blocking on both in turn. Same prompts, same
+# model, same evidence — only the execution schedule changes.
 
-def _build_debate_crew(evidence_summary: str, model_tier: str) -> Crew:
-    llm = _make_crewai_llm(model_tier)
-
-    bull_analyst = Agent(
-        role="Bull Analyst",
-        goal="Make the strongest positive case for this company's earnings results",
-        backstory=(
-            "You are an optimistic equity research analyst who focuses on growth "
-            "drivers, positive surprises, and upside catalysts in earnings disclosures. "
-            "You are rigorous — you only cite evidence that actually exists in the filing."
-        ),
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-    )
-
-    bear_analyst = Agent(
-        role="Bear Analyst",
-        goal="Identify the key risks, weaknesses, and concerns in this company's earnings results",
-        backstory=(
-            "You are a skeptical equity research analyst who focuses on risks, "
-            "missed targets, deteriorating metrics, and cautionary language in earnings "
-            "disclosures. You are rigorous — you only cite evidence that actually exists."
-        ),
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-    )
-
-    bull_task = Task(
-        description=(
-            f"Based on the following earnings evidence, present the strongest "
-            f"positive investment case in 150-200 words. Focus on growth drivers, "
-            f"beats vs expectations, positive guidance, and operational strengths.\n\n"
-            f"EVIDENCE:\n{evidence_summary}"
-        ),
-        expected_output="A 150-200 word bull case summary citing specific evidence.",
-        agent=bull_analyst,
-    )
-
-    bear_task = Task(
-        description=(
-            f"Based on the following earnings evidence, present the strongest "
-            f"critical case in 150-200 words. Focus on risks, misses, deteriorating "
-            f"trends, hedged guidance, and concerns raised by analysts.\n\n"
-            f"EVIDENCE:\n{evidence_summary}"
-        ),
-        expected_output="A 150-200 word bear case summary citing specific evidence.",
-        agent=bear_analyst,
-    )
-
-    return Crew(
-        agents=[bull_analyst, bear_analyst],
-        tasks=[bull_task, bear_task],
-        verbose=False,
-    )
-
-
-def _run_debate_sync(evidence_summary: str, model_tier: str) -> str:
+def _run_bull_sync(evidence_summary: str, model_tier: str) -> str:
     try:
-        crew = _build_debate_crew(evidence_summary, model_tier)
-        result = crew.kickoff()
-        outputs = result.tasks_output if hasattr(result, "tasks_output") else []
-        if len(outputs) >= 2:
-            bull_text = outputs[0].raw if hasattr(outputs[0], "raw") else str(outputs[0])
-            bear_text = outputs[1].raw if hasattr(outputs[1], "raw") else str(outputs[1])
-            return f"=== BULL CASE ===\n{bull_text}\n\n=== BEAR CASE ===\n{bear_text}"
-        return str(result)
+        llm = _make_crewai_llm(model_tier)
+        bull_analyst = Agent(
+            role="Bull Analyst",
+            goal="Make the strongest positive case for this company's earnings results",
+            backstory=(
+                "You are an optimistic equity research analyst who focuses on growth "
+                "drivers, positive surprises, and upside catalysts in earnings disclosures. "
+                "You are rigorous — you only cite evidence that actually exists in the filing."
+            ),
+            llm=llm,
+            verbose=False,
+            allow_delegation=False,
+        )
+        bull_task = Task(
+            description=(
+                f"Based on the following earnings evidence, present the strongest "
+                f"positive investment case in 150-200 words. Focus on growth drivers, "
+                f"beats vs expectations, positive guidance, and operational strengths.\n\n"
+                f"EVIDENCE:\n{evidence_summary}"
+            ),
+            expected_output="A 150-200 word bull case summary citing specific evidence.",
+            agent=bull_analyst,
+        )
+        crew = Crew(agents=[bull_analyst], tasks=[bull_task], verbose=False)
+        return crew.kickoff().raw
     except Exception as exc:
-        print(f"[report_agent] CrewAI debate failed (non-fatal): {exc}")
+        print(f"[report_agent] CrewAI bull analysis failed (non-fatal): {exc}")
         return ""
+
+
+def _run_bear_sync(evidence_summary: str, model_tier: str) -> str:
+    try:
+        llm = _make_crewai_llm(model_tier)
+        bear_analyst = Agent(
+            role="Bear Analyst",
+            goal="Identify the key risks, weaknesses, and concerns in this company's earnings results",
+            backstory=(
+                "You are a skeptical equity research analyst who focuses on risks, "
+                "missed targets, deteriorating metrics, and cautionary language in earnings "
+                "disclosures. You are rigorous — you only cite evidence that actually exists."
+            ),
+            llm=llm,
+            verbose=False,
+            allow_delegation=False,
+        )
+        bear_task = Task(
+            description=(
+                f"Based on the following earnings evidence, present the strongest "
+                f"critical case in 150-200 words. Focus on risks, misses, deteriorating "
+                f"trends, hedged guidance, and concerns raised by analysts.\n\n"
+                f"EVIDENCE:\n{evidence_summary}"
+            ),
+            expected_output="A 150-200 word bear case summary citing specific evidence.",
+            agent=bear_analyst,
+        )
+        crew = Crew(agents=[bear_analyst], tasks=[bear_task], verbose=False)
+        return crew.kickoff().raw
+    except Exception as exc:
+        print(f"[report_agent] CrewAI bear analysis failed (non-fatal): {exc}")
+        return ""
+
+
+async def _run_debate(evidence_summary: str, model_tier: str) -> str:
+    bull_text, bear_text = await asyncio.gather(
+        asyncio.to_thread(_run_bull_sync, evidence_summary, model_tier),
+        asyncio.to_thread(_run_bear_sync, evidence_summary, model_tier),
+    )
+    if not bull_text and not bear_text:
+        return ""
+    return f"=== BULL CASE ===\n{bull_text}\n\n=== BEAR CASE ===\n{bear_text}"
 
 
 # ── Main agent node ───────────────────────────────────────────────────────────
@@ -266,9 +293,7 @@ async def report_agent(state: GraphState) -> dict:
 
     # ── Step 1: Bull/Bear debate (CrewAI) ─────────────────────────────────
     evidence_summary = _build_evidence_summary(state)
-    debate_summary = await asyncio.to_thread(
-        _run_debate_sync, evidence_summary, model_tier
-    )
+    debate_summary = await _run_debate(evidence_summary, model_tier)
 
     # ── Step 2: Draft ─────────────────────────────────────────────────────
     # chunk_text and extra_evidence are built once and reused in verify —
@@ -434,20 +459,29 @@ def _build_evidence_summary(state: GraphState) -> str:
 # ── Async LLM wrapper ─────────────────────────────────────────────────────────
 
 async def _llm_call(system: str, user: str, model_tier: str = "primary") -> tuple[str, int]:
-    try:
-        response = await openai_client.achat_tiered(
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            model_tier=model_tier,
-        )
-        text = response.choices[0].message.content or ""
-        tokens = response.usage.total_tokens if response.usage else 0
-        return text, tokens
-    except Exception as exc:
-        print(f"[report_agent] LLM call failed: {exc}")
-        return "", 0
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            response = await openai_client.achat_tiered(
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                model_tier=model_tier,
+            )
+            text = response.choices[0].message.content or ""
+            tokens = response.usage.total_tokens if response.usage else 0
+            return text, tokens
+        except openai.RateLimitError as exc:
+            if attempt == _MAX_RETRIES:
+                print(f"[report_agent] LLM call rate-limited, giving up after {_MAX_RETRIES} attempts: {exc}")
+                return "", 0
+            wait = _RETRY_BACKOFF * (2 ** (attempt - 1))
+            print(f"[report_agent] LLM call rate-limited (attempt {attempt}/{_MAX_RETRIES}) — retrying in {wait:.0f}s")
+            await asyncio.sleep(wait)
+        except Exception as exc:
+            print(f"[report_agent] LLM call failed: {exc}")
+            return "", 0
+    return "", 0  # unreachable — loop always returns or retries
 
 
 def _empty(reason: str, t0: float) -> dict:

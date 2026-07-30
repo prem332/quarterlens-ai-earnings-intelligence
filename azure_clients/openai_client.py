@@ -182,6 +182,40 @@ class OpenAIClient:
         )
         return response
 
+    async def achat_tiered_stream(
+        self,
+        messages: list[dict],
+        model_tier: str = "primary",
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
+        max_completion_tokens: Optional[int] = None,
+    ):
+        """
+        Same routing/token-floor rules as achat_tiered, but yields text deltas
+        as they arrive instead of waiting for the full response.
+
+        Used by report_agent's draft step so a UI can show tokens appearing
+        live. Not used anywhere on the eval path — run_baseline_eval.py and
+        every other caller keep using the non-streaming achat_tiered.
+
+        Yields: str chunks. Concatenate everything yielded to get the full text.
+        """
+        deployment = (
+            self._standard_deployment if model_tier == "standard"
+            else self._chat_deployment
+        )
+        limit = max_completion_tokens or max_tokens
+        limit = max(limit, _MIN_SAFE_TOKENS)
+
+        stream = await self._async_client.chat.completions.create(
+            model=deployment,
+            messages=messages,
+            max_completion_tokens=limit,
+            stream=True,
+        )
+        async for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
     # ------------------------------------------------------------------
     # Embeddings
     # ------------------------------------------------------------------

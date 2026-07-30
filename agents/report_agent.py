@@ -290,6 +290,12 @@ async def report_agent(state: GraphState) -> dict:
     t0 = time.time()
     total_tokens = 0
     model_tier = state.get("model_tier", "primary")
+    # Not part of GraphState's TypedDict (would need Python 3.11+ NotRequired;
+    # this repo targets 3.10) — set only by api/routes/analysis.py when a
+    # browser is listening on the SSE stream endpoint. None for every eval-path
+    # invocation (run_baseline_eval.py calls compiled_graph.ainvoke() directly
+    # with no such key), which is exactly when streaming should be skipped.
+    stream_queue = state.get("stream_queue")
 
     # ── Step 1: Bull/Bear debate (CrewAI) ─────────────────────────────────
     evidence_summary = _build_evidence_summary(state)
@@ -301,11 +307,17 @@ async def report_agent(state: GraphState) -> dict:
     chunk_text = _build_chunk_text(state)
     extra_evidence = _build_extra_evidence(state)
     draft_prompt = _build_draft_prompt(state, chunk_text, extra_evidence, debate_summary)
-    draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt, model_tier)
+    if stream_queue is not None:
+        draft, tokens = await _llm_call_streaming(_DRAFT_SYSTEM, draft_prompt, model_tier, stream_queue)
+    else:
+        draft, tokens = await _llm_call(_DRAFT_SYSTEM, draft_prompt, model_tier)
     total_tokens += tokens
 
     if not draft:
         return _empty("draft generation failed", t0)
+
+    if stream_queue is not None:
+        await stream_queue.put({"type": "verifying"})
 
     # ── Step 3: Verify ────────────────────────────────────────────────────
     # Use chunk_text + extra_evidence — the exact same evidence the draft was
@@ -330,6 +342,9 @@ async def report_agent(state: GraphState) -> dict:
     total_tokens += tokens
 
     final_report = verified_report or draft
+
+    if stream_queue is not None:
+        await stream_queue.put({"type": "final", "report": final_report})
 
     entry: DecisionLogEntry = {
         "agent": "report_agent",
@@ -480,6 +495,52 @@ async def _llm_call(system: str, user: str, model_tier: str = "primary") -> tupl
             await asyncio.sleep(wait)
         except Exception as exc:
             print(f"[report_agent] LLM call failed: {exc}")
+            return "", 0
+    return "", 0  # unreachable — loop always returns or retries
+
+
+async def _llm_call_streaming(
+    system: str, user: str, model_tier: str, stream_queue,
+) -> tuple[str, int]:
+    """
+    Same contract and retry policy as _llm_call, but pushes each text delta
+    to stream_queue as {"type": "draft_token", "text": delta} while the
+    response is still being generated, instead of returning only once the
+    full text is back. Only used for the draft step, and only when a
+    consumer is actually listening (api/routes/analysis.py's SSE endpoint).
+
+    No token-usage figure is available in streaming mode (the SDK only
+    returns usage on the final non-streamed response); returns 0, same as
+    every other failure path here — total_tokens is already best-effort.
+    """
+    for attempt in range(1, _MAX_RETRIES + 1):
+        chunks: list[str] = []
+        try:
+            async for delta in openai_client.achat_tiered_stream(
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                model_tier=model_tier,
+            ):
+                chunks.append(delta)
+                await stream_queue.put({"type": "draft_token", "text": delta})
+            return "".join(chunks), 0
+        except openai.RateLimitError as exc:
+            if attempt == _MAX_RETRIES:
+                print(f"[report_agent] streaming LLM call rate-limited, giving up after {_MAX_RETRIES} attempts: {exc}")
+                return "", 0
+            wait = _RETRY_BACKOFF * (2 ** (attempt - 1))
+            print(f"[report_agent] streaming LLM call rate-limited (attempt {attempt}/{_MAX_RETRIES}) — retrying in {wait:.0f}s")
+            if chunks:
+                # A 429 mid-stream (rare — the request was already accepted,
+                # but possible) leaves partial text already pushed to the
+                # queue. Retrying re-generates from scratch, so the consumer
+                # must discard what it has, not append the retry on top of it.
+                await stream_queue.put({"type": "draft_reset"})
+            await asyncio.sleep(wait)
+        except Exception as exc:
+            print(f"[report_agent] streaming LLM call failed: {exc}")
             return "", 0
     return "", 0  # unreachable — loop always returns or retries
 

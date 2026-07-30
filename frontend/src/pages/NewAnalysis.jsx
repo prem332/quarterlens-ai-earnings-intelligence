@@ -52,6 +52,8 @@ const STAGE_CUMULATIVE = AGENTS.reduce((acc, a) => {
 function AgentProgress({ runId, onDone }) {
   const [pollStatus, setPollStatus] = useState("running");
   const [elapsed, setElapsed] = useState(0);
+  const [draftText, setDraftText] = useState("");
+  const [draftPhase, setDraftPhase] = useState(null); // null | "drafting" | "verifying"
   const pollTimerRef = useRef(null);
   const tickTimerRef = useRef(null);
   const startRef = useRef(Date.now());
@@ -83,6 +85,41 @@ function AgentProgress({ runId, onDone }) {
     };
   }, [runId]);
 
+  // Live token stream for report_agent's draft/verify pass — see
+  // api/routes/analysis.py's /stream endpoint. This is genuinely the only
+  // part of the pipeline that CAN stream: retrieval/comparison/sentiment/
+  // numeric all run and finish before report_agent even starts, so no tokens
+  // exist to show until then regardless of how this connects. EventSource
+  // retries automatically on its own if it connects before the run's queue
+  // is registered (a race of a few ms, not something to special-case here).
+  //
+  // draft_token text is UNVERIFIED — report_agent's verify pass can still
+  // delete or rewrite sentences after drafting finishes. "final" event
+  // replaces the streamed text with what was actually verified, so what's
+  // shown here can visibly change once verification completes; that's
+  // expected, not a bug, and is why the phase label changes to "verifying"
+  // rather than silently continuing to look done.
+  useEffect(() => {
+    const es = new EventSource(`/api/analysis/${runId}/stream`);
+    es.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === "draft_token") {
+        setDraftPhase("drafting");
+        setDraftText(prev => prev + msg.text);
+      } else if (msg.type === "draft_reset") {
+        setDraftText("");
+      } else if (msg.type === "verifying") {
+        setDraftPhase("verifying");
+      } else if (msg.type === "final") {
+        setDraftText(msg.report);
+      } else if (msg.type === "done") {
+        es.close();
+      }
+    };
+    es.onerror = () => { /* browser retries automatically; nothing to do */ };
+    return () => es.close();
+  }, [runId]);
+
   // First stage whose cumulative threshold hasn't been reached yet; once
   // elapsed exceeds every threshold, stay on the last stage (report).
   const firstUnreached = STAGE_CUMULATIVE.findIndex(threshold => elapsed < threshold);
@@ -111,6 +148,25 @@ function AgentProgress({ runId, onDone }) {
           </div>
         );
       })}
+
+      {draftPhase && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+          <p style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {draftPhase === "drafting" ? "Drafting… (unverified)" : "Verifying citations…"}
+          </p>
+          <div
+            className="mono"
+            style={{
+              fontSize: 12, lineHeight: 1.6, color: "var(--text-dim)",
+              maxHeight: 220, overflowY: "auto", whiteSpace: "pre-wrap",
+              background: "var(--bg)", border: "1px solid var(--border)",
+              borderRadius: "var(--radius)", padding: 12,
+            }}
+          >
+            {draftText}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

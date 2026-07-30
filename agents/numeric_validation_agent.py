@@ -17,6 +17,7 @@ import time
 from graph.state import GraphState, DecisionLogEntry, NumericValidation
 from agents._common import ms, skipped
 from tools.calculate_metric import calculate_metric
+from tools.fetch_prior_quarter import _parse_fiscal_label
 from azure_clients.openai_client import openai_client
 
 
@@ -28,7 +29,9 @@ For each claim, identify:
   - "metric": short snake_case identifier (e.g. revenue_growth_yoy, gross_margin, eps_diluted)
   - "claimed_value": the numeric value as a float (percentages as decimals if stated as %, else raw)
   - "value_type": "percentage" | "absolute" | "ratio"
-  - "period": fiscal quarter or period the claim refers to (e.g. "Q2_FY2025")
+  - "period": fiscal quarter the claim refers to, in the exact format "FY2025-Q2"
+    (four-digit year, dash, Q + quarter number — this must match calculate_metric's
+    fiscal_label format exactly, or the lookup will silently find nothing)
 
 Respond ONLY with a JSON array. No preamble, no markdown fences."""
 
@@ -72,7 +75,7 @@ def numeric_validation_agent(state: GraphState) -> dict:
     for claim_obj in raw_claims:
         claimed_metric = claim_obj.get("metric", "")
         claimed_value = claim_obj.get("claimed_value")
-        period = claim_obj.get("period", quarter)
+        period = _normalize_period(claim_obj.get("period"), quarter)
 
         try:
             calc_result = calculate_metric(
@@ -117,6 +120,35 @@ def numeric_validation_agent(state: GraphState) -> dict:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _normalize_period(period: str | None, fallback: str) -> str:
+    """
+    Canonicalize the LLM-extracted period into the "FY2025-Q2" format
+    calculate_metric/financial_facts actually key on.
+
+    The extraction prompt now asks for this format directly, but LLMs don't
+    reliably follow format instructions — this is a defensive second layer.
+    Confirmed as the root cause of a 100% numeric-validation failure rate: the
+    prompt previously suggested "Q2_FY2025" as the example, the LLM followed
+    it literally, and calculate_metric's fiscal_label lookup silently found
+    nothing for every single claim (verified directly: calculate_metric(...,
+    fiscal_label="Q4_FY2025") -> value=None, "No fact found"; the identical
+    call with fiscal_label="FY2025-Q4" -> the real filed value). Reuses
+    tools.fetch_prior_quarter._parse_fiscal_label, which already accepts both
+    the canonical and legacy formats (comparison_agent imports it the same way).
+
+    Falls back to `fallback` — the state's own known-correct quarter — when the
+    extracted string can't be parsed as a quarter at all (missing, or the LLM
+    described a period in free text instead of a Q#/year pair).
+    """
+    if period:
+        try:
+            q_idx, year = _parse_fiscal_label(period)
+            return f"FY{year}-Q{q_idx + 1}"
+        except ValueError:
+            pass
+    return fallback
+
 
 def _concat_transcript(retrieval_results: list, max_chars: int = 6000) -> str:
     """

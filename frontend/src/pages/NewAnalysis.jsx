@@ -7,10 +7,19 @@ const QUARTERS = ["FY2026-Q2","FY2026-Q1","FY2025-Q4","FY2025-Q3","FY2025-Q2","F
 
 const AGENTS = ["retrieval","comparison","sentiment","numeric_validation","report"];
 
+// The backend only ever reports overall pending/running/completed/failed — it
+// has no per-agent telemetry to poll. A typical run takes ~110s end-to-end
+// (measured), so the "current stage" shown here is an elapsed-time ESTIMATE
+// split evenly across the 5 stages, not a live signal. It's deliberately
+// framed as an estimate in the UI rather than implying real tracking.
+const ESTIMATED_TOTAL_SECONDS = 110;
+
 function AgentProgress({ runId, onDone }) {
-  const [statuses, setStatuses] = useState({});
   const [pollStatus, setPollStatus] = useState("running");
-  const timerRef = useRef(null);
+  const [elapsed, setElapsed] = useState(0);
+  const pollTimerRef = useRef(null);
+  const tickTimerRef = useRef(null);
+  const startRef = useRef(Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -20,38 +29,38 @@ function AgentProgress({ runId, onDone }) {
         if (cancelled) return;
         setPollStatus(s.status);
         if (s.status === "completed" || s.status === "failed") {
-          clearInterval(timerRef.current);
+          clearInterval(pollTimerRef.current);
+          clearInterval(tickTimerRef.current);
           onDone(s.status, s.error);
-        }
-        // Simulate per-agent progress from overall status
-        if (s.status === "running") {
-          setStatuses(prev => {
-            const next = { ...prev };
-            const done = Object.keys(prev).filter(k => prev[k] === "done").length;
-            const idx = Math.min(done, AGENTS.length - 1);
-            if (!next[AGENTS[idx]]) next[AGENTS[idx]] = "running";
-            return next;
-          });
-        }
-        if (s.status === "completed") {
-          const all = {};
-          AGENTS.forEach(a => all[a] = "done");
-          setStatuses(all);
         }
       } catch { /* transient — keep polling */ }
     }
     poll();
-    timerRef.current = setInterval(poll, 2000);
-    return () => { cancelled = true; clearInterval(timerRef.current); };
+    pollTimerRef.current = setInterval(poll, 2000);
+    tickTimerRef.current = setInterval(
+      () => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)),
+      1000
+    );
+    return () => {
+      cancelled = true;
+      clearInterval(pollTimerRef.current);
+      clearInterval(tickTimerRef.current);
+    };
   }, [runId]);
+
+  const perStage = ESTIMATED_TOTAL_SECONDS / AGENTS.length;
+  const estimatedIdx = Math.min(Math.floor(elapsed / perStage), AGENTS.length - 1);
 
   return (
     <div className="card" style={{ marginTop: 24 }}>
       <p style={{ fontSize: 12, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-        Pipeline — {pollStatus}
+        Pipeline — {pollStatus} ({elapsed}s elapsed — stages below are an estimate, not live tracking)
       </p>
-      {AGENTS.map(a => {
-        const st = statuses[a];
+      {AGENTS.map((a, i) => {
+        const st = pollStatus === "completed" ? "done"
+          : i < estimatedIdx ? "done"
+          : i === estimatedIdx ? "running"
+          : null;
         return (
           <div key={a} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
             <span style={{ width: 16, textAlign: "center" }}>

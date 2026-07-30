@@ -41,7 +41,7 @@ export default function AnalysisReport() {
   if (!data)   return null;
 
   const passRate = data.numeric_validations.length > 0
-    ? (data.numeric_validations.filter(v => v.verified).length / data.numeric_validations.length * 100).toFixed(0)
+    ? (data.numeric_validations.filter(v => v.match).length / data.numeric_validations.length * 100).toFixed(0)
     : null;
 
   return (
@@ -94,11 +94,11 @@ export default function AnalysisReport() {
               {data.numeric_validations.map((v, i) => (
                 <tr key={i}>
                   <td style={{ width: 20 }}>
-                    {v.verified ? <span className="check">✓</span> : <span className="cross">✗</span>}
+                    {v.match ? <span className="check">✓</span> : <span className="cross">✗</span>}
                   </td>
                   <td>{v.claim}</td>
-                  <td className="mono">{v.filed_value ?? "—"}</td>
-                  <td className="mono">{v.stated_value ?? "—"}</td>
+                  <td className="mono">{v.calculated_value ?? "—"}</td>
+                  <td className="mono">{v.claimed_value ?? "—"}</td>
                   <td className="mono" style={{ color: v.delta_pct != null && Math.abs(v.delta_pct) > 1 ? "var(--red)" : "var(--text-dim)" }}>
                     {v.delta_pct != null ? `${v.delta_pct > 0 ? "+" : ""}${v.delta_pct.toFixed(1)}%` : "—"}
                   </td>
@@ -120,14 +120,21 @@ export default function AnalysisReport() {
                   ? <span className="badge badge-failed">shift detected</span>
                   : <span className="badge badge-completed">no shift</span>}
               </div>
+              {f.shift_description && (
+                <p className="dim" style={{ fontSize: 13, marginBottom: 10 }}>{f.shift_description}</p>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
                 <div>
                   <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 4 }}>CURRENT</p>
-                  <p style={{ lineHeight: 1.5 }}>{f.current}</p>
+                  <p style={{ lineHeight: 1.5 }}>{f.current_language}</p>
                 </div>
                 <div>
-                  <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 4 }}>{f.quarter}</p>
-                  <p style={{ lineHeight: 1.5 }}>{f.prior}</p>
+                  {Object.entries(f.prior_language || {}).map(([fiscalLabel, excerpt]) => (
+                    <div key={fiscalLabel} style={{ marginBottom: 8 }}>
+                      <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 4 }}>{fiscalLabel}</p>
+                      <p style={{ lineHeight: 1.5 }}>{excerpt}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -152,7 +159,7 @@ export default function AnalysisReport() {
                 >
                   {s.label}
                 </span>
-                <p style={{ fontSize: 13, lineHeight: 1.5 }}>"{s.excerpt}"</p>
+                <p style={{ fontSize: 13, lineHeight: 1.5 }}>"{s.passage}"</p>
                 <span className="mono dim" style={{ fontSize: 11, flexShrink: 0, marginTop: 3 }}>{(s.score * 100).toFixed(0)}%</span>
               </div>
             ))}

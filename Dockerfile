@@ -14,11 +14,20 @@ FROM python:3.10-slim AS backend
 
 # pyodbc/azure_clients/sql_client.py requires "ODBC Driver 18 for SQL Server"
 # at the OS level (not a pip package) — install it from Microsoft's apt repo.
+#
+# NOT using packages-microsoft-prod.deb (Microsoft's own installer package)
+# here: its bundled keyring carries a SHA1-based key self-certification that
+# apt's newer sequoia/sqv verification backend rejects outright ("SHA1 is not
+# considered secure since 2026-02-01") — a Microsoft-side trust-file staleness
+# issue, not anything specific to this Dockerfile. Fetching the raw key
+# directly and registering the repo with an explicit signed-by keyring is
+# the current non-deprecated method and avoids that stale bundled cert.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl gnupg unixodbc-dev gcc g++ \
-    && curl -sSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
-    && dpkg -i packages-microsoft-prod.deb \
-    && rm packages-microsoft-prod.deb \
+    && curl -sSL https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+        > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
     && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
     && apt-get purge -y --auto-remove curl gnupg \

@@ -98,4 +98,11 @@ jobs:
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
-          curl -sf "https://$APP_URL/api/health" || (echo "Post-deploy health check failed" && exit 1)
+          # min-replicas is 0 (scale-to-zero) and startup does real work --
+          # cross-encoder warm-up alone is ~18s (see tools/rerank_documents.py),
+          # plus a cold image pull and torch/transformers imports on a brand
+          # new revision. A single unforgiving curl failed here for exactly
+          # that reason on the first real deploy; retry with patience instead.
+          curl -sf --retry 10 --retry-delay 15 --retry-connrefused \
+            --max-time 20 "https://$APP_URL/api/health" \
+            || (echo "Post-deploy health check failed after retries" && exit 1)

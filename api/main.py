@@ -43,6 +43,13 @@ app.include_router(reports.router)
 app.include_router(evidence.router)
 app.include_router(export.router)
 
+
+@app.get("/api/health", include_in_schema=False)
+async def health() -> dict:
+    """Liveness probe — no Azure calls, so it stays fast even if a dependency
+    (Key Vault, AI Search, ...) is degraded. Container orchestrators poll this."""
+    return {"status": "ok"}
+
 # Serve React build — must come after API routes
 _static_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.isdir(_static_dir):

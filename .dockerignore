@@ -1,0 +1,28 @@
+# Local environments / caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.github/
+
+# Data artifacts — the live API queries Azure AI Search directly, it never
+# reads these offline ingestion outputs
+data/
+mlruns/
+mlflow.db
+
+# Frontend: only the build output is needed; sources rebuild in the frontend
+# stage and node_modules must never cross into the image
+frontend/node_modules/
+frontend/dist/
+
+# Eval-only / not part of the deployed API
+golden_dataset/claims/
+evaluation/detail_report_*.json
+tests/
+
+# Secrets — never bake these into an image layer
+.env
+.env.*
+!.env.example

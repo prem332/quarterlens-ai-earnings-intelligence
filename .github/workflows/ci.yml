@@ -43,6 +43,13 @@ jobs:
       # anywhere — this only confirms the image builds, it does not deploy.
       - name: Build image
         uses: docker/build-push-action@v6
+        env:
+          # Default buildx progress output collapses each RUN step's stdout
+          # into a condensed summary on failure — the actual apt-get error
+          # text (the thing that explains *why* exit code 100 happened) gets
+          # swallowed. Plain mode streams every line so failures are debuggable
+          # from the Actions log instead of needing a local reproduction.
+          BUILDKIT_PROGRESS: plain
         with:
           context: .
           push: false

@@ -105,7 +105,6 @@ def _stratified_sample(claims: list[dict], n: int, seed: int = 42) -> list[dict]
 
     # Allocate slots proportionally, min 1 per type present
     result: list[dict] = []
-    remaining = n
     types = list(by_type.keys())
 
     # First pass: allocate proportionally

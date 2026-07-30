@@ -27,4 +27,25 @@ jobs:
         run: ruff check .
 
       - name: Test (pytest)
-        run: pytest -q || true  # remove "|| true" once real tests exist
+        run: pytest tests/ -q
+
+  docker-build:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Verifies the multi-stage build (frontend npm build -> Python backend +
+      # ODBC driver install) actually succeeds end to end. Never pushed
+      # anywhere — this only confirms the image builds, it does not deploy.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: quarterlens-ai:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

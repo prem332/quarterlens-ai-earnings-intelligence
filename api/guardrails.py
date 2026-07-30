@@ -72,6 +72,16 @@ _FINANCIAL_DOMAIN_TERMS = [
     "cost", "expense", "cash flow", "operating", "gross", "net", "yoy", "qoq",
     "compare", "verify", "summar", "risk", "capex", "spend", "backlog", "demand",
     "management", "executive", "management's discussion", "mda", "balance sheet",
+    # Broadened after a real false positive on a legitimate earnings-call
+    "leadership", "ceo", "cfo", "investor", "shareholder", "stock", "share",
+    "investment", "invest", "ai ", " ai", "artificial intelligence", "infrastructure",
+    "data center", "datacenter", "chip", "semiconductor", "supply chain",
+    "customer", "subscriber", "competition", "competitor", "market share",
+    "buyback", "dividend", "headcount", "hiring", "layoff", "product", "launch",
+    "pricing", "price", "tariff", "regulation", "macro", "cloud", "platform",
+    "engagement", "advertising", "monetiz", "retention", "capacity", "utilization",
+    "r&d", "research and development", "partnership", "acquisition", "strategy",
+    "strategic", "priorit", "business", "company", "plan",
 ]
 
 

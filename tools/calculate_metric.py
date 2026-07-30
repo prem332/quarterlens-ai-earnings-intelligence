@@ -452,7 +452,7 @@ def calculate_metric(
         return base
 
     # ── YoY growth ────────────────────────────────────────────────────────
-    if metric_lower in _YOY_METRICS or ("yoy" in metric_lower and "cc" not in metric_lower) or metric_lower in _YOY_METRICS:
+    if metric_lower in _YOY_METRICS or ("yoy" in metric_lower and "cc" not in metric_lower):
         if not prior_fiscal_label:
             base["error"] = "prior_fiscal_label required for YoY growth"
             return base

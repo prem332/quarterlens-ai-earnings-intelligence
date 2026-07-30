@@ -41,6 +41,7 @@ import time
 from collections import defaultdict
 
 from graph.state import GraphState, DecisionLogEntry, RetrievalResult
+from agents._common import ms
 from tools.search_documents import search_documents, mmr_rerank
 from tools.rerank_documents import rerank_documents
 
@@ -136,14 +137,25 @@ def retrieval_agent(state: GraphState) -> dict:
     filing_raw     = _raw_search(query, company, quarter, doc_type=None,         label="filing")
     transcript_raw = _raw_search(query, company, quarter, doc_type="transcript", label="transcript")
 
-    # ── 2. Chunk-id deduplication (Fix 1) ────────────────────────────────
+    # ── 2. Preserve the FULL transcript pass for sentiment_agent ──────────
+    # Taken BEFORE cross-source dedup, and deduplicated only against itself.
+    # The filing pass is unfiltered, so it also returns transcript chunks; the
+    # cross-source dedup gives filing priority and therefore DELETES those
+    # chunks from the transcript list. That silently gutted this pool — 9 of 12
+    # chunks lost for AAPL_FY2025-Q3_sent_005, 5 of 12 for NVDA_FY2026-Q3_sent_002,
+    # in both cases including the exact sentence the sentiment claim was about,
+    # so FinBERT scored an unrelated passage (a safe-harbor disclaimer) instead.
+    # graph/state.py specifies this field as "raw transcript candidates ...
+    # maximum transcript coverage" — deduping it across sources contradicted that.
+    transcript_retrieval_results = _to_retrieval_results(
+        _dedup_within(transcript_raw), company, quarter
+    )
+
+    # ── 3. Chunk-id deduplication for the merged pool (Fix 1) ────────────
     # AI Search can return the same chunk in both passes (e.g. a chunk that
     # matches both the unfiltered filing query and the transcript query).
     # Deduplicating before MMR ensures each chunk occupies only one slot.
     filing_raw, transcript_raw = _dedup_across_sources(filing_raw, transcript_raw)
-
-    # ── 3. Preserve transcript candidates for sentiment_agent ─────────────
-    transcript_retrieval_results = _to_retrieval_results(transcript_raw, company, quarter)
 
     # ── 4. Merge candidates for global reranking ──────────────────────────
     merged = filing_raw + transcript_raw   # up to 20 unique candidates
@@ -192,7 +204,7 @@ def retrieval_agent(state: GraphState) -> dict:
         ),
         "confidence":  None,
         "tokens_used": None,
-        "latency_ms":  round((time.time() - t0) * 1000, 1),
+        "latency_ms":  ms(t0),
     }
 
     return {
@@ -203,6 +215,25 @@ def retrieval_agent(state: GraphState) -> dict:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _dedup_within(chunks: list[dict], seen: set[str] | None = None) -> list[dict]:
+    """
+    Drop repeated chunk_ids, preserving order. Chunks with no chunk_id are kept.
+
+    `seen` lets a caller carry state across two lists (used for cross-source
+    dedup); pass None to deduplicate a single list in isolation.
+    """
+    seen = set() if seen is None else seen
+    out: list[dict] = []
+    for c in chunks:
+        cid = c.get("chunk_id", "")
+        if not cid:
+            out.append(c)          # keep chunks without chunk_id
+        elif cid not in seen:
+            seen.add(cid)
+            out.append(c)
+    return out
+
 
 def _dedup_across_sources(
     filing_raw: list[dict],
@@ -216,27 +247,13 @@ def _dedup_across_sources(
 
     Fixes: NVDA_FY2026-Q3_cmp_001 — identical chunk_id at ranks 1 and 2
     caused by AI Search returning the same chunk twice within one search call.
+
+    Scope note: this shapes the MERGED pool that MMR ranks — it stops one chunk
+    occupying two candidate slots. It must NOT be used to build
+    transcript_retrieval_results; see the call site.
     """
     seen: set[str] = set()
-    deduped_filing: list[dict] = []
-    for c in filing_raw:
-        cid = c.get("chunk_id", "")
-        if cid and cid not in seen:
-            seen.add(cid)
-            deduped_filing.append(c)
-        elif not cid:
-            deduped_filing.append(c)  # keep chunks without chunk_id
-
-    deduped_transcript: list[dict] = []
-    for c in transcript_raw:
-        cid = c.get("chunk_id", "")
-        if cid and cid not in seen:
-            seen.add(cid)
-            deduped_transcript.append(c)
-        elif not cid:
-            deduped_transcript.append(c)
-
-    return deduped_filing, deduped_transcript
+    return _dedup_within(filing_raw, seen), _dedup_within(transcript_raw, seen)
 
 
 def _is_boilerplate(chunk: dict, query: str = "") -> bool:
@@ -331,8 +348,6 @@ def _raw_search(
             company=company,
             quarter=quarter,
             top=_CANDIDATE_K,
-            mmr=False,
-            rerank=False,
             use_cache=True,
         )
         return result.get("results", [])

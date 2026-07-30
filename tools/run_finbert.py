@@ -8,7 +8,7 @@ Design decisions:
   - Sentence-level windowing: splits on sentence boundaries to avoid cutting mid-phrase
   - Aggregation: weighted mean of per-window scores (weight = sentence count in window)
 
-Tool signature (matches tool_registry.py):
+Tool signature:
     run_finbert(text, chunk_size=400)   # chunk_size in tokens, leave headroom for [CLS]/[SEP]
 
 Returns:

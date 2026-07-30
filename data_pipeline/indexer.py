@@ -26,6 +26,7 @@ from azure.search.documents.indexes.models import (
     VectorSearchAlgorithmMetric,
 )
 from azure_clients.key_vault_client import kv
+from data_pipeline.manifest_io import exists_or_warn, read_manifest
 
 load_dotenv()
 
@@ -100,8 +101,6 @@ def build_index() -> SearchIndex:
 
 def recreate_index(client: SearchIndexClient) -> None:
     import time
-    from azure.search.documents import SearchClient
-    from azure_clients.key_vault_client import kv as _kv
 
     existing = [i for i in client.list_index_names()]
     if INDEX_NAME in existing:
@@ -127,8 +126,7 @@ def _load_all_docs(embedding_manifest: list[dict]) -> list[dict]:
     docs: list[dict] = []
     for entry in embedding_manifest:
         emb_path = Path(entry["embeddings_path"])
-        if not emb_path.exists():
-            log.warning("Missing embeddings file, skipping: %s", emb_path)
+        if not exists_or_warn(emb_path, "embeddings file", log):
             continue
         for chunk in json.loads(emb_path.read_text(encoding="utf-8")):
             docs.append({
@@ -185,14 +183,10 @@ def upload_docs(endpoint: str, key: str, docs: list[dict]) -> int:
 
 
 def run(embedding_manifest_path: str) -> None:
-    manifest_p = Path(embedding_manifest_path)
-    if not manifest_p.exists():
-        raise FileNotFoundError(f"Embedding manifest not found: {embedding_manifest_path}")
+    embedding_manifest = read_manifest(embedding_manifest_path, "Embedding manifest")
 
     endpoint = kv.get_secret("AZURE-SEARCH-ENDPOINT")
     key = kv.get_secret("AZURE-SEARCH-ADMIN-KEY")
-
-    embedding_manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
 
     index_client = make_index_client()
     recreate_index(index_client)

@@ -98,45 +98,6 @@ def get_langfuse_client():
     return _langfuse_client
 
 
-def trace_pipeline_run(
-    run_id: str,
-    company: str,
-    fiscal_label: str,
-    query: str,
-    metadata: dict | None = None,
-):
-    """
-    Create a top-level Langfuse trace for one pipeline run.
-    Call at the start of each pipeline invocation.
-
-    Args:
-        run_id:       Unique run identifier (matches Cosmos Decision Log run_id).
-        company:      Ticker symbol.
-        fiscal_label: Filing label (e.g. "FY2025-Q3").
-        query:        The analyst query.
-        metadata:     Optional additional metadata dict.
-
-    Returns:
-        Langfuse trace object, or None if client not initialised.
-    """
-    client = get_langfuse_client()
-    if client is None:
-        return None
-
-    try:
-        trace = client.trace(
-            id=run_id,
-            name=f"pipeline-{company}-{fiscal_label}",
-            input={"query": query, "company": company, "fiscal_label": fiscal_label},
-            metadata=metadata or {},
-            tags=[company, fiscal_label, "quarterlens"],
-        )
-        return trace
-    except Exception as exc:
-        log.warning("Langfuse trace creation failed: %s", exc)
-        return None
-
-
 def flush_langfuse() -> None:
     """
     Flush pending Langfuse events — call at app shutdown or end of eval run

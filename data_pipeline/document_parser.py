@@ -5,11 +5,18 @@ import json
 import logging
 import os
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from bs4 import BeautifulSoup, NavigableString, Tag, XMLParsedAsHTMLWarning
 import warnings
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+
+from data_pipeline.manifest_io import (
+    exists_or_warn, provenance, read_manifest, write_manifest,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("document_parser")
@@ -506,18 +513,13 @@ def parse_filing(
 # ---------------------------------------------------------------------------
 
 def run(manifest_path: str, out_root: str) -> None:
-    manifest_p = Path(manifest_path)
-    if not manifest_p.exists():
-        raise FileNotFoundError(f"Manifest not found: {manifest_path}")
-
-    manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
+    manifest = read_manifest(manifest_path, "Manifest")
     out_root_p = Path(out_root)
     parsed_manifest: list[dict] = []
 
     for entry in manifest:
         local_path = Path(entry["local_path"])
-        if not local_path.exists():
-            log.warning("Missing file, skipping: %s", local_path)
+        if not exists_or_warn(local_path, "file", log):
             continue
 
         log.info("Parsing %s %s (%s)", entry["ticker"], entry["fiscal_label"], entry["form"])
@@ -543,14 +545,14 @@ def run(manifest_path: str, out_root: str) -> None:
         )
 
         parsed_manifest.append({
-            **{k: entry[k] for k in
-               ("ticker", "cik", "fiscal_label", "form", "report_date", "accession")},
+            **provenance(entry),
             "section_count": len(sections),
             "parsed_path": str(out_file),
         })
 
-    parsed_manifest_path = out_root_p / "parsed_manifest.json"
-    parsed_manifest_path.write_text(json.dumps(parsed_manifest, indent=2), encoding="utf-8")
+    parsed_manifest_path = write_manifest(
+        out_root_p / "parsed_manifest.json", parsed_manifest
+    )
     log.info(
         "Done. %d/%d filings parsed. Manifest: %s",
         len(parsed_manifest), len(manifest), parsed_manifest_path,

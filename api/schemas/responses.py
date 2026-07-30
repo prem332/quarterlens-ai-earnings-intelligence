@@ -14,26 +14,33 @@ class RunStatusResponse(BaseModel):
     error: str | None = None
 
 
+# These three mirror the TypedDicts in graph/state.py exactly. The graph is the
+# source of truth: the pipeline's output is written to blob storage verbatim and
+# re-read here, so any field-name drift makes AnalysisResponse(**doc) raise
+# ValidationError and 500 the endpoint. Keep them in sync.
+
 class NumericValidation(BaseModel):
-    claim: str
-    filed_value: float | None
-    stated_value: float | None
-    verified: bool
+    claim: str                          # verbatim claim from the transcript
+    metric: str = ""                    # e.g. "revenue_growth_yoy"
+    claimed_value: float | None = None  # what the executive said
+    calculated_value: float | None = None  # what the filing supports
+    match: bool = False
     delta_pct: float | None = None
+    source_fiscal_label: str = ""
 
 
 class ComparisonFinding(BaseModel):
     topic: str
-    current: str
-    prior: str
-    quarter: Quarter
-    shift_detected: bool
+    current_language: str = ""
+    prior_language: dict[str, str] = {}   # {fiscal_label: excerpt}
+    shift_detected: bool = False
+    shift_description: str | None = None
 
 
 class SentimentScore(BaseModel):
     label: str          # positive / negative / neutral
     score: float
-    excerpt: str
+    passage: str = ""   # the text segment FinBERT scored
 
 
 class AnalysisResponse(BaseModel):

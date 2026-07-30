@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
+from azure.cosmos import CosmosClient, PartitionKey
 from azure_clients.key_vault_client import kv
 
 logger = logging.getLogger(__name__)
@@ -134,24 +134,6 @@ class CosmosDecisionLogClient:
             "CosmosDecisionLogClient: fetched %d entries for run=%s", len(items), run_id
         )
         return items
-
-    def get_agent_errors(self, run_id: str) -> list[dict]:
-        """
-        Fetch only error entries for a run — useful for debugging failed pipelines.
-        """
-        query = (
-            "SELECT * FROM c WHERE c.run_id = @run_id AND c.status = 'error' "
-            "ORDER BY c.timestamp ASC"
-        )
-        params = [{"name": "@run_id", "value": run_id}]
-
-        return list(
-            self._container.query_items(
-                query=query,
-                parameters=params,
-                partition_key=run_id,
-            )
-        )
 
 
 # Module-level singleton

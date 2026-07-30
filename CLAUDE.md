@@ -23,8 +23,8 @@ Read every file in these folders in order:
 - `data/parsed/MSFT/FY2026-Q3_10Q.json` — parsed filing: section structure and raw text format
 - `data/raw/transcripts/` — read one transcript JSON: speaker-turn structure
 - `data/chunks/MSFT/` — read one chunk JSON: actual chunk sizes, boundaries, subsection metadata
-- `evaluation/detail_report_baseline-structure-aware-25b.json` — retrieval error analysis
-  showing which specific claims fail, duplicate pairs, and classification breakdown
+- `evaluation/FINAL_REPORT.md` — the 7 locked metrics, their source runs, and the
+  cache hit-rate breakdown
 
 ### Step 3 — Produce diagnosis before writing any code
 After reading all files and data, diagnose:
@@ -183,12 +183,16 @@ chunking.py → embedding.py → indexer.py
 - **After that:** chunk topical purity (Fix 6, deferred — requires full re-embed + re-index; highest
   ceiling, highest recall risk — do not attempt before the MMR ablation is measured).
 
-### Metric Targets
-- context_precision_retrieval_subset: 0.5+ (currently 0.2833) ← PRIMARY TARGET
-- precision@5: 0.8+ (currently 0.7333)
-- llm_judge: 4.0+ (currently 2.9720)
-- numeric_pass_rate: 1.0 (locked — do not regress)
-- recall@5: 1.0 (locked — do not regress)
+### Metric Targets — LOCKED, see `evaluation/FINAL_REPORT.md`
+The reported metric set is exactly 7 (+ L1/L2/L3 cache hit rates). Final values,
+sources, and the cold-vs-warm cache explanation live in `evaluation/FINAL_REPORT.md`.
+
+- faithfulness 0.9121 ✅ | answer_relevancy 0.9564 ✅ | recall@5 1.0000 ✅
+- context_precision 0.82-0.86 | context_recall 0.8672 | llm_judge 4.20/5 | precision@5 0.8000
+
+`numeric_pass_rate` is no longer computed — it is not one of the 7 reported metrics.
+Its implementation was removed with `evaluate_finetuned_vs_baseline.py`; recover from
+git history if ever needed.
 
 ### Running Evaluations
 ```bash
@@ -197,8 +201,19 @@ python -c "from azure_clients.redis_client import clear_all_caches; clear_all_ca
 
 # Phased eval (cost control: 10 → 25 → 50 → 75)
 python evaluation/run_baseline_eval.py --max-claims 10 --run-name <name>
-python evaluation/run_baseline_eval.py --max-claims 25 --run-name <name> --detail-report
+python evaluation/run_baseline_eval.py --max-claims 25 --run-name <name>
 ```
+Note: `--detail-report` was removed along with the per-claim chunk-dump/error-analysis
+code path. Per-claim RAGAS scores and judge reasoning are still logged to MLflow as a
+`per_claim` JSON artifact.
+
+### Retrieval determinism (important when verifying refactors)
+Retrieval is **not** perfectly reproducible across time: AI Search hybrid BM25+vector
+RRF scoring drifts, so the same query can return a different rank-5 chunk days apart.
+Verified 2026-07-29 by running identical pre-refactor code hours apart and getting a
+different result for one of ten claims. When checking whether a change altered
+retrieval, always A/B the old and new code **in the same session** — a fingerprint
+captured earlier is not a valid baseline.
 
 ### Experiment Discipline
 - One variable change per experiment
@@ -254,6 +269,38 @@ python evaluation/run_baseline_eval.py --max-claims 25 --run-name <name> --detai
 - **#29** — `transcript_retrieval_results` added to GraphState
 - **#30** — Structure-aware chunking (sentence-boundary, zero overlap) replaces recursive
 - **#31** — `subsection` field added to AI Search index schema (filterable, not yet used)
+- **#32** — Code optimization pass (branch `fix9-code-optimization`): ~2,000 lines removed.
+  Deleted dead modules (`tool_registry`, `decision_log`, `evaluate_finetuned_vs_baseline`,
+  `finetuning/*`) and the retired `gpt-4o-mini` "finetuned" tier — which also removed
+  `report_model_tier` from `GraphState`. Added `agents/_common.py` (decision-log helpers)
+  and `data_pipeline/manifest_io.py` (manifest read/project/write). No agent behavior change.
+
+---
+
+## Optimization pass — what was deliberately NOT consolidated
+These look like duplication and are not. Merging any of them moves a locked metric:
+- **`_topic_overlap` ×3** (`retrieval_agent`, `sentiment_agent`, `run_baseline_eval`) —
+  **inverted semantics**: retrieval returns `1.0` on an empty query, the other two `0.0`;
+  stopword filtering differs per copy. The divergence is intentional and documented in-file.
+- **RAGAS `{}`-on-failure vs judge `error`-on-failure** — a RAGAS failure scores 0.0 *into*
+  the mean; a judge failure is *excluded* from it. Same-looking try/except, opposite effect.
+- **`ragas_eval` `[:8]` vs `llm_as_judge` `[:5]` context caps** — one shared constant would
+  move `llm_judge_mean`.
+- **`contexts` vs `gen_contexts`**, **`answer` vs `faithfulness_answer`** — each pair feeds
+  different metrics on purpose.
+- **5 retry loops** (sql/embedding/financials/indexer/transcript) — different counts, backoff
+  curves, and exhaustion behavior.
+- **2 sentence splitters** — both live, in the same call chain; only one guards abbreviations.
+- **`math.isnan` filter in `ragas_eval.py`** — provably dead, kept anyway: one line in a
+  metric-critical file isn't worth the risk.
+
+**Retracted from this list:** the `break`-on-budget-overflow in
+`numeric_validation_agent._concat_transcript` and `comparison_agent._ranked_context` was
+initially left alone as "bug-shaped but metric-locked". That was wrong — it was measurably
+returning `""` for 7/10 and 5/10 claims respectively (an oversized first chunk discarded
+everything behind it), so numeric extraction and comparison both ran on empty input. Fixed
+to `continue`. Lesson: "looks intentional" is not evidence; measure before classifying
+something as load-bearing.
 
 ---
 

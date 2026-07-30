@@ -18,6 +18,7 @@ The supervisor owns two nodes:
 import time
 import uuid
 from graph.state import GraphState, DecisionLogEntry
+from agents._common import log_entry, ms
 from azure_clients.cosmos_client import cosmos_decision_log
 from agents.router import classify_query
 
@@ -30,9 +31,9 @@ def supervisor_init(state: GraphState) -> dict:
     if missing:
         return {
             "error": f"Missing required input fields: {missing}",
-            "decision_log_entries": [_log_entry("supervisor_init", None,
+            "decision_log_entries": [log_entry("supervisor_init", None,
                 f"input={state.get('company')}/{state.get('quarter')}",
-                f"FAILED — missing {missing}", None, None, _ms(t0))],
+                f"FAILED — missing {missing}", None, None, ms(t0))],
         }
 
     # Model routing — classify query tier before pipeline runs (Phase 2)
@@ -56,7 +57,7 @@ def supervisor_init(state: GraphState) -> dict:
     if state.get("error") is None:
         defaults["error"] = None
 
-    entry: DecisionLogEntry = _log_entry(
+    entry: DecisionLogEntry = log_entry(
         agent="supervisor_init",
         tool_called=None,
         input_summary=(
@@ -66,7 +67,7 @@ def supervisor_init(state: GraphState) -> dict:
         output_summary=f"pipeline initialised — model_tier={model_tier}",
         confidence=None,
         tokens_used=None,
-        latency_ms=_ms(t0),
+        latency_ms=ms(t0),
     )
 
     return {**defaults, "decision_log_entries": [entry]}
@@ -92,14 +93,14 @@ def supervisor_finalize(state: GraphState) -> dict:
         )
         status = "success"
 
-    final_entry: DecisionLogEntry = _log_entry(
+    final_entry: DecisionLogEntry = log_entry(
         agent="supervisor_finalize",
         tool_called=None,
         input_summary=f"company={state['company']} quarter={state['quarter']}",
         output_summary=summary,
         confidence=None,
         tokens_used=None,
-        latency_ms=_ms(t0),
+        latency_ms=ms(t0),
     )
 
     # Persist audit trail to Cosmos DB — fire-and-forget, failure is non-fatal
@@ -129,29 +130,3 @@ def supervisor_finalize(state: GraphState) -> dict:
 def route_after_init(state: GraphState) -> str:
     """After init, go to retrieval unless there's a hard error."""
     return "error_exit" if state.get("error") else "retrieval_agent"
-
-
-# ── Internal helpers ──────────────────────────────────────────────────────────
-
-def _log_entry(
-    agent: str,
-    tool_called: str | None,
-    input_summary: str,
-    output_summary: str,
-    confidence: float | None,
-    tokens_used: int | None,
-    latency_ms: float | None,
-) -> DecisionLogEntry:
-    return DecisionLogEntry(
-        agent=agent,
-        tool_called=tool_called,
-        input_summary=input_summary,
-        output_summary=output_summary,
-        confidence=confidence,
-        tokens_used=tokens_used,
-        latency_ms=latency_ms,
-    )
-
-
-def _ms(t0: float) -> float:
-    return round((time.time() - t0) * 1000, 1)

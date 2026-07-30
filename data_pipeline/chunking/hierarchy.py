@@ -15,6 +15,9 @@ from pathlib import Path
 
 import tiktoken
 
+from data_pipeline.manifest_io import (
+    exists_or_warn, provenance, read_manifest, write_manifest,
+)
 from .config import (
     CHUNK_MIN, CHUNK_SIZE, CIK_MAP, PARENT_TARGET_TOKENS,
     SPEAKER_TURN_RE, TRANSCRIPT_TURNS_PER_CHUNK, get_encoder, token_count,
@@ -159,11 +162,7 @@ def chunk_transcript(record: dict, encoder: tiktoken.Encoding) -> list[dict]:
 
 def run(parsed_manifest_path: str, out_root: str,
         transcripts_manifest_path: str | None = None) -> None:
-    manifest_p = Path(parsed_manifest_path)
-    if not manifest_p.exists():
-        raise FileNotFoundError(f"Parsed manifest not found: {parsed_manifest_path}")
-
-    parsed_manifest = json.loads(manifest_p.read_text(encoding="utf-8"))
+    parsed_manifest = read_manifest(parsed_manifest_path, "Parsed manifest")
     out_root_p = Path(out_root)
     encoder = get_encoder()
     chunk_manifest: list[dict] = []
@@ -171,8 +170,7 @@ def run(parsed_manifest_path: str, out_root: str,
     log.info("=== Chunking %d filings (hierarchical + semantic) ===", len(parsed_manifest))
     for entry in parsed_manifest:
         parsed_path = Path(entry["parsed_path"])
-        if not parsed_path.exists():
-            log.warning("Missing parsed file, skipping: %s", parsed_path)
+        if not exists_or_warn(parsed_path, "parsed file", log):
             continue
         sections = json.loads(parsed_path.read_text(encoding="utf-8"))
         chunks = chunk_filing(sections, encoder)
@@ -182,8 +180,7 @@ def run(parsed_manifest_path: str, out_root: str,
         out_file.write_text(json.dumps(chunks, indent=2, ensure_ascii=False), encoding="utf-8")
         log.info("  %s %s: %d chunks", entry["ticker"], entry["fiscal_label"], len(chunks))
         chunk_manifest.append({
-            **{k: entry[k] for k in
-               ("ticker", "cik", "fiscal_label", "form", "report_date", "accession")},
+            **provenance(entry),
             "section_count": entry["section_count"],
             "chunk_count":   len(chunks),
             "chunks_path":   str(out_file),
@@ -196,8 +193,7 @@ def run(parsed_manifest_path: str, out_root: str,
         log.info("=== Chunking transcripts (speaker-turn aware) ===")
         for entry in json.loads(transcripts_p.read_text(encoding="utf-8")):
             local_path = Path(entry.get("local_path", ""))
-            if not local_path.exists():
-                log.warning("Missing transcript, skipping: %s", local_path)
+            if not exists_or_warn(local_path, "transcript", log):
                 continue
             record = json.loads(local_path.read_text(encoding="utf-8"))
             chunks = chunk_transcript(record, encoder)
@@ -219,8 +215,7 @@ def run(parsed_manifest_path: str, out_root: str,
     else:
         log.warning("Transcripts manifest not found at %s — skipping", transcripts_p)
 
-    manifest_out = out_root_p / "chunk_manifest.json"
-    manifest_out.write_text(json.dumps(chunk_manifest, indent=2), encoding="utf-8")
+    manifest_out = write_manifest(out_root_p / "chunk_manifest.json", chunk_manifest)
     total = sum(e["chunk_count"] for e in chunk_manifest)
     log.info("Done. %d entries, %d total chunks. Manifest: %s",
              len(chunk_manifest), total, manifest_out)

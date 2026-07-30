@@ -1,0 +1,46 @@
+name: Eval Gate
+
+# Deploy gate, not the real eval suite. Runs evaluation/smoke_test.py: one
+# real claim through the full LangGraph pipeline, asserting it completes,
+# non-empty, within budget. No RAGAS/LLM-judge scoring here on purpose — see
+# smoke_test.py's docstring. Called by deploy.yml before it will build/push
+# an image; can also be triggered manually to sanity-check main at any time.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write   # OIDC federated login -- same identity deploy.yml uses
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # No service-principal secret here. azure/login authenticates the
+      # runner's az CLI session via OIDC; DefaultAzureCredential (used by
+      # azure_clients/key_vault_client.py, unchanged) falls back through its
+      # chain to AzureCliCredential and picks that session up automatically.
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run smoke test against live Azure resources
+        env:
+          AZURE_KEY_VAULT_URL: ${{ vars.AZURE_KEY_VAULT_URL }}
+        run: python evaluation/smoke_test.py

@@ -1,0 +1,98 @@
+name: Deploy
+
+# Runs only after CI (lint-and-test + docker-build) has already passed on
+# main -- not in parallel with it. workflow_run is what makes that ordering
+# possible from a separate workflow file; job-level `if` below re-checks the
+# conclusion since workflow_run itself fires on both success and failure.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}  # manual re-deploy of the current main, if ever needed
+
+env:
+  ACR_NAME: quarterlensacr
+  RESOURCE_GROUP: quarterlens-phase1-rg
+  CONTAINER_APP_NAME: quarterlens-api
+  IMAGE_NAME: quarterlens-ai
+
+jobs:
+  eval-gate:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/eval_gate.yml
+    secrets: inherit
+
+  build-and-push:
+    needs: eval-gate
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC federated login -- no long-lived secret needed
+      contents: read
+    outputs:
+      image_tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: tag
+        run: echo "value=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # AAD-based ACR auth (az acr login), not the ACR admin user --
+      # avoids a separate long-lived registry credential entirely.
+      - name: ACR login
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Container Apps keeps prior revisions by default -- rollback is
+      # `az containerapp revision activate` on the previous one, or shifting
+      # traffic back with `az containerapp ingress traffic set`. No custom
+      # rollback tooling needed; see MLOPS.md.
+      - name: Deploy new revision
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+
+      - name: Post-deploy health check
+        run: |
+          APP_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          curl -sf "https://$APP_URL/api/health" || (echo "Post-deploy health check failed" && exit 1)

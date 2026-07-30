@@ -35,6 +35,7 @@ Why two separate retrieval outputs:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import time
@@ -124,7 +125,7 @@ def _topic_overlap(query: str, text: str) -> float:
     return len(qt & _tokens(text)) / len(qt)
 
 
-def retrieval_agent(state: GraphState) -> dict:
+async def retrieval_agent(state: GraphState) -> dict:
     if state.get("error"):
         return {}
 
@@ -133,9 +134,13 @@ def retrieval_agent(state: GraphState) -> dict:
     quarter = state["quarter"]
     query   = state["query"]
 
-    # ── 1. Raw retrieval — no reranking, independent per source ──────────
-    filing_raw     = _raw_search(query, company, quarter, doc_type=None,         label="filing")
-    transcript_raw = _raw_search(query, company, quarter, doc_type="transcript", label="transcript")
+    # ── 1. Raw retrieval — independent per source, run concurrently ──────
+    # Neither call depends on the other's result; they used to run back to
+    # back (~2.7s + ~0.6s measured), adding pure wait time for no reason.
+    filing_raw, transcript_raw = await asyncio.gather(
+        asyncio.to_thread(_raw_search, query, company, quarter, None, "filing"),
+        asyncio.to_thread(_raw_search, query, company, quarter, "transcript", "transcript"),
+    )
 
     # ── 2. Preserve the FULL transcript pass for sentiment_agent ──────────
     # Taken BEFORE cross-source dedup, and deduplicated only against itself.
@@ -188,7 +193,7 @@ def retrieval_agent(state: GraphState) -> dict:
     retrieval_results = _to_retrieval_results(final, company, quarter)
 
     # ── 8b. Small-to-big: reconstruct parent blocks for reasoning agents ──
-    retrieval_results = _expand_parents(retrieval_results, company, quarter)
+    retrieval_results = await _expand_parents(retrieval_results, company, quarter)
 
     entry: DecisionLogEntry = {
         "agent":         "retrieval_agent",
@@ -383,29 +388,51 @@ def _to_retrieval_results(
     ]
 
 
-def _expand_parents(
+async def _expand_parents(
     results: list[RetrievalResult],
     company: str,
     quarter: str,
 ) -> list[RetrievalResult]:
     """
     Small-to-big: reconstruct each child's L2 parent block by fetching its
-    siblings (one filtered query per unique parent, cached within the call) and
-    concatenating them in parent_index order. `content` stays the precise child
-    (retrieval + RAGAS precision); `parent_content` carries the rich context that
-    the reasoning agents consume. Degenerate parents (transcripts, single-child)
-    skip the fetch — parent_content == content.
+    siblings (one filtered query per unique parent) and concatenating them in
+    parent_index order. `content` stays the precise child (retrieval + RAGAS
+    precision); `parent_content` carries the rich context that the reasoning
+    agents consume. Degenerate parents (transcripts, single-child) skip the
+    fetch — parent_content == content.
+
+    Unique parents are fetched concurrently — each is an independent AI Search
+    call, and the old one-at-a-time loop could stack up to 5 sequential round
+    trips (one per final result, worst case all from different parents) on top
+    of everything else retrieval already does.
     """
     from tools.search_documents import fetch_parent_siblings
 
-    cache: dict[str, str] = {}
+    # First content seen per parent_id, in iteration order — preserves the
+    # original fallback behavior (use *a* row's own content, not empty) when
+    # fetch_parent_siblings comes back empty.
+    pid_first_content: dict[str, str] = {}
+    pids: list[str] = []
     for r in results:
         pid = r.get("parent_id", "")
         if not pid or r.get("parent_total", 1) <= 1:
             r["parent_content"] = r.get("content", "")
             continue
-        if pid not in cache:
-            siblings = fetch_parent_siblings(pid, company=company, quarter=quarter)
-            cache[pid] = "".join(s["content"] for s in siblings) if siblings else r.get("content", "")
-        r["parent_content"] = cache[pid]
+        if pid not in pid_first_content:
+            pid_first_content[pid] = r.get("content", "")
+            pids.append(pid)
+
+    if pids:
+        fetched = await asyncio.gather(
+            *[asyncio.to_thread(fetch_parent_siblings, pid, company=company, quarter=quarter) for pid in pids]
+        )
+        cache = {
+            pid: ("".join(s["content"] for s in siblings) if siblings else pid_first_content[pid])
+            for pid, siblings in zip(pids, fetched)
+        }
+        for r in results:
+            pid = r.get("parent_id", "")
+            if pid in cache:
+                r["parent_content"] = cache[pid]
+
     return results

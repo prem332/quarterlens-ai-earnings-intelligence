@@ -294,6 +294,14 @@ These look like duplication and are not. Merging any of them moves a locked metr
 - **`math.isnan` filter in `ragas_eval.py`** — provably dead, kept anyway: one line in a
   metric-critical file isn't worth the risk.
 
+**Retracted from this list:** the `break`-on-budget-overflow in
+`numeric_validation_agent._concat_transcript` and `comparison_agent._ranked_context` was
+initially left alone as "bug-shaped but metric-locked". That was wrong — it was measurably
+returning `""` for 7/10 and 5/10 claims respectively (an oversized first chunk discarded
+everything behind it), so numeric extraction and comparison both ran on empty input. Fixed
+to `continue`. Lesson: "looks intentional" is not evidence; measure before classifying
+something as load-bearing.
+
 ---
 
 ## Folder Structure (key paths)

@@ -138,6 +138,20 @@ def numeric_validation_agent(state: GraphState) -> dict:
         claimed_value = claim_obj.get("claimed_value")
         claimed_unit = (claim_obj.get("claimed_unit") or "").strip().lower()
 
+        # Mirror of the calculated_value=None guard below, other side of the
+        # same bug class: a claim the model extracted with no actual number
+        # ("you can see that in the OpEx numbers") comes back with
+        # claimed_value=None. calculate_metric can still resolve a real filed
+        # figure for the metric name, so without this guard the entry was
+        # appended as calculated=<real value>, claimed=None, match=False — a
+        # ✗ next to a quote that never stated a number to check in the first
+        # place. Skip before even calling calculate_metric; there is nothing
+        # to compare regardless of what it returns.
+        if claimed_value is None:
+            print(f"[numeric_validation_agent] no claimed value extracted, skipping '{claimed_metric}'")
+            skipped_unverifiable += 1
+            continue
+
         try:
             calc_result = calculate_metric(
                 company=company,

@@ -10,6 +10,17 @@ focus phase — this session's methodology was one metric at a time, each fixed 
 at n=25 before moving to the next, rather than a single combined run producing all seven numbers
 at once.
 
+> **⚠️ Known gap — headline numbers below are not verified against the current code.**
+> Since these numbers were locked, the branch has taken on: the L2 cache-key fix (see below), a
+> ~1,900-line dead-code removal + API fix pass, and two further correctness fixes (a transcript-
+> dedup bug starving `sentiment_agent`, and a `break`-vs-`continue` bug that was silently zeroing
+> `numeric_validation_agent`/`comparison_agent` inputs). The last full measurement of that combined
+> code (`fix9-emptyinput-fix-n25`, n=25) came in **below every metric in the table below**
+> (faithfulness 0.81, answer_relevancy 0.86, context_precision 0.76, precision@5 0.67, llm_judge
+> 4.03), and 2 of 25 claims returned completely empty answers for a reason that was never
+> root-caused. That code is now merged into this branch. The table below has not been re-measured
+> since. Treat it as historical until a fresh n=25 confirms it (or doesn't).
+
 ## Headline metrics
 
 | Metric | Value | Target | Status | Source run (n) |
@@ -74,8 +85,10 @@ cost to ship in this session's remaining budget.
 bug — the L2 cache key omitted `doc_type`, so `retrieval_agent.py`'s transcript-pass search
 silently collided with and returned the filing-pass's cached results instead of running its own
 filtered search (reproduced directly: a transcript-filtered query returned 4 of 5 `10-Q` filing
-chunks). Fixed and verified. This fix is **not** included in the locked headline-metric numbers
-above — two independent n=10 test runs showed answer_relevancy/llm_judge/precision@5 consistently
-lower than locked values under the fix, and that effect was not investigated before the session's
-scope closed. It remains uncommitted in the working tree pending a decision on whether to ship it
-as a standalone bug-fix commit.
+chunks). Fixed, verified, and **committed** — it is now on this branch. It is **not** included in
+the locked headline-metric numbers above: two independent n=10 test runs showed
+answer_relevancy/llm_judge/precision@5 consistently lower than locked values under the fix.
+Follow-up investigation found the real cause was two *further* bugs it had been masking (a
+transcript-dedup bug and a `break`/`continue` bug — see the known-gap notice at the top of this
+report) — both are now also fixed and merged, but the combined effect on these 7 metrics has not
+been re-measured since.

@@ -37,11 +37,16 @@ def _blob() -> BlobClient:
 
 
 def _serialize(run_id: str, req: AnalysisRequest, status: RunStatus, result: dict = None, error: str = None) -> bytes:
+    # Store the CANONICAL fiscal label, not the raw request value. The pipeline
+    # runs on _to_fiscal_label(req.quarter), so recording req.quarter verbatim
+    # let a legacy-format request ("Q2_2025") be analysed as FY2025-Q2 while the
+    # report header still read "Q2_2025" — the stored doc disagreed with the
+    # analysis it describes.
     doc = {
         "run_id": run_id,
         "company": req.company,
-        "quarter": req.quarter,
-        "comparison_quarters": req.comparison_quarters,
+        "quarter": _to_fiscal_label(req.quarter),
+        "comparison_quarters": [_to_fiscal_label(q) for q in req.comparison_quarters],
         "query": req.query,
         "status": status,
         "created_at": result.get("created_at") if result else datetime.now(timezone.utc).isoformat(),
@@ -107,7 +112,7 @@ async def run_analysis(req: AnalysisRequest):
         run_id=run_id,
         status=RunStatus.PENDING,
         company=req.company,
-        quarter=req.quarter,
+        quarter=_to_fiscal_label(req.quarter),
         created_at=datetime.fromisoformat(created_at),
     )
 

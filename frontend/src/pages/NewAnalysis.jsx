@@ -3,7 +3,27 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 
 const COMPANIES = ["AAPL", "MSFT", "NVDA", "GOOGL", "META"];
-const QUARTERS = ["FY2026-Q2","FY2026-Q1","FY2025-Q4","FY2025-Q3","FY2025-Q2","FY2025-Q1","FY2027-Q1","FY2026-Q4","FY2026-Q3"];
+
+// Quarters that actually exist in the AI Search index, PER COMPANY. Fiscal
+// years don't line up across these five, so the union is 9 quarters while each
+// company only has 4-5 of them.
+//
+// This used to be one flat 9-quarter list shown for every company, which let
+// you pick a company/quarter pair with zero indexed documents — retrieval then
+// returned 0 chunks and the pipeline produced a confident-looking report built
+// on nothing. NVDA has no FY2025-* data at all, so "NVDA vs FY2025-Q4" was a
+// silently empty comparison, not a real one.
+//
+// Static because the dataset is fixed (25 filings + 25 transcripts) and a
+// lookup endpoint would add a round trip to page load. Regenerate with:
+//   ai_search.filter_search("ticker eq '<TICKER>'") -> distinct fiscal_label
+const COMPANY_QUARTERS = {
+  AAPL:  ["FY2026-Q2", "FY2026-Q1", "FY2025-Q4", "FY2025-Q3", "FY2025-Q2"],
+  MSFT:  ["FY2026-Q3", "FY2026-Q2", "FY2026-Q1", "FY2025-Q4", "FY2025-Q3"],
+  NVDA:  ["FY2027-Q1", "FY2026-Q4", "FY2026-Q3", "FY2026-Q2", "FY2026-Q1"],
+  GOOGL: ["FY2026-Q1", "FY2025-Q4", "FY2025-Q3", "FY2025-Q2", "FY2025-Q1"],
+  META:  ["FY2026-Q1", "FY2025-Q4", "FY2025-Q3", "FY2025-Q2"],
+};
 
 const AGENTS = ["retrieval","comparison","sentiment","numeric_validation","report"];
 
@@ -99,13 +119,35 @@ export default function NewAnalysis() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  const [company, setCompany]   = useState(params.get("company") || "AAPL");
-  const [quarter, setQuarter]   = useState("Q2_2025");
-  const [compQ, setCompQ]       = useState(["Q1_2025"]);
+  // Defaults are derived from COMPANY_QUARTERS, never hardcoded. The previous
+  // literals ("Q2_2025" / ["Q1_2025"]) matched no <option>, so the select
+  // rendered its first option while state still held the stale legacy string —
+  // the form showed one quarter and the backend analysed a different one.
+  const initialCompany = COMPANIES.includes(params.get("company")) ? params.get("company") : "AAPL";
+
+  const [company, setCompany]   = useState(initialCompany);
+  const [quarter, setQuarter]   = useState(COMPANY_QUARTERS[initialCompany][0]);
+  const [compQ, setCompQ]       = useState(COMPANY_QUARTERS[initialCompany].slice(1, 2));
   const [query, setQuery]       = useState("");
   const [runId, setRunId]       = useState(null);
   const [error, setError]       = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const quarters = COMPANY_QUARTERS[company];
+
+  // Switching company must reset both selections — the previous company's
+  // quarters are frequently not valid for the new one.
+  function changeCompany(next) {
+    setCompany(next);
+    setQuarter(COMPANY_QUARTERS[next][0]);
+    setCompQ(COMPANY_QUARTERS[next].slice(1, 2));
+  }
+
+  // Keep the primary quarter out of the comparison set.
+  function changeQuarter(next) {
+    setQuarter(next);
+    setCompQ(prev => prev.filter(q => q !== next));
+  }
 
   const toggleCompQ = (q) => setCompQ(prev =>
     prev.includes(q) ? prev.filter(x => x !== q) : prev.length < 3 ? [...prev, q] : prev
@@ -147,14 +189,14 @@ export default function NewAnalysis() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div className="field">
               <label>Company</label>
-              <select value={company} onChange={e => setCompany(e.target.value)}>
+              <select value={company} onChange={e => changeCompany(e.target.value)}>
                 {COMPANIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div className="field">
               <label>Quarter</label>
-              <select value={quarter} onChange={e => setQuarter(e.target.value)}>
-                {QUARTERS.map(q => <option key={q}>{q}</option>)}
+              <select value={quarter} onChange={e => changeQuarter(e.target.value)}>
+                {quarters.map(q => <option key={q}>{q}</option>)}
               </select>
             </div>
           </div>
@@ -162,7 +204,7 @@ export default function NewAnalysis() {
           <div className="field">
             <label>Compare against (up to 3)</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {QUARTERS.filter(q => q !== quarter).map(q => (
+              {quarters.filter(q => q !== quarter).map(q => (
                 <button
                   key={q}
                   className={`btn ${compQ.includes(q) ? "btn-primary" : "btn-ghost"}`}

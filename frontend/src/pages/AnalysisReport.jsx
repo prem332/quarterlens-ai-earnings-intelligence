@@ -11,13 +11,32 @@ function stripCitationTags(text) {
   return (text || "").replace(/\s*\[(FILING|TRANSCRIPT)\]/g, "");
 }
 
-function Section({ title, children }) {
+// collapsible=true renders as a toggle (closed by default) instead of always-open.
+// Executive Summary and Numeric Validation are the primary read — always shown.
+// Guidance & Language Changes and Sentiment are the underlying evidence for that
+// summary, useful to verify but noisy to show inline every time, so they start
+// collapsed and expand on click.
+function Section({ title, count, children, collapsible = false, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
-      <p style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 14 }}>
-        {title}
-      </p>
-      {children}
+      <div
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: collapsible ? "pointer" : "default",
+          marginBottom: open ? 14 : 0,
+        }}
+        onClick={collapsible ? () => setOpen(o => !o) : undefined}
+      >
+        <p style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          {title}{count != null ? ` (${count})` : ""}
+        </p>
+        {collapsible && (
+          <span className="dim mono" style={{ fontSize: 11 }}>{open ? "▲ collapse" : "▼ expand"}</span>
+        )}
+      </div>
+      {open && children}
     </div>
   );
 }
@@ -118,7 +137,8 @@ export default function AnalysisReport() {
 
       {/* Comparison findings */}
       {data.comparison_findings.length > 0 && (
-        <Section title="Guidance & Language Changes">
+        <Section title="Guidance & Language Changes" count={data.comparison_findings.length}
+                 collapsible defaultOpen={false}>
           {data.comparison_findings.map((f, i) => (
             <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -151,7 +171,8 @@ export default function AnalysisReport() {
 
       {/* Sentiment */}
       {data.sentiment_scores.length > 0 && (
-        <Section title="Sentiment Signals (FinBERT)">
+        <Section title="Sentiment Signals (FinBERT)" count={data.sentiment_scores.length}
+                 collapsible defaultOpen={false}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {data.sentiment_scores.map((s, i) => (
               <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>

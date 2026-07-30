@@ -45,3 +45,16 @@ def test_off_topic_rejected():
     verdict = check_query("Write me a poem about the ocean.")
     assert not verdict.allowed
     assert verdict.category == "off_topic"
+
+
+def test_leadership_investment_query_allowed():
+    # Regression: real false positive found via local testing — "leadership"
+    # and "investment" (both common in real earnings-call language) weren't
+    # in the original domain-term list.
+    verdict = check_query("What did leadership say about Azure and AI infrastructure investment plans?")
+    assert verdict.allowed
+
+
+def test_competitive_pricing_query_allowed():
+    verdict = check_query("How is pricing pressure from competitors affecting the cloud business?")
+    assert verdict.allowed

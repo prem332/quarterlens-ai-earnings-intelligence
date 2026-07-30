@@ -12,7 +12,12 @@ on:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
-    environment: production
+    # No `environment:` here on purpose: declaring one changes the OIDC
+    # subject claim to repo:<org>/<repo>:environment:<name>, which the
+    # existing federated credential (scoped to repo:<org>/<repo>:ref:
+    # refs/heads/main) doesn't match -- confirmed via a real
+    # AADSTS700213 failure. Secrets used below are repo-level, not
+    # environment-scoped, so this was never doing anything useful anyway.
     permissions:
       id-token: write   # OIDC federated login -- same identity deploy.yml uses
       contents: read

@@ -3,6 +3,7 @@ import uuid
 import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from api.schemas.requests import AnalysisRequest
 from api.schemas.responses import AnalysisResponse, RunStatusResponse
@@ -15,6 +16,15 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 CONTAINER = "raw-documents"
 REPORTS_PREFIX = "reports"
+
+# run_id -> queue of report_agent draft/verify events for the SSE endpoint
+# below. In-memory, single-process — fine for this dev deployment, would need
+# a shared store (Redis pub/sub) behind more than one uvicorn worker. Entries
+# are created in run_analysis, written to by report_agent (via the
+# stream_queue key threaded through GraphState — see report_agent.py), and
+# torn down by the SSE generator once it reads the terminal event, or by
+# run_analysis on early failure if no one ever connected.
+_stream_queues: dict[str, asyncio.Queue] = {}
 
 
 def _to_fiscal_label(quarter: str) -> str:
@@ -64,6 +74,8 @@ def _serialize(run_id: str, req: AnalysisRequest, status: RunStatus, result: dic
 
 async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
     blob = _blob()
+    queue: asyncio.Queue = asyncio.Queue()
+    _stream_queues[run_id] = queue
     try:
         # Mark running
         doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
@@ -76,6 +88,7 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
             query=req.query,
             comparison_quarters=[_to_fiscal_label(q) for q in req.comparison_quarters],
         )
+        state["stream_queue"] = queue  # not in GraphState's TypedDict — see report_agent.py
         result: dict = await compiled_graph.ainvoke(state)
         result["created_at"] = created_at
 
@@ -91,6 +104,13 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
         doc["error"] = str(exc)
         doc["completed_at"] = datetime.now(timezone.utc).isoformat()
         blob.upload_blob(CONTAINER, _blob_path(run_id), json.dumps(doc).encode(), overwrite=True)
+    finally:
+        # Always signal stream end, success or failure — otherwise a browser
+        # connected to /stream would hang on queue.get() forever. report_agent
+        # already pushes {"type": "final", ...} on its own success path; this
+        # sentinel is the one thing guaranteed to arrive on every path,
+        # including a failure before report_agent ever ran.
+        await queue.put(None)
 
 
 @router.post("/run", response_model=RunStatusResponse, status_code=202)
@@ -115,6 +135,48 @@ async def run_analysis(req: AnalysisRequest):
         quarter=_to_fiscal_label(req.quarter),
         created_at=datetime.fromisoformat(created_at),
     )
+
+
+@router.get("/{run_id}/stream")
+async def stream_analysis(run_id: str):
+    """
+    Server-Sent Events feed of report_agent's draft/verify progress.
+
+    Events (each a JSON object in the SSE `data:` field):
+      {"type": "draft_token", "text": "..."} — one text delta from the
+          streaming draft call, in order. Concatenate to reconstruct the
+          in-progress draft.
+      {"type": "draft_reset"} — rare: a 429 forced a mid-draft retry: discard
+          whatever draft_token text has been accumulated so far and restart.
+      {"type": "verifying"} — draft finished, the verify pass has started.
+          No more draft_token events will follow.
+      {"type": "final", "report": "..."} — the verified report text. This is
+          what actually gets stored/exported, and may differ from the drafted
+          text the browser was just shown (verify can delete or rewrite
+          unsupported sentences).
+      {"type": "done"} — stream is over (terminal event either way — sent
+          whether the run succeeded or failed; check GET /{run_id}/status for
+          the actual outcome).
+    """
+    queue = _stream_queues.get(run_id)
+    if queue is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No active stream for this run — it may already be finished, or never started",
+        )
+
+    async def event_gen():
+        try:
+            while True:
+                item = await queue.get()
+                if item is None:
+                    yield 'data: {"type": "done"}\n\n'
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+        finally:
+            _stream_queues.pop(run_id, None)
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
 @router.get("/{run_id}/status", response_model=RunStatusResponse)

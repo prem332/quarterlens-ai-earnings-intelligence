@@ -15,7 +15,7 @@ Design notes:
 
 import operator
 from typing import Annotated
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class DecisionLogEntry(TypedDict):
@@ -93,3 +93,16 @@ class GraphState(TypedDict):
 
     # ── Pipeline control ───────────────────────────────────────────────────
     error: str | None                 # set by any node on unrecoverable failure
+
+    # ── Live token streaming (optional) ─────────────────────────────────────
+    # An asyncio.Queue, set only by api/routes/analysis.py when a browser is
+    # listening on the SSE stream endpoint; report_agent pushes draft/verify
+    # progress events to it if present. NotRequired since it's absent on every
+    # other invocation path — run_baseline_eval.py, tests, and any future
+    # caller that just wants the final result with no live progress.
+    # LangGraph validates state against this TypedDict schema and silently
+    # drops keys it doesn't recognize, so this must be declared here even
+    # though it carries a live object rather than serializable data — an
+    # undeclared key was confirmed (empirically) not to survive a single node
+    # hop, let alone the five in this graph.
+    stream_queue: NotRequired[object]

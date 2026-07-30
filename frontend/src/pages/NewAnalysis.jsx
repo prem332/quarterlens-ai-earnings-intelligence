@@ -8,11 +8,26 @@ const QUARTERS = ["FY2026-Q2","FY2026-Q1","FY2025-Q4","FY2025-Q3","FY2025-Q2","F
 const AGENTS = ["retrieval","comparison","sentiment","numeric_validation","report"];
 
 // The backend only ever reports overall pending/running/completed/failed — it
-// has no per-agent telemetry to poll. A typical run takes ~110s end-to-end
-// (measured), so the "current stage" shown here is an elapsed-time ESTIMATE
-// split evenly across the 5 stages, not a live signal. It's deliberately
-// framed as an estimate in the UI rather than implying real tracking.
-const ESTIMATED_TOTAL_SECONDS = 110;
+// has no per-agent telemetry to poll, so the "current stage" shown here is an
+// elapsed-time ESTIMATE, not a live signal. It's deliberately framed as an
+// estimate in the UI rather than implying real tracking.
+//
+// Stage durations below are NOT an even split — they're weighted using the
+// real decision_log_entries.latency_ms from an actual completed run
+// (retrieval 28.1s / comparison 3.9s / sentiment 8.4s / numeric 2.5s /
+// report 58.2s, ~110s total). report_agent (CrewAI bull/bear debate + draft +
+// verify — 4 sequential LLM calls) dominates; numeric_validation is
+// consistently fast. This is a single real measurement, not an average across
+// many runs, so treat it as a much better guess than an even split, not a
+// precise profile — retrieval's share is also somewhat inflated whenever it's
+// the first request since a server restart (one-time model-load cost).
+const STAGE_SECONDS = { retrieval: 28, comparison: 4, sentiment: 8, numeric_validation: 3, report: 58 };
+const ESTIMATED_TOTAL_SECONDS = Object.values(STAGE_SECONDS).reduce((a, b) => a + b, 0);
+const STAGE_CUMULATIVE = AGENTS.reduce((acc, a) => {
+  const prev = acc.length ? acc[acc.length - 1] : 0;
+  acc.push(prev + STAGE_SECONDS[a]);
+  return acc;
+}, []);
 
 function AgentProgress({ runId, onDone }) {
   const [pollStatus, setPollStatus] = useState("running");
@@ -48,8 +63,10 @@ function AgentProgress({ runId, onDone }) {
     };
   }, [runId]);
 
-  const perStage = ESTIMATED_TOTAL_SECONDS / AGENTS.length;
-  const estimatedIdx = Math.min(Math.floor(elapsed / perStage), AGENTS.length - 1);
+  // First stage whose cumulative threshold hasn't been reached yet; once
+  // elapsed exceeds every threshold, stay on the last stage (report).
+  const firstUnreached = STAGE_CUMULATIVE.findIndex(threshold => elapsed < threshold);
+  const estimatedIdx = firstUnreached === -1 ? AGENTS.length - 1 : firstUnreached;
 
   return (
     <div className="card" style={{ marginTop: 24 }}>

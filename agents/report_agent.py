@@ -1,13 +1,15 @@
 """
 agents/report_agent.py
 
-Three-step:
-  1. Bull/Bear debate: CrewAI two-agent debate over the retrieved evidence
-     (bull analyst vs bear analyst) — surfaces competing interpretations
-     before the draft is written.
-  2. Draft: LLM synthesises all agent outputs + debate into analyst-tone briefing.
-  3. Verify: LLM checks every factual claim in the draft traces back to a
-     retrieved chunk or a validated numeric fact.
+Two-step:
+  1. Draft: LLM synthesises all agent outputs into an analyst-tone briefing.
+  2. Verify: LLM checks every factual claim in the draft traces back to a
+     retrieved chunk or a validated numeric fact. Skipped when a deterministic
+     check proves there is nothing to delete — see _verify_needed.
+
+The CrewAI bull/bear debate used to be step 1 here, costing ~11s and two LLM
+calls on every analysis. It now runs on demand against a completed run
+instead — see agents/debate_crew.py and POST /api/analysis/{run_id}/debate.
 
 Fix (Phase 3): draft and verify now use the identical chunk_text payload.
 Previously verify used _build_evidence_summary() which truncated each chunk
@@ -23,8 +25,6 @@ import re
 import asyncio
 import time
 import openai
-from crewai import Agent, Task, Crew, LLM
-from azure_clients.key_vault_client import kv
 from graph.state import (
     GraphState, DecisionLogEntry,
     ComparisonFinding, SentimentScore, NumericValidation,
@@ -282,109 +282,6 @@ YOUR TASK — apply these rules in order:
 CRITICAL: When in doubt, DELETE. A shorter grounded report scores higher than a longer hallucinated one."""
 
 
-# ── CrewAI LLM factory ────────────────────────────────────────────────────────
-
-def _make_crewai_llm(model_tier: str) -> LLM:
-    endpoint = kv.get_secret("AZURE-OPENAI-ENDPOINT")
-    os.environ["AZURE_ENDPOINT"] = endpoint
-
-    deployment = (
-        kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME-STANDARD")
-        if model_tier == "standard"
-        else kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME")
-    )
-    return LLM(
-        model=f"azure/{deployment}",
-        api_key=kv.get_secret("AZURE-OPENAI-KEY"),
-        api_base=endpoint,
-        api_version="2024-12-01-preview",
-    )
-
-
-# ── CrewAI bull/bear debate ───────────────────────────────────────────────────
-#
-# Bull and bear cases are independent — neither reads the other's output — but
-# CrewAI's default Process.sequential ran them as two LLM calls back to back
-# inside one Crew, serializing two calls that have nothing to wait on each
-# other for. Split into two single-agent, single-task crews so report_agent
-# can run them concurrently via asyncio.gather(to_thread(...), to_thread(...))
-# instead of one crew.kickoff() blocking on both in turn. Same prompts, same
-# model, same evidence — only the execution schedule changes.
-
-def _run_bull_sync(evidence_summary: str, model_tier: str) -> str:
-    try:
-        llm = _make_crewai_llm(model_tier)
-        bull_analyst = Agent(
-            role="Bull Analyst",
-            goal="Make the strongest positive case for this company's earnings results",
-            backstory=(
-                "You are an optimistic equity research analyst who focuses on growth "
-                "drivers, positive surprises, and upside catalysts in earnings disclosures. "
-                "You are rigorous — you only cite evidence that actually exists in the filing."
-            ),
-            llm=llm,
-            verbose=False,
-            allow_delegation=False,
-        )
-        bull_task = Task(
-            description=(
-                f"Based on the following earnings evidence, present the strongest "
-                f"positive investment case in 150-200 words. Focus on growth drivers, "
-                f"beats vs expectations, positive guidance, and operational strengths.\n\n"
-                f"EVIDENCE:\n{evidence_summary}"
-            ),
-            expected_output="A 150-200 word bull case summary citing specific evidence.",
-            agent=bull_analyst,
-        )
-        crew = Crew(agents=[bull_analyst], tasks=[bull_task], verbose=False)
-        return crew.kickoff().raw
-    except Exception as exc:
-        print(f"[report_agent] CrewAI bull analysis failed (non-fatal): {exc}")
-        return ""
-
-
-def _run_bear_sync(evidence_summary: str, model_tier: str) -> str:
-    try:
-        llm = _make_crewai_llm(model_tier)
-        bear_analyst = Agent(
-            role="Bear Analyst",
-            goal="Identify the key risks, weaknesses, and concerns in this company's earnings results",
-            backstory=(
-                "You are a skeptical equity research analyst who focuses on risks, "
-                "missed targets, deteriorating metrics, and cautionary language in earnings "
-                "disclosures. You are rigorous — you only cite evidence that actually exists."
-            ),
-            llm=llm,
-            verbose=False,
-            allow_delegation=False,
-        )
-        bear_task = Task(
-            description=(
-                f"Based on the following earnings evidence, present the strongest "
-                f"critical case in 150-200 words. Focus on risks, misses, deteriorating "
-                f"trends, hedged guidance, and concerns raised by analysts.\n\n"
-                f"EVIDENCE:\n{evidence_summary}"
-            ),
-            expected_output="A 150-200 word bear case summary citing specific evidence.",
-            agent=bear_analyst,
-        )
-        crew = Crew(agents=[bear_analyst], tasks=[bear_task], verbose=False)
-        return crew.kickoff().raw
-    except Exception as exc:
-        print(f"[report_agent] CrewAI bear analysis failed (non-fatal): {exc}")
-        return ""
-
-
-async def _run_debate(evidence_summary: str, model_tier: str) -> str:
-    bull_text, bear_text = await asyncio.gather(
-        asyncio.to_thread(_run_bull_sync, evidence_summary, model_tier),
-        asyncio.to_thread(_run_bear_sync, evidence_summary, model_tier),
-    )
-    if not bull_text and not bear_text:
-        return ""
-    return f"=== BULL CASE ===\n{bull_text}\n\n=== BEAR CASE ===\n{bear_text}"
-
-
 # ── Main agent node ───────────────────────────────────────────────────────────
 
 async def report_agent(state: GraphState) -> dict:
@@ -404,16 +301,16 @@ async def report_agent(state: GraphState) -> dict:
     # with no such key), which is exactly when streaming should be skipped.
     stream_queue = state.get("stream_queue")
 
-    # ── Step 1: Bull/Bear debate (CrewAI) ─────────────────────────────────
-    evidence_summary = _build_evidence_summary(state)
-    debate_summary = await _run_debate(evidence_summary, model_tier)
-
-    # ── Step 2: Draft ─────────────────────────────────────────────────────
+    # ── Step 1: Draft ─────────────────────────────────────────────────────
+    # The CrewAI bull/bear debate used to run here, costing ~11s and two LLM
+    # calls on every analysis to produce background framing the draft only
+    # loosely used. It now runs on demand against a completed run instead —
+    # see agents/debate_crew.py and POST /api/analysis/{run_id}/debate.
     # chunk_text and extra_evidence are built once and reused in verify —
     # ensures draft and verifier operate on identical evidence, not a subset.
     chunk_text = _build_chunk_text(state)
     extra_evidence = _build_extra_evidence(state)
-    draft_prompt = _build_draft_prompt(state, chunk_text, extra_evidence, debate_summary)
+    draft_prompt = _build_draft_prompt(state, chunk_text, extra_evidence)
     if stream_queue is not None:
         draft, tokens = await _llm_call_streaming(_DRAFT_SYSTEM, draft_prompt, model_tier, stream_queue)
     else:
@@ -476,13 +373,12 @@ async def report_agent(state: GraphState) -> dict:
 
     entry: DecisionLogEntry = {
         "agent": "report_agent",
-        "tool_called": "crewai_bull_bear_debate",
+        "tool_called": "llm_draft_verify",
         "input_summary": (
             f"chunks={len(state.get('retrieval_results', []))} "
             f"comparisons={len(state.get('comparison_findings', []))} "
             f"sentiments={len(state.get('sentiment_scores', []))} "
             f"validations={len(state.get('numeric_validations', []))} "
-            f"debate={'yes' if debate_summary else 'failed'}"
         ),
         "output_summary": (
             f"report drafted, verify={'skipped' if verify_skipped else 'run'} "
@@ -554,17 +450,11 @@ def _build_extra_evidence(state: GraphState) -> tuple[str, str, str]:
 
 def _build_draft_prompt(
     state: GraphState, chunk_text: str, extra_evidence: tuple[str, str, str],
-    debate_summary: str = "",
 ) -> str:
     company = state["company"]
     quarter = state["quarter"]
     query = state.get("query", "")
     findings_text, sentiment_summary, validations_text = extra_evidence
-
-    debate_section = (
-        f"\n=== BULL/BEAR DEBATE (CrewAI) ===\n{debate_summary}\n"
-        if debate_summary else ""
-    )
 
     return f"""COMPANY: {company}
 QUARTER: {quarter}
@@ -581,25 +471,9 @@ QUESTION: {query}
 
 === NUMERIC VALIDATION ===
 {validations_text}
-{debate_section}
+
 Draft the analyst earnings intelligence briefing. Answer QUESTION directly first, then support it."""
 
-
-def _build_evidence_summary(state: GraphState) -> str:
-    """
-    Compact evidence summary for the CrewAI debate input only.
-    Debate agents need a shorter context — 300 chars per chunk is sufficient
-    for bull/bear framing. Full chunk_text is used for draft + verify.
-    """
-    lines: list[str] = []
-    for r in (state.get("retrieval_results") or [])[:10]:
-        lines.append(f"[{r['doc_type'].upper()}] {(r.get('parent_content') or r['content'])[:300]}")
-    for v in (state.get("numeric_validations") or []):
-        lines.append(
-            f"[VALIDATED] {v['metric']}: claimed={v['claimed_value']} "
-            f"calc={v['calculated_value']} match={v['match']}"
-        )
-    return "\n\n".join(lines)
 
 
 # ── Async LLM wrapper ─────────────────────────────────────────────────────────

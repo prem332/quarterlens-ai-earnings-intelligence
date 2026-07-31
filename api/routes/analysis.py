@@ -12,6 +12,7 @@ from api.schemas.requests import AnalysisRequest
 from api.schemas.responses import AnalysisResponse, RunStatusResponse
 from api.schemas.shared import RunStatus
 from api.blob_helpers import blob_exists, download_blob, upload_blob
+from azure_clients.redis_client import get_run_cached, set_run_cached
 from graph.build_graph import compiled_graph
 from graph.state import GraphState
 
@@ -89,7 +90,32 @@ def _serialize(run_id: str, req: AnalysisRequest, status: RunStatus, result: dic
 async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
     queue: asyncio.Queue = asyncio.Queue()
     _stream_queues[run_id] = queue
+    quarter = _to_fiscal_label(req.quarter)
+    comp_quarters = [_to_fiscal_label(q) for q in req.comparison_quarters]
     try:
+        # ── Full-run cache ────────────────────────────────────────────────
+        # An identical request re-runs the entire 5-agent pipeline otherwise.
+        # Serving it from cache turns a ~30s analysis into a sub-second one.
+        # Only completed runs with a real report are ever stored, so a cache
+        # hit can't resurrect a rate-limited or errored run.
+        if not req.no_cache:
+            cached = await asyncio.to_thread(
+                get_run_cached, req.query, req.company, quarter, comp_quarters
+            )
+            if cached:
+                doc = {
+                    **cached,
+                    "run_id": run_id,
+                    "created_at": created_at,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "status": RunStatus.COMPLETED,
+                }
+                await upload_blob(CONTAINER, _blob_path(run_id), json.dumps(doc).encode())
+                # The browser is waiting on the SSE stream; hand it the report
+                # directly since no draft tokens will be generated this time.
+                await queue.put({"type": "final", "report": doc.get("report") or ""})
+                return
+
         # Mark running
         doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
         doc["status"] = RunStatus.RUNNING
@@ -124,12 +150,16 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
         agent_error = result.get("error")
         status = RunStatus.FAILED if agent_error else RunStatus.COMPLETED
 
-        await upload_blob(
-            CONTAINER,
-            _blob_path(run_id),
-            _serialize(run_id, req, status, result=result, error=agent_error),
-            overwrite=True,
-        )
+        payload = _serialize(run_id, req, status, result=result, error=agent_error)
+        await upload_blob(CONTAINER, _blob_path(run_id), payload, overwrite=True)
+
+        # Cache only a genuine success. A failed or empty-report run must never
+        # be served to a later request.
+        if not agent_error and (result.get("report") or "").strip():
+            await asyncio.to_thread(
+                set_run_cached, req.query, req.company, quarter, comp_quarters,
+                json.loads(payload),
+            )
     except Exception as exc:
         doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
         doc["status"] = RunStatus.FAILED

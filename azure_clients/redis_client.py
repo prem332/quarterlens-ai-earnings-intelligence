@@ -215,6 +215,64 @@ def set_embeddings_batch_cached(texts: list[str], embeddings: list[list[float]])
         _embedding_cache[text.strip()] = embedding
 
 
+# ── L3b: Full run cache (API path) ────────────────────────────────────────────
+#
+# get_report_cached/set_report_cached above store only the report STRING and are
+# used solely by evaluation/run_baseline_eval.py. The API needs more than that:
+# the report page also renders comparison findings, and the on-demand CrewAI
+# debate endpoint reads retrieval_results back off the stored run. So the API
+# caches the whole result payload instead.
+#
+# comparison_quarters is part of the key -- the same question against different
+# comparison periods is a different analysis and must not collide.
+
+def _run_key(query: str, company: str, quarter: str, comparison_quarters: list[str]) -> str:
+    raw = (
+        f"{query.strip().lower()}::{company.upper()}::{quarter.upper()}"
+        f"::{','.join(sorted(q.upper() for q in comparison_quarters))}"
+    )
+    return f"run::{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+
+
+def get_run_cached(
+    query: str, company: str, quarter: str, comparison_quarters: list[str],
+) -> Optional[dict]:
+    """Full cached run payload for an identical request, or None."""
+    global _l3_hits, _l3_misses
+    client = _get_redis()
+    if client is None:
+        return None
+    try:
+        value = client.get(_run_key(query, company, quarter, comparison_quarters))
+        if value:
+            _l3_hits += 1
+            logger.info("L3 cache HIT: full run for %s/%s", company, quarter)
+            return json.loads(value)
+        _l3_misses += 1
+        return None
+    except Exception as exc:
+        logger.warning("L3 run cache get failed (non-fatal): %s", exc)
+        return None
+
+
+def set_run_cached(
+    query: str, company: str, quarter: str, comparison_quarters: list[str], payload: dict,
+) -> None:
+    """Cache a completed run. Callers must not pass failed or empty-report runs."""
+    client = _get_redis()
+    if client is None:
+        return
+    try:
+        client.setex(
+            _run_key(query, company, quarter, comparison_quarters),
+            _L3_TTL_SECONDS,
+            json.dumps(payload),
+        )
+        logger.debug("L3 cache SET: full run for %s/%s", company, quarter)
+    except Exception as exc:
+        logger.warning("L3 run cache set failed (non-fatal): %s", exc)
+
+
 # ── Parent block cache (small-to-big expansion) ───────────────────────────────
 
 def get_parent_cached(parent_id: str) -> Optional[str]:

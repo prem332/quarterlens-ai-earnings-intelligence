@@ -11,7 +11,7 @@ from api.guardrails import check_query
 from api.schemas.requests import AnalysisRequest
 from api.schemas.responses import AnalysisResponse, RunStatusResponse
 from api.schemas.shared import RunStatus
-from azure_clients.blob_client import BlobClient
+from api.blob_helpers import blob_exists, download_blob, upload_blob
 from graph.build_graph import compiled_graph
 from graph.state import GraphState
 
@@ -58,8 +58,6 @@ def _blob_path(run_id: str) -> str:
     return f"{REPORTS_PREFIX}/{run_id}.json"
 
 
-def _blob() -> BlobClient:
-    return BlobClient()
 
 
 def _serialize(run_id: str, req: AnalysisRequest, status: RunStatus, result: dict = None, error: str = None) -> bytes:
@@ -89,14 +87,13 @@ def _serialize(run_id: str, req: AnalysisRequest, status: RunStatus, result: dic
 
 
 async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
-    blob = _blob()
     queue: asyncio.Queue = asyncio.Queue()
     _stream_queues[run_id] = queue
     try:
         # Mark running
-        doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
+        doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
         doc["status"] = RunStatus.RUNNING
-        blob.upload_blob(CONTAINER, _blob_path(run_id), json.dumps(doc).encode(), overwrite=True)
+        await upload_blob(CONTAINER, _blob_path(run_id), json.dumps(doc).encode())
 
         state = GraphState(
             company=req.company,
@@ -127,18 +124,18 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
         agent_error = result.get("error")
         status = RunStatus.FAILED if agent_error else RunStatus.COMPLETED
 
-        blob.upload_blob(
+        await upload_blob(
             CONTAINER,
             _blob_path(run_id),
             _serialize(run_id, req, status, result=result, error=agent_error),
             overwrite=True,
         )
     except Exception as exc:
-        doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
+        doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
         doc["status"] = RunStatus.FAILED
         doc["error"] = str(exc)
         doc["completed_at"] = datetime.now(timezone.utc).isoformat()
-        blob.upload_blob(CONTAINER, _blob_path(run_id), json.dumps(doc).encode(), overwrite=True)
+        await upload_blob(CONTAINER, _blob_path(run_id), json.dumps(doc).encode())
     finally:
         # Always signal stream end, success or failure — otherwise a browser
         # connected to /stream would hang on queue.get() forever. report_agent
@@ -163,8 +160,7 @@ async def run_analysis(req: AnalysisRequest):
     run_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
 
-    blob = _blob()
-    blob.upload_blob(
+    await upload_blob(
         CONTAINER,
         _blob_path(run_id),
         _serialize(run_id, req, RunStatus.PENDING),
@@ -234,11 +230,10 @@ async def run_debate_endpoint(run_id: str):
     verified answer. Users who want the investment-debate view ask for it;
     everyone else gets their report ~11s sooner.
     """
-    blob = _blob()
-    if not blob.blob_exists(CONTAINER, _blob_path(run_id)):
+    if not await blob_exists(CONTAINER, _blob_path(run_id)):
         raise HTTPException(status_code=404, detail="Run not found")
 
-    doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
+    doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
     if doc.get("status") != RunStatus.COMPLETED:
         raise HTTPException(
             status_code=409,
@@ -257,10 +252,9 @@ async def run_debate_endpoint(run_id: str):
 
 @router.get("/{run_id}/status", response_model=RunStatusResponse)
 async def get_status(run_id: str):
-    blob = _blob()
-    if not blob.blob_exists(CONTAINER, _blob_path(run_id)):
+    if not await blob_exists(CONTAINER, _blob_path(run_id)):
         raise HTTPException(status_code=404, detail="Run not found")
-    doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
+    doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
     return RunStatusResponse(
         run_id=doc["run_id"],
         status=doc["status"],
@@ -274,10 +268,9 @@ async def get_status(run_id: str):
 
 @router.get("/{run_id}", response_model=AnalysisResponse)
 async def get_analysis(run_id: str):
-    blob = _blob()
-    if not blob.blob_exists(CONTAINER, _blob_path(run_id)):
+    if not await blob_exists(CONTAINER, _blob_path(run_id)):
         raise HTTPException(status_code=404, detail="Run not found")
-    doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
+    doc = json.loads(await download_blob(CONTAINER, _blob_path(run_id)))
     doc["created_at"] = datetime.fromisoformat(doc["created_at"])
     if doc.get("completed_at"):
         doc["completed_at"] = datetime.fromisoformat(doc["completed_at"])

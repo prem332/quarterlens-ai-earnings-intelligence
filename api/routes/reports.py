@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.schemas.responses import AnalysisResponse, ReportSummary
 from api.schemas.shared import Company
-from azure_clients.blob_client import BlobClient
+from api.blob_helpers import blob_exists, download_blob, upload_blob, list_blobs
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -12,8 +12,6 @@ CONTAINER = "raw-documents"
 REPORTS_PREFIX = "reports"
 
 
-def _blob() -> BlobClient:
-    return BlobClient()
 
 
 @router.get("", response_model=list[ReportSummary])
@@ -23,12 +21,11 @@ async def list_reports(
     limit: int = Query(default=20, le=100),
     offset: int = 0,
 ):
-    blob = _blob()
-    paths = blob.list_blobs(CONTAINER, prefix=REPORTS_PREFIX)
+    paths = await list_blobs(CONTAINER, prefix=REPORTS_PREFIX)
     results = []
     for path in paths:
         try:
-            doc = json.loads(blob.download_blob(CONTAINER, path))
+            doc = json.loads(await download_blob(CONTAINER, path))
             if doc.get("status") != "completed":
                 continue
             if company and doc.get("company") != company:
@@ -58,11 +55,10 @@ async def list_reports(
 
 @router.get("/{run_id}", response_model=AnalysisResponse)
 async def get_report(run_id: str):
-    blob = _blob()
     path = f"{REPORTS_PREFIX}/{run_id}.json"
-    if not blob.blob_exists(CONTAINER, path):
+    if not await blob_exists(CONTAINER, path):
         raise HTTPException(status_code=404, detail="Report not found")
-    doc = json.loads(blob.download_blob(CONTAINER, path))
+    doc = json.loads(await download_blob(CONTAINER, path))
     doc["created_at"] = datetime.fromisoformat(doc["created_at"])
     if doc.get("completed_at"):
         doc["completed_at"] = datetime.fromisoformat(doc["completed_at"])
@@ -72,10 +68,9 @@ async def get_report(run_id: str):
 @router.delete("/{run_id}", status_code=204)
 async def delete_report(run_id: str):
     # BlobClient has no delete method — mark as deleted via status flag
-    blob = _blob()
     path = f"{REPORTS_PREFIX}/{run_id}.json"
-    if not blob.blob_exists(CONTAINER, path):
+    if not await blob_exists(CONTAINER, path):
         raise HTTPException(status_code=404, detail="Report not found")
-    doc = json.loads(blob.download_blob(CONTAINER, path))
+    doc = json.loads(await download_blob(CONTAINER, path))
     doc["status"] = "deleted"
-    blob.upload_blob(CONTAINER, path, json.dumps(doc).encode(), overwrite=True)
+    await upload_blob(CONTAINER, path, json.dumps(doc).encode(), overwrite=True)

@@ -3,7 +3,7 @@ import io
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from azure_clients.blob_client import BlobClient
+from api.blob_helpers import blob_exists, download_blob
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -11,16 +11,13 @@ CONTAINER = "raw-documents"
 REPORTS_PREFIX = "reports"
 
 
-def _blob() -> BlobClient:
-    return BlobClient()
 
 
-def _load(run_id: str) -> dict:
-    blob = _blob()
+async def _load(run_id: str) -> dict:
     path = f"{REPORTS_PREFIX}/{run_id}.json"
-    if not blob.blob_exists(CONTAINER, path):
+    if not await blob_exists(CONTAINER, path):
         raise HTTPException(status_code=404, detail="Run not found")
-    doc = json.loads(blob.download_blob(CONTAINER, path))
+    doc = json.loads(await download_blob(CONTAINER, path))
     if doc.get("status") != "completed":
         raise HTTPException(status_code=409, detail="Analysis not yet complete")
     return doc
@@ -51,7 +48,7 @@ def _text(doc: dict) -> str:
 
 @router.post("/{run_id}/pdf")
 async def export_pdf(run_id: str):
-    doc = _load(run_id)
+    doc = await _load(run_id)
     try:
         from reportlab.pdfgen import canvas as rl_canvas
         from reportlab.lib.pagesizes import letter
@@ -84,7 +81,7 @@ async def export_pdf(run_id: str):
 
 @router.post("/{run_id}/docx")
 async def export_docx(run_id: str):
-    doc = _load(run_id)
+    doc = await _load(run_id)
     try:
         from docx import Document
 

@@ -40,8 +40,12 @@ WORKDIR /app
 # resolve to the exact same directory.
 ENV HF_HOME=/app/.cache/huggingface
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# requirements-api.txt, not requirements.txt: the runtime subset. The full file
+# additionally carries the evaluation suite (mlflow) and the test runner, which
+# the served API never imports -- dropping them removes ~244 MB from the image.
+# See that file's header for how each exclusion was verified.
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
 
 # Bake both HF models into the image at build time instead of letting them
 # lazy-download from HuggingFace Hub on first use at runtime.

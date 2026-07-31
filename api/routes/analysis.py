@@ -118,10 +118,18 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
             result: dict = await compiled_graph.ainvoke(state)
         result["created_at"] = created_at
 
+        # An agent that set state["error"] did NOT succeed, even though
+        # ainvoke() returned normally. Without this the run was stored as
+        # COMPLETED with error=None and an empty report, so the UI showed a
+        # blank page and the user had no way to tell a rate-limited run from
+        # a genuine "no data" answer.
+        agent_error = result.get("error")
+        status = RunStatus.FAILED if agent_error else RunStatus.COMPLETED
+
         blob.upload_blob(
             CONTAINER,
             _blob_path(run_id),
-            _serialize(run_id, req, RunStatus.COMPLETED, result=result),
+            _serialize(run_id, req, status, result=result, error=agent_error),
             overwrite=True,
         )
     except Exception as exc:

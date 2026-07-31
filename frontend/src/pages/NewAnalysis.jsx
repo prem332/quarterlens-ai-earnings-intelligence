@@ -198,7 +198,17 @@ export default function NewAnalysis() {
 
   const [company, setCompany]   = useState(initialCompany);
   const [quarter, setQuarter]   = useState(COMPANY_QUARTERS[initialCompany][0]);
-  const [compQ, setCompQ]       = useState(COMPANY_QUARTERS[initialCompany].slice(1, 2));
+  // No comparison quarter selected by default. Picking one runs
+  // comparison_agent, which costs a full LLM call -- measured at ~3.8s, the
+  // longest branch of the parallel group and therefore the whole group's
+  // duration. That is worth paying when the question is actually comparative
+  // ("how did X change vs last quarter"), but the previous default pre-selected
+  // a quarter, so every run paid it even for a plain "what was net income this
+  // quarter". Users who want a comparison still click one.
+  //
+  // UI default only: the evaluation harness supplies its own comparison_quarters
+  // from the claim files, so this does not touch any locked metric.
+  const [compQ, setCompQ]       = useState([]);
   const [query, setQuery]       = useState("");
   const [runId, setRunId]       = useState(null);
   const [error, setError]       = useState(null);
@@ -211,7 +221,7 @@ export default function NewAnalysis() {
   function changeCompany(next) {
     setCompany(next);
     setQuarter(COMPANY_QUARTERS[next][0]);
-    setCompQ(COMPANY_QUARTERS[next].slice(1, 2));
+    setCompQ([]);   // clear, don't re-select — see the useState default above
   }
 
   // Keep the primary quarter out of the comparison set.

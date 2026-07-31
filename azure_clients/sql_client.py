@@ -82,6 +82,23 @@ class SQLClient:
         finally:
             conn.close()
 
+    def warm_up(self) -> None:
+        """Open one throwaway connection so a paused Serverless database
+        resumes now rather than inside a user's request.
+
+        This database auto-pauses when idle and the resume is expensive:
+        measured 49.4s for the first connection versus ~0.95s once awake
+        (the _connect retry loop above exists precisely for that window).
+        Left unwarmed, that cost lands on numeric_validation_agent.
+
+        Callers should run this off the critical path -- api/main.py fires it
+        as a background task rather than awaiting it, so a resume never holds
+        up readiness.
+        """
+        with self.connection() as conn:
+            conn.cursor().execute("SELECT 1").fetchone()
+        logger.info("SQLClient: warm-up complete — database is awake")
+
     def apply_schema(self, schema_path: str | Path) -> None:
         """Run a GO-batched .sql file. pyodbc can't parse the GO directive, so
         split on it and execute each batch separately."""

@@ -32,17 +32,29 @@ from graph.state import GraphState
 
 
 def make_crewai_llm(model_tier: str = "primary") -> LLM:
-    endpoint = kv.get_secret("AZURE-OPENAI-ENDPOINT")
+    """
+    get_secret_cached, not get_secret. kv.get_secret hits Key Vault over the
+    network on EVERY call -- measured at ~575ms each -- so this factory was
+    costing ~1.5s per invocation purely in secret lookups, and it runs once
+    per analyst crew (bull and bear both call it). get_secret_cached is
+    ~0ms after the first read.
+
+    These four values are deployment configuration, not rotating credentials,
+    so process-lifetime caching is appropriate here (that caveat is why
+    get_secret_cached exists as a separate method rather than being the
+    default).
+    """
+    endpoint = kv.get_secret_cached("AZURE-OPENAI-ENDPOINT")
     os.environ["AZURE_ENDPOINT"] = endpoint
 
     deployment = (
-        kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME-STANDARD")
+        kv.get_secret_cached("AZURE-OPENAI-DEPLOYMENT-NAME-STANDARD")
         if model_tier == "standard"
-        else kv.get_secret("AZURE-OPENAI-DEPLOYMENT-NAME")
+        else kv.get_secret_cached("AZURE-OPENAI-DEPLOYMENT-NAME")
     )
     return LLM(
         model=f"azure/{deployment}",
-        api_key=kv.get_secret("AZURE-OPENAI-KEY"),
+        api_key=kv.get_secret_cached("AZURE-OPENAI-KEY"),
         api_base=endpoint,
         api_version="2024-12-01-preview",
     )

@@ -107,6 +107,18 @@ def _get_redis():
         return None
 
 
+def warm_up() -> None:
+    """Open the Redis connection now instead of inside the first cache lookup.
+
+    _get_redis() is a lazy singleton and its first call pays TCP connect +
+    TLS handshake + ping -- measured at ~3.3s, which otherwise lands inside
+    the first analysis's retrieval stage. Safe to call when Redis is
+    unreachable: _get_redis already degrades to None and the caches simply
+    miss.
+    """
+    _get_redis()
+
+
 def _cache_key(prefix: str, query: str, company: str, quarter: str, doc_type: str = "all") -> str:
     """Deterministic cache key from query coordinates.
 

@@ -12,6 +12,8 @@ from observability.phoenix_setup import setup_phoenix
 from observability.langfuse_setup import setup_langfuse, flush_langfuse
 from tools.rerank_documents import warm_up as warm_up_cross_encoder
 from tools.run_finbert import warm_up as warm_up_finbert
+from azure_clients.redis_client import warm_up as warm_up_redis
+from azure_clients.sql_client import sql_client
 
 
 @asynccontextmanager
@@ -29,11 +31,39 @@ async def lifespan(app: FastAPI):
     # fresh server's first request and 0.3-0.4s on every one after, all of it
     # model loading (warm inference is ~0.06s/passage). The cross-encoder was
     # already warmed; FinBERT silently charged that 7s to the first user.
+    #
+    # Redis joins them: it is a lazy singleton whose first call pays the TCP
+    # connect + TLS handshake + ping, measured at ~3.3s. That landed on the
+    # first cache lookup of the first analysis, i.e. inside retrieval.
     await asyncio.gather(
         asyncio.to_thread(warm_up_cross_encoder),
         asyncio.to_thread(warm_up_finbert),
+        asyncio.to_thread(warm_up_redis),
     )
+
+    # Azure SQL is warmed fire-and-forget, NOT awaited, because it is the one
+    # dependency that can take a minute: the database is Serverless and
+    # auto-pauses when idle, so the first connection triggers a resume --
+    # measured at 49.4s, against ~0.95s once awake. Awaiting it would hold the
+    # container un-ready for that whole time; skipping it entirely would charge
+    # it to numeric_validation_agent inside the first user's analysis.
+    #
+    # Kicking it off here overlaps the resume with model loading and with the
+    # user's own retrieval/sentiment stages, so by the time numeric validation
+    # runs the connection is usually live. Failures are swallowed: SQL being
+    # unreachable must not stop the API from serving, and calculate_metric
+    # already retries on its own.
+    async def _warm_sql() -> None:
+        try:
+            await asyncio.to_thread(sql_client.warm_up)
+        except Exception as exc:  # noqa: BLE001 — best-effort warm-up
+            print(f"[startup] SQL warm-up failed (non-fatal): {exc}")
+
+    sql_task = asyncio.create_task(_warm_sql())
+
     yield
+
+    sql_task.cancel()
     flush_langfuse()
 
 

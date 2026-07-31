@@ -405,8 +405,13 @@ async def _expand_parents(
     call, and the old one-at-a-time loop could stack up to 5 sequential round
     trips (one per final result, worst case all from different parents) on top
     of everything else retrieval already does.
+
+    Reconstructed blocks are cached in Redis by parent_id (measured ~1.1s for
+    two concurrent fetches). A parent block's text is fixed for a given index
+    build, so a hit is always as good as a live fetch.
     """
     from tools.search_documents import fetch_parent_siblings
+    from azure_clients.redis_client import get_parent_cached, set_parent_cached
 
     # First content seen per parent_id, in iteration order — preserves the
     # original fallback behavior (use *a* row's own content, not empty) when
@@ -423,13 +428,28 @@ async def _expand_parents(
             pids.append(pid)
 
     if pids:
-        fetched = await asyncio.gather(
-            *[asyncio.to_thread(fetch_parent_siblings, pid, company=company, quarter=quarter) for pid in pids]
-        )
-        cache = {
-            pid: ("".join(s["content"] for s in siblings) if siblings else pid_first_content[pid])
-            for pid, siblings in zip(pids, fetched)
-        }
+        cache: dict[str, str] = {}
+        to_fetch: list[str] = []
+        for pid in pids:
+            hit = get_parent_cached(pid)
+            if hit is not None:
+                cache[pid] = hit
+            else:
+                to_fetch.append(pid)
+
+        if to_fetch:
+            fetched = await asyncio.gather(
+                *[asyncio.to_thread(fetch_parent_siblings, pid, company=company, quarter=quarter) for pid in to_fetch]
+            )
+            for pid, siblings in zip(to_fetch, fetched):
+                content = "".join(s["content"] for s in siblings) if siblings else pid_first_content[pid]
+                cache[pid] = content
+                # Only cache a real reconstruction. The fallback is this one
+                # row's own content, which is not the parent block — storing
+                # it would poison later retrievals that hit the same parent.
+                if siblings:
+                    set_parent_cached(pid, content)
+
         for r in results:
             pid = r.get("parent_id", "")
             if pid in cache:

@@ -4,8 +4,13 @@ azure_clients/redis_client.py
 Multi-level semantic caching for QuarterLens AI.
 
 Cache levels:
-  L1 — Embedding cache (Python dict, in-process, instant)
-       Caches query → embedding vector. Avoids repeat embed() API calls.
+  L1 — Embedding cache (in-process dict, then Redis; TTL 7d)
+       Caches text → embedding vector, for both single embed() calls and
+       embed_batch() chunk embeddings. Two tiers on purpose: the dict is
+       the instant path within one process, Redis makes entries survive a
+       restart and be shared across replicas. That matters here because
+       min-replicas is 0 (scale-to-zero), so a dict-only cache was being
+       thrown away on every cold start.
 
   L2 — Retrieval result cache (Redis, TTL 30min)
        Caches (query+company+quarter) → chunk list. Avoids AI Search +
@@ -14,6 +19,11 @@ Cache levels:
   L3 — Full report cache (Redis, TTL 24h)
        Caches (query+company+quarter) → final report string. Avoids
        entire 5-agent pipeline for repeated analysis requests.
+
+  Parent blocks (Redis, TTL 24h)
+       Caches parent_id → reconstructed parent text for small-to-big
+       expansion. Parent content is immutable for a given index build,
+       so this only ever needs fetching once.
 
 Design:
   - Lazy singleton: Redis connects once per process on first cache call
@@ -39,10 +49,16 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 # TTLs
-_L2_TTL_SECONDS = 30 * 60       # 30 minutes — retrieval results
-_L3_TTL_SECONDS = 24 * 60 * 60  # 24 hours   — full reports
+_L2_TTL_SECONDS = 30 * 60           # 30 minutes — retrieval results
+_L3_TTL_SECONDS = 24 * 60 * 60      # 24 hours   — full reports
+_L1_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days     — embeddings (text→vector is
+                                    # deterministic for a fixed model, so this
+                                    # could be permanent; the TTL exists only to
+                                    # bound memory on the Basic C0 instance)
+_PARENT_TTL_SECONDS = 24 * 60 * 60  # 24 hours   — reconstructed parent blocks
 
-# L1 in-process embedding cache (Python dict — no TTL, cleared on restart)
+# L1 in-process embedding cache (Python dict — fast path, cleared on restart;
+# backed by Redis below so a restart doesn't lose the entries entirely)
 _embedding_cache: dict[str, list[float]] = {}
 _embedding_hits = 0
 _embedding_misses = 0
@@ -105,26 +121,123 @@ def _cache_key(prefix: str, query: str, company: str, quarter: str, doc_type: st
     return f"{prefix}::{digest}"
 
 
-# ── L1: Embedding Cache ───────────────────────────────────────────────────────
+# ── L1: Embedding Cache (in-process dict → Redis) ─────────────────────────────
+
+def _embedding_key(text: str) -> str:
+    """Hash the text — chunk contents run to thousands of characters, which is
+    far too long to use directly as a Redis key."""
+    return f"emb::{hashlib.sha256(text.strip().encode()).hexdigest()[:32]}"
+
 
 def get_embedding_cached(text: str) -> Optional[list[float]]:
     """
-    L1 cache get — returns cached embedding or None.
-    Key: exact query string (case-sensitive).
+    L1 cache get — in-process dict first, then Redis. Returns None on miss.
+
+    Counts one hit or one miss per call regardless of which tier served it,
+    so l1_hit_rate keeps meaning the same thing it did before Redis backing
+    was added.
     """
     global _embedding_hits, _embedding_misses
     key = text.strip()
     if key in _embedding_cache:
         _embedding_hits += 1
-        logger.debug("L1 cache HIT: embedding for '%s...'", key[:40])
+        logger.debug("L1 cache HIT (memory): embedding for '%s...'", key[:40])
         return _embedding_cache[key]
+
+    client = _get_redis()
+    if client is not None:
+        try:
+            value = client.get(_embedding_key(text))
+            if value:
+                embedding = json.loads(value)
+                _embedding_cache[key] = embedding   # promote to the fast path
+                _embedding_hits += 1
+                logger.debug("L1 cache HIT (redis): embedding for '%s...'", key[:40])
+                return embedding
+        except Exception as exc:
+            logger.warning("L1 redis get failed (non-fatal): %s", exc)
+
     _embedding_misses += 1
     return None
 
 
 def set_embedding_cached(text: str, embedding: list[float]) -> None:
-    """L1 cache set — stores embedding in process memory."""
+    """L1 cache set — writes to both the in-process dict and Redis."""
     _embedding_cache[text.strip()] = embedding
+
+    client = _get_redis()
+    if client is None:
+        return
+    try:
+        client.setex(_embedding_key(text), _L1_TTL_SECONDS, json.dumps(embedding))
+    except Exception as exc:
+        logger.warning("L1 redis set failed (non-fatal): %s", exc)
+
+
+def get_embeddings_batch_cached(texts: list[str]) -> list[Optional[list[float]]]:
+    """
+    Batch L1 get — one entry per input text, None where not cached.
+
+    IN-PROCESS ONLY, deliberately — unlike the single-text functions above,
+    this does NOT read from Redis. Measured reasons, not a style choice:
+
+      * One 1536-dim vector is ~21 KB as JSON. A single MMR call covers ~24
+        chunks = ~0.49 MB moved per retrieval, which cancels out most of the
+        embedding API call it was meant to replace.
+      * Caching every indexed chunk would need ~72 MB on a 250 MB Basic C0
+        instance, crowding out the L2 retrieval and L3 report entries that
+        deliver much larger wins per byte stored.
+
+    Query embeddings (embed(), one small vector, reused across sessions) are
+    still Redis-backed — that trade is clearly worth it. Chunk embeddings are
+    not. If chunk vectors ever need to survive a restart, the right fix is the
+    retrievable-embedding index (they are already stored in AI Search), not a
+    second copy in Redis.
+
+    Order-preserving and index-aligned with `texts` so the caller can embed
+    only the misses and splice results back into place.
+    """
+    global _embedding_hits, _embedding_misses
+    out: list[Optional[list[float]]] = [None] * len(texts)
+    for i, text in enumerate(texts):
+        key = text.strip()
+        if key in _embedding_cache:
+            out[i] = _embedding_cache[key]
+            _embedding_hits += 1
+        else:
+            _embedding_misses += 1
+    return out
+
+
+def set_embeddings_batch_cached(texts: list[str], embeddings: list[list[float]]) -> None:
+    """Batch L1 set — in-process only; see get_embeddings_batch_cached."""
+    for text, embedding in zip(texts, embeddings):
+        _embedding_cache[text.strip()] = embedding
+
+
+# ── Parent block cache (small-to-big expansion) ───────────────────────────────
+
+def get_parent_cached(parent_id: str) -> Optional[str]:
+    """Reconstructed parent block text for a parent_id, or None."""
+    client = _get_redis()
+    if client is None or not parent_id:
+        return None
+    try:
+        return client.get(f"parent::{parent_id}")
+    except Exception as exc:
+        logger.warning("Parent cache get failed (non-fatal): %s", exc)
+        return None
+
+
+def set_parent_cached(parent_id: str, content: str) -> None:
+    """Store a reconstructed parent block. Immutable per index build."""
+    client = _get_redis()
+    if client is None or not parent_id:
+        return
+    try:
+        client.setex(f"parent::{parent_id}", _PARENT_TTL_SECONDS, content)
+    except Exception as exc:
+        logger.warning("Parent cache set failed (non-fatal): %s", exc)
 
 
 # ── L2: Retrieval Result Cache ────────────────────────────────────────────────

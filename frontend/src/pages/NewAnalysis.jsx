@@ -32,16 +32,24 @@ const AGENTS = ["retrieval","comparison","sentiment","numeric_validation","repor
 // elapsed-time ESTIMATE, not a live signal. It's deliberately framed as an
 // estimate in the UI rather than implying real tracking.
 //
-// Stage durations below are NOT an even split — they're weighted using the
-// real decision_log_entries.latency_ms from an actual completed run
-// (retrieval 28.1s / comparison 3.9s / sentiment 8.4s / numeric 2.5s /
-// report 58.2s, ~110s total). report_agent (CrewAI bull/bear debate + draft +
-// verify — 4 sequential LLM calls) dominates; numeric_validation is
-// consistently fast. This is a single real measurement, not an average across
-// many runs, so treat it as a much better guess than an even split, not a
-// precise profile — retrieval's share is also somewhat inflated whenever it's
-// the first request since a server restart (one-time model-load cost).
-const STAGE_SECONDS = { retrieval: 28, comparison: 4, sentiment: 8, numeric_validation: 3, report: 58 };
+// Stage durations below are NOT an even split — they're weighted from real
+// measurements. Re-measured 2026-07-31 by profiling each retrieval sub-step
+// directly and by reading per-node timing logs off a live production run:
+//
+//   retrieval  ~3s warm / ~8s cold  (was listed here as 28s — badly wrong;
+//              the old figure came from one early run whose retrieval share
+//              was inflated by the one-time cross-encoder model load, which
+//              is now paid at server startup instead, and by the uncached
+//              chunk re-embedding that has since been fixed)
+//   comparison ~4s, sentiment ~8s, numeric_validation ~3s
+//   report     ~58s — genuinely dominates (CrewAI bull/bear debate + draft +
+//              verify = 4-5 sequential LLM calls)
+//
+// These remain an ESTIMATE driving a progress animation, not live tracking:
+// the backend reports only overall pending/running/completed. Keeping them
+// roughly honest matters because a wrong retrieval figure makes the UI look
+// stuck on retrieval while the real time is being spent in report_agent.
+const STAGE_SECONDS = { retrieval: 5, comparison: 4, sentiment: 8, numeric_validation: 3, report: 58 };
 const ESTIMATED_TOTAL_SECONDS = Object.values(STAGE_SECONDS).reduce((a, b) => a + b, 0);
 const STAGE_CUMULATIVE = AGENTS.reduce((acc, a) => {
   const prev = acc.length ? acc[acc.length - 1] : 0;

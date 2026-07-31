@@ -68,8 +68,14 @@ def mmr_rerank(
     Maximal Marginal Relevance reranking.
 
     Public so retrieval_agent can import and call it on the merged candidate pool.
-    Embedding field is not returned by AI Search (select="*" does not include
-    vector fields), so chunk embeddings are computed via embed_batch on first call.
+
+    Chunk vectors are resolved in this order:
+      1. The 'embedding' field on the chunk, if the index returned it. The
+         live index has that field non-retrievable, so this is normally
+         absent — but a rebuilt index with retrievable=True makes it present,
+         and then MMR costs nothing extra.
+      2. openai_client.embed_batch(), which is itself L1-cached, so repeat
+         retrievals of the same chunks don't re-embed.
 
     Args:
         chunks:          Candidate chunk dicts. Each must have 'content'.
@@ -86,7 +92,19 @@ def mmr_rerank(
     top_k = min(top_k, len(chunks))
 
     contents = [c.get("content", "") for c in chunks]
-    chunk_embeddings: list[list[float]] = openai_client.embed_batch(contents)
+    chunk_embeddings: list[list[float]] = [None] * len(chunks)  # type: ignore[list-item]
+    missing_idx: list[int] = []
+    for i, c in enumerate(chunks):
+        emb = c.get("embedding")
+        if isinstance(emb, list) and emb:
+            chunk_embeddings[i] = emb
+        else:
+            missing_idx.append(i)
+
+    if missing_idx:
+        fetched = openai_client.embed_batch([contents[i] for i in missing_idx])
+        for i, emb in zip(missing_idx, fetched):
+            chunk_embeddings[i] = emb
 
     relevance = [_cosine_similarity(emb, query_embedding) for emb in chunk_embeddings]
 
@@ -161,7 +179,7 @@ def search_documents(
 
     results: list[dict] = []
     for hit in raw_results:
-        results.append({
+        row = {
             "chunk_id":     hit.get("chunk_id", ""),
             "content":      hit.get("text", hit.get("content", "")),
             "company":      hit.get("ticker", hit.get("company", "")),
@@ -176,10 +194,20 @@ def search_documents(
             "parent_index": hit.get("parent_index", 0),
             "parent_total": hit.get("parent_total", 1),
             "score":        hit.get("@search.score", 0.0),
-        })
+        }
+        # Only present if the index marks 'embedding' retrievable. Absent on
+        # the current live index; carried through when available so mmr_rerank
+        # can skip re-embedding entirely. Deliberately NOT written to the L2
+        # cache below — 1536 floats x 24 chunks per entry would bloat Redis for
+        # no gain, since embeddings have their own longer-lived L1 cache.
+        emb = hit.get("embedding")
+        if isinstance(emb, list) and emb:
+            row["embedding"] = emb
+        results.append(row)
 
     if use_cache and company and quarter and results:
-        set_retrieval_cached(query, company, quarter, results, doc_type=doc_type or "all")
+        cacheable = [{k: v for k, v in r.items() if k != "embedding"} for r in results]
+        set_retrieval_cached(query, company, quarter, cacheable, doc_type=doc_type or "all")
 
     return {"results": results, "count": len(results)}
 

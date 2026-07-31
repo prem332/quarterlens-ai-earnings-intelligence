@@ -93,6 +93,38 @@ measured comparison against the locked band before it's trusted.
     (or the specific branch/environment used) for `workflow_run`-triggered
     jobs — this is configured once on the app registration, not per-workflow.
 
+## Cost control
+
+The Container App runs `min-replicas: 0`, so it sleeps after ~5 minutes idle
+and bills nothing while asleep. Waking it costs a cold start — image pull,
+torch/transformers imports, and cross-encoder + FinBERT loading, measured at
+17s minimum and 46s under load.
+
+`scripts/demo_mode.sh on` sets `min-replicas: 1` to remove that entirely, for
+demos and interviews. It bills continuously: at 2 vCPU / 4 GiB that is
+~172,800 vCPU-seconds/day, which exhausts the monthly Container Apps free
+grant in roughly a day. Turn it off (`demo_mode.sh off`) straight after.
+
+Azure SQL is Serverless with auto-pause left ON, deliberately. A paused
+database costs nothing but the first connection pays a resume — measured at
+49.4s versus 0.95s awake. `api/main.py` fires `sql_client.warm_up()` as a
+background task at startup so the resume overlaps container start and the
+user's own retrieval/sentiment stages rather than landing inside numeric
+validation. Disabling auto-pause would remove the risk entirely but bills
+compute continuously.
+
+**Tearing down.** These resources bill indefinitely once any free credit is
+gone. To stop everything:
+
+```bash
+az group delete -n quarterlens-phase1-rg --yes --no-wait
+```
+
+That deletes the AI Search index, Cosmos, SQL, Redis, Blob storage, Container
+App, and Container Registry together. The index is rebuildable from
+`data/embeddings/` via `data_pipeline/indexer.py`, and reports live in Blob —
+export anything worth keeping first.
+
 ## Rollback
 
 Azure Container Apps keeps prior revisions by default. Two options, no

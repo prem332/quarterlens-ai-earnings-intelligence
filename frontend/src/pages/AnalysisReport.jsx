@@ -46,6 +46,23 @@ export default function AnalysisReport() {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState(null);
+  // CrewAI bull/bear debate — on demand, not part of the analysis pipeline.
+  // It costs ~11s and two extra LLM calls, so it only runs when asked for.
+  const [debate, setDebate]           = useState(null);
+  const [debateLoading, setDebateLoading] = useState(false);
+  const [debateError, setDebateError] = useState(null);
+
+  async function loadDebate() {
+    setDebateLoading(true);
+    setDebateError(null);
+    try {
+      setDebate(await api.runDebate(runId));
+    } catch (e) {
+      setDebateError(e.message);
+    } finally {
+      setDebateLoading(false);
+    }
+  }
 
   useEffect(() => {
     api.getReport(runId)
@@ -125,6 +142,39 @@ export default function AnalysisReport() {
           ))}
         </Section>
       )}
+
+      {/* CrewAI bull/bear debate — on demand */}
+      <Section title="Bull / Bear Debate" collapsible defaultOpen={!!debate}>
+        {!debate && !debateLoading && (
+          <div>
+            <p className="dim" style={{ fontSize: 13, marginBottom: 12 }}>
+              Two CrewAI analyst agents argue opposite sides of this quarter's evidence.
+              Run separately from the report so it doesn't slow the main analysis.
+            </p>
+            <button className="btn btn-ghost" onClick={loadDebate}>Run debate</button>
+            {debateError && <p className="error-msg" style={{ marginTop: 10 }}>{debateError}</p>}
+          </div>
+        )}
+        {debateLoading && (
+          <p className="dim"><span className="spinner" /> Bull and bear analysts are reviewing the evidence…</p>
+        )}
+        {debate && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 6 }}>BULL CASE</p>
+              <div className="markdown-body" style={{ fontSize: 13 }}>
+                <ReactMarkdown>{stripCitationTags(debate.bull) || "_No bull case returned._"}</ReactMarkdown>
+              </div>
+            </div>
+            <div>
+              <p className="dim" style={{ fontSize: 11, fontFamily: "var(--mono)", marginBottom: 6 }}>BEAR CASE</p>
+              <div className="markdown-body" style={{ fontSize: 13 }}>
+                <ReactMarkdown>{stripCitationTags(debate.bear) || "_No bear case returned._"}</ReactMarkdown>
+              </div>
+            </div>
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

@@ -18,6 +18,7 @@ export const api = {
   runAnalysis: (body) => request("/analysis/run", { method: "POST", body: JSON.stringify(body) }),
   getStatus: (runId) => request(`/analysis/${runId}/status`),
   getAnalysis: (runId) => request(`/analysis/${runId}`),
+  runDebate: (runId) => request(`/analysis/${runId}/debate`, { method: "POST" }),
 
   // Reports
   listReports: (params = {}) => {

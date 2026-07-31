@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from opentelemetry import trace as otel_trace
 
+from agents.debate_crew import build_evidence_summary, run_debate
 from api.guardrails import check_query
 from api.schemas.requests import AnalysisRequest
 from api.schemas.responses import AnalysisResponse, RunStatusResponse
@@ -221,6 +222,37 @@ async def stream_analysis(run_id: str):
             _stream_queues.pop(run_id, None)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
+@router.post("/{run_id}/debate")
+async def run_debate_endpoint(run_id: str):
+    """
+    CrewAI bull/bear analyst debate over a completed run's evidence.
+
+    Deliberately on demand rather than part of the pipeline: it costs ~11s and
+    two extra LLM calls, and it's supplementary colour rather than part of the
+    verified answer. Users who want the investment-debate view ask for it;
+    everyone else gets their report ~11s sooner.
+    """
+    blob = _blob()
+    if not blob.blob_exists(CONTAINER, _blob_path(run_id)):
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    doc = json.loads(blob.download_blob(CONTAINER, _blob_path(run_id)))
+    if doc.get("status") != RunStatus.COMPLETED:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Run is '{doc.get('status')}' — a debate needs a completed run's evidence",
+        )
+
+    evidence = build_evidence_summary(doc)
+    if not evidence.strip():
+        raise HTTPException(status_code=422, detail="Run has no retrieved evidence to debate")
+
+    result = await run_debate(evidence)
+    if not result["bull"] and not result["bear"]:
+        raise HTTPException(status_code=502, detail="Both analyst crews failed — try again")
+    return result
 
 
 @router.get("/{run_id}/status", response_model=RunStatusResponse)

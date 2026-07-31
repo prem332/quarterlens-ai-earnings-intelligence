@@ -138,17 +138,29 @@ def build_graph() -> StateGraph:
         },
     )
 
-    # ── Retrieval → parallel fan-out ──────────────────────────────────────
+    # ── Retrieval → three-way parallel fan-out ────────────────────────────
+    # numeric_validation joins comparison and sentiment here rather than
+    # running after them. It reads only company, quarter, retrieval_results
+    # and transcript_retrieval_results -- never comparison_findings or
+    # sentiment_scores -- so everything it needs exists the moment retrieval
+    # finishes. Sequencing it behind the fan-in put its full duration on the
+    # critical path for no dependency reason: ~1-2s warm, and up to ~9s (or
+    # far worse) whenever the Serverless SQL database is resuming.
+    #
+    # Pure scheduling change: the three write disjoint state keys
+    # (comparison_findings / sentiment_scores / numeric_validations), so
+    # results are unchanged.
     graph.add_edge("retrieval_agent", "comparison_agent")
     graph.add_edge("retrieval_agent", "sentiment_agent")
+    graph.add_edge("retrieval_agent", "numeric_validation_agent")
 
-    # ── Parallel fan-in → numeric validation ─────────────────────────────
-    # LangGraph waits for all incoming edges before executing the target node.
-    graph.add_edge("comparison_agent", "numeric_validation_agent")
-    graph.add_edge("sentiment_agent", "numeric_validation_agent")
-
-    # ── Sequential tail ───────────────────────────────────────────────────
+    # ── Fan-in → report ───────────────────────────────────────────────────
+    # report_agent consumes all three outputs, so LangGraph's "wait for every
+    # incoming edge" semantics give the correct barrier.
+    graph.add_edge("comparison_agent", "report_agent")
+    graph.add_edge("sentiment_agent", "report_agent")
     graph.add_edge("numeric_validation_agent", "report_agent")
+
     graph.add_edge("report_agent", "supervisor_finalize")
     graph.add_edge("supervisor_finalize", END)
 

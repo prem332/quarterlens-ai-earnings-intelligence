@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from opentelemetry import trace as otel_trace
 
 from api.guardrails import check_query
 from api.schemas.requests import AnalysisRequest
@@ -26,6 +27,19 @@ REPORTS_PREFIX = "reports"
 # torn down by the SSE generator once it reads the terminal event, or by
 # run_analysis on early failure if no one ever connected.
 _stream_queues: dict[str, asyncio.Queue] = {}
+
+# Vendor-neutral tracer, shared by both observability backends. Phoenix's
+# phoenix.otel.register() (observability/phoenix_setup.py) sets the global
+# OTEL tracer provider, so get_tracer() here resolves to it automatically.
+# Langfuse's SDK (v4+, fully OTEL-based under the hood -- confirmed via its
+# own exported OtelSpanData/LangfuseOtelSpanAttributes types) uses the same
+# ambient OTEL context to parent its own spans. One span wrapping the whole
+# pipeline call therefore groups every LLM/embedding call from BOTH
+# instrumentors under one real per-run trace in both dashboards, instead of
+# each individual OpenAI call showing up as its own disconnected root trace
+# (confirmed missing before this: zero calls to langfuse's own trace()/
+# get_langfuse_client() existed anywhere in agents/, api/, or graph/).
+_tracer = otel_trace.get_tracer(__name__)
 
 
 def _to_fiscal_label(quarter: str) -> str:
@@ -90,7 +104,18 @@ async def _run_pipeline(run_id: str, req: AnalysisRequest, created_at: str):
             comparison_quarters=[_to_fiscal_label(q) for q in req.comparison_quarters],
         )
         state["stream_queue"] = queue  # not in GraphState's TypedDict — see report_agent.py
-        result: dict = await compiled_graph.ainvoke(state)
+
+        with _tracer.start_as_current_span(
+            "analysis_pipeline_run",
+            attributes={
+                "run_id": run_id,
+                "company": req.company,
+                "quarter": _to_fiscal_label(req.quarter),
+                "comparison_quarters": ",".join(_to_fiscal_label(q) for q in req.comparison_quarters),
+                "query": req.query[:200],
+            },
+        ):
+            result: dict = await compiled_graph.ainvoke(state)
         result["created_at"] = created_at
 
         blob.upload_blob(

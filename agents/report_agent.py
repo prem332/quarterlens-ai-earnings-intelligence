@@ -19,6 +19,7 @@ The openai_client wrapper enforces this minimum automatically.
 """
 
 import os
+import re
 import asyncio
 import time
 import openai
@@ -41,6 +42,78 @@ _MAX_RETRIES = 4
 _RETRY_BACKOFF = 4.0   # seconds, doubled per retry (4, 8, 16)
 _MAX_RETRY_AFTER = 60  # cap on an Azure-supplied Retry-After, so a long
                        # server hint can't stall a request indefinitely
+
+# ── Fix 1: report_agent always uses the primary deployment ───────────────────
+# router.py routes simple-looking questions ("what is the revenue growth...")
+# to the "standard" tier on the assumption that a smaller model is cheaper and
+# faster. For this model pair that is measurably backwards. Same 5,018-token
+# verify prompt, measured 2026-07-31:
+#
+#   gpt-5-mini   (standard)  8.33s   512 hidden reasoning tokens
+#                            -> left "No data available." (missed the rule)
+#   gpt-5.4-mini (primary)   1.54s     0 hidden reasoning tokens
+#                            -> wrote "No verified data available." (correct)
+#
+# 5.4x faster AND more correct. gpt-5-mini is also the 10K-TPM dev deployment,
+# so it is the one that actually 429s -- a real run today produced a blank
+# report for exactly that reason. Report generation is the most expensive and
+# most user-visible step in the pipeline; it should not run on the dev
+# deployment. Other agents keep using router.py's tier.
+#
+# Ablate with REPORT_FORCE_PRIMARY=0 to restore router-chosen routing.
+_FORCE_PRIMARY_TIER = os.environ.get("REPORT_FORCE_PRIMARY", "1") != "0"
+
+# ── Fix 2: skip the verify pass when it provably has nothing to delete ───────
+# Verify re-sends the entire evidence set to re-read a draft that was just
+# generated from that same evidence. In a real traced call it spent 17.15s and
+# 8,537 tokens to change exactly one line ("No data available." ->
+# "No verified data available.").
+#
+# Its primary job is deleting numeric claims that aren't in the evidence, so
+# when every number in the draft is present in the evidence there is nothing
+# for it to delete. That check is deterministic and exact -- no model needed.
+#
+# Deliberately conservative: any doubt runs verify. The skip requires all of
+#   * every numeric token in the draft appears in the evidence
+#   * the draft actually contains numbers (a purely qualitative draft still
+#     gets checked, since claims there can be unsupported without a number)
+#   * the question isn't asking for a recommendation (verify rule 0b refuses
+#     those, and that refusal must not be bypassed)
+#
+# Ablate with REPORT_SKIP_VERIFY=0. NOTE: this changes what reaches the user
+# on skipped runs, so it needs an eval run against the locked faithfulness
+# baseline before being treated as settled.
+_SKIP_VERIFY_WHEN_CLEAN = os.environ.get("REPORT_SKIP_VERIFY", "1") != "0"
+
+_NUM_RE = re.compile(r"\d[\d,]*\.?\d*")
+_RECOMMENDATION_RE = re.compile(
+    r"\b(should i|recommend|buy|sell|invest|overweight|underweight|good stock|worth buying)\b",
+    re.IGNORECASE,
+)
+
+
+def _numeric_tokens(text: str) -> list[str]:
+    """Digit sequences with separators stripped, so '$62,578' in a draft still
+    matches '62,578' / '62578' however the filing table happened to format it."""
+    return [m.group(0).replace(",", "").rstrip(".") for m in _NUM_RE.finditer(text or "")]
+
+
+def _verify_needed(draft: str, evidence: str, query: str) -> tuple[bool, str]:
+    """Return (needs_verify, reason). See _SKIP_VERIFY_WHEN_CLEAN above."""
+    if not _SKIP_VERIFY_WHEN_CLEAN:
+        return True, "skip disabled"
+    if _RECOMMENDATION_RE.search(query or ""):
+        return True, "recommendation-style question"
+
+    draft_nums = _numeric_tokens(draft)
+    if not draft_nums:
+        return True, "no numeric claims to check deterministically"
+
+    evidence_nums = set(_numeric_tokens(evidence))
+    unsupported = [n for n in draft_nums if n not in evidence_nums]
+    if unsupported:
+        return True, f"{len(unsupported)} unsupported number(s), e.g. {unsupported[:3]}"
+    return False, f"all {len(draft_nums)} draft numbers found in evidence"
 
 
 def _retry_after_seconds(exc) -> float | None:
@@ -320,7 +393,10 @@ async def report_agent(state: GraphState) -> dict:
 
     t0 = time.time()
     total_tokens = 0
-    model_tier = state.get("model_tier", "primary")
+    routed_tier = state.get("model_tier", "primary")
+    model_tier = "primary" if _FORCE_PRIMARY_TIER else routed_tier
+    if model_tier != routed_tier:
+        print(f"[report_agent] overriding routed tier '{routed_tier}' -> 'primary' (see _FORCE_PRIMARY_TIER)")
     # Not part of GraphState's TypedDict (would need Python 3.11+ NotRequired;
     # this repo targets 3.10) — set only by api/routes/analysis.py when a
     # browser is listening on the SSE stream endpoint. None for every eval-path
@@ -356,9 +432,6 @@ async def report_agent(state: GraphState) -> dict:
         )
         return out
 
-    if stream_queue is not None:
-        await stream_queue.put({"type": "verifying"})
-
     # ── Step 3: Verify ────────────────────────────────────────────────────
     # Use chunk_text + extra_evidence — the exact same evidence the draft was
     # given, not chunk_text alone. Verify previously only saw chunk_text, so a
@@ -378,10 +451,25 @@ async def report_agent(state: GraphState) -> dict:
         f"=== SENTIMENT ANALYSIS (FinBERT) ===\n{sentiment_summary}\n\n"
         f"=== NUMERIC VALIDATION ===\n{validations_text}"
     )
-    verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt, model_tier)
-    total_tokens += tokens
 
-    final_report = verified_report or draft
+    # Deterministic pre-check — cheaper than asking the model to discover it
+    # has nothing to do. Evidence scanned is the same text verify would read.
+    needs_verify, reason = _verify_needed(
+        draft,
+        f"{chunk_text}\n{findings_text}\n{sentiment_summary}\n{validations_text}",
+        state.get("query", ""),
+    )
+
+    verify_skipped = not needs_verify
+    if needs_verify:
+        if stream_queue is not None:
+            await stream_queue.put({"type": "verifying"})
+        verified_report, tokens = await _llm_call(_VERIFY_SYSTEM, verify_prompt, model_tier)
+        total_tokens += tokens
+        final_report = verified_report or draft
+    else:
+        print(f"[report_agent] verify skipped — {reason}")
+        final_report = draft
 
     if stream_queue is not None:
         await stream_queue.put({"type": "final", "report": final_report})
@@ -396,7 +484,10 @@ async def report_agent(state: GraphState) -> dict:
             f"validations={len(state.get('numeric_validations', []))} "
             f"debate={'yes' if debate_summary else 'failed'}"
         ),
-        "output_summary": f"report drafted and verified, len={len(final_report)}",
+        "output_summary": (
+            f"report drafted, verify={'skipped' if verify_skipped else 'run'} "
+            f"({reason}), tier={model_tier}, len={len(final_report)}"
+        ),
         "confidence": None,
         "tokens_used": total_tokens,
         "latency_ms": ms(t0),

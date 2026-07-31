@@ -21,6 +21,11 @@ audit trail is still persisted even on failure.
 
 """
 
+import inspect
+import logging
+import sys
+import time
+
 from langgraph.graph import StateGraph, END
 
 from graph.state import GraphState
@@ -31,18 +36,57 @@ from agents.sentiment_agent import sentiment_agent
 from agents.numeric_validation_agent import numeric_validation_agent
 from agents.report_agent import report_agent
 
+logger = logging.getLogger(__name__)
+
+
+def _traced(name, fn):
+    """Wrap a node with entry/exit timing, logged at INFO so it shows up in
+    `az containerapp logs show` without needing exec/py-spy access (Container
+    Apps' Consumption tier does not grant CAP_SYS_PTRACE, confirmed via a real
+    "Permission Denied" from py-spy -- this is the fallback diagnostic path).
+    Pure observability: does not touch any agent's logic, inputs, or outputs.
+    """
+    is_async = inspect.iscoroutinefunction(fn)
+
+    if is_async:
+        async def wrapped(state):
+            t0 = time.time()
+            print(f"NODE_START {name} t=0.0s", flush=True)
+            sys.stdout.flush()
+            try:
+                result = await fn(state)
+                print(f"NODE_END {name} t={time.time()-t0:.1f}s", flush=True)
+                return result
+            except Exception:
+                print(f"NODE_ERROR {name} t={time.time()-t0:.1f}s", flush=True)
+                raise
+        return wrapped
+    else:
+        def wrapped(state):
+            t0 = time.time()
+            print(f"NODE_START {name} t=0.0s", flush=True)
+            sys.stdout.flush()
+            try:
+                result = fn(state)
+                print(f"NODE_END {name} t={time.time()-t0:.1f}s", flush=True)
+                return result
+            except Exception:
+                print(f"NODE_ERROR {name} t={time.time()-t0:.1f}s", flush=True)
+                raise
+        return wrapped
+
 
 def build_graph() -> StateGraph:
     graph = StateGraph(GraphState)
 
     # ── Register nodes ────────────────────────────────────────────────────
-    graph.add_node("supervisor_init", supervisor_init)
-    graph.add_node("retrieval_agent", retrieval_agent)
-    graph.add_node("comparison_agent", comparison_agent)
-    graph.add_node("sentiment_agent", sentiment_agent)
-    graph.add_node("numeric_validation_agent", numeric_validation_agent)
-    graph.add_node("report_agent", report_agent)
-    graph.add_node("supervisor_finalize", supervisor_finalize)
+    graph.add_node("supervisor_init", _traced("supervisor_init", supervisor_init))
+    graph.add_node("retrieval_agent", _traced("retrieval_agent", retrieval_agent))
+    graph.add_node("comparison_agent", _traced("comparison_agent", comparison_agent))
+    graph.add_node("sentiment_agent", _traced("sentiment_agent", sentiment_agent))
+    graph.add_node("numeric_validation_agent", _traced("numeric_validation_agent", numeric_validation_agent))
+    graph.add_node("report_agent", _traced("report_agent", report_agent))
+    graph.add_node("supervisor_finalize", _traced("supervisor_finalize", supervisor_finalize))
     graph.add_node("error_exit", _error_exit)
 
     # ── Entry point ───────────────────────────────────────────────────────

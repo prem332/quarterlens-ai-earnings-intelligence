@@ -14,3 +14,7 @@ class AnalysisRequest(BaseModel):
         default="Summarize key earnings findings and verify management claims.",
         max_length=500,
     )
+    # Identical requests are served from the 24h run cache (sub-second instead
+    # of a full pipeline run). Set true to force a fresh analysis -- useful when
+    # demonstrating the pipeline itself, or after re-indexing.
+    no_cache: bool = False

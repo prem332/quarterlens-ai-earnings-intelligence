@@ -1,0 +1,89 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Runtime dependencies for the deployed API container ONLY.
+#
+# requirements.txt remains the full set and is what CI and local development
+# install -- it additionally covers the evaluation suite and the test runner.
+# This file is what the Dockerfile installs, so the image does not ship
+# packages the running service never imports.
+#
+# Excluded from here, with the reason each is safe to omit:
+#   mlflow          only observability/mlflow_tracking.py imports it, and
+#                   nothing the container runs imports that module. Verified by
+#                   importing api.main + both model warm-ups + the CrewAI path
+#                   and checking sys.modules. Removing it also drops pandas,
+#                   pyarrow, matplotlib, sqlalchemy, alembic and flask, which
+#                   in this dependency set are pulled in by mlflow alone --
+#                   ~232 MB together.
+#   beautifulsoup4  used only by data_pipeline's SEC download/parse scripts
+#                   (document_parser, edgar_downloader, financials_fetcher,
+#                   transcript_fetcher). Those are offline ingestion tools and
+#                   are never executed in the container; the only data_pipeline
+#                   import at runtime is chunking.sentences, via sentiment_agent,
+#                   which does not pull it.
+#   pytest          test runner, CI only. ~2.4 MB.
+#   pytest-asyncio
+#
+# Deliberately KEPT even though a naive import scan flags them as unused --
+# each is imported lazily and would break at request time:
+#   uvicorn                 the container's CMD, invoked as a binary
+#   reportlab, python-docx  imported inside the PDF/DOCX export handlers
+#   arize-phoenix-otel      imported inside setup_phoenix()
+#   openinference-*         imported inside the instrumentor helpers
+#
+# scipy and scikit-learn are NOT listed here and must not be removed: they are
+# required by sentence-transformers, so they ship regardless of mlflow.
+
+# Web framework / server
+fastapi==0.139.0
+uvicorn==0.51.0
+pydantic<2.13,>=2.11.9          # crewai 1.15.3 requires pydantic<2.13
+
+# Orchestration
+langgraph==1.2.9
+crewai==1.15.3
+
+# Azure SDKs
+azure-core==1.41.0
+azure-cosmos==4.16.1
+azure-identity==1.25.3
+azure-keyvault-secrets==4.11.0
+azure-monitor-opentelemetry
+azure-search-documents==12.0.0
+azure-storage-blob==12.30.0
+cryptography<49,>=43.0.0
+
+# LLM / embeddings / ML
+openai==2.45.0
+tiktoken==0.13.0
+torch==2.13.0+cpu
+transformers==5.13.1
+sentence-transformers==5.6.0
+numpy==2.2.6
+
+# Data access used at request time
+pyodbc==5.3.0
+PyYAML==6.0.3
+requests==2.34.2
+
+# Caching
+redis==8.0.1
+
+# Report export
+# lxml is here because python-docx requires it, NOT for the SEC parsers. An
+# import-blocking test of the slim set caught this: dropping lxml as an
+# "ingestion-only" package broke `from docx import Document`, which would have
+# failed only when a user clicked Export DOCX -- at request time, in production.
+python-docx==1.2.0
+lxml==6.1.1
+reportlab==5.0.0
+
+# Observability
+langfuse==4.14.0
+arize-phoenix-otel
+openinference-instrumentation-openai==0.1.52
+openinference-instrumentation-langchain==0.1.67
+
+# Config
+python-dotenv==1.2.2
+typing_extensions==4.16.0

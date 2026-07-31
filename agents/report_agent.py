@@ -402,12 +402,29 @@ def _build_chunk_text(state: GraphState, max_chunks: int = 8) -> str:
     Build the full chunk text payload used by both draft and verify steps.
     Preserves the global reranking order from retrieval_agent.
     Each chunk tagged with source type for citation tracking.
+
+    Deduplicated by parent block. Small-to-big retrieval expands each hit to
+    its L2 parent, and several top-5 hits routinely come from the SAME parent
+    section — so emitting one block per chunk sent the identical text several
+    times over. Measured on a real NVDA FY2027-Q1 run: all 5 chunks shared one
+    parent, so the evidence payload was 109,740 chars (~27k tokens) carrying
+    21,948 chars (~5.5k tokens) of actual information — 80% duplication, paid
+    twice because draft and verify both receive this string.
+
+    Emitting each distinct parent once loses nothing: the repeated copies were
+    byte-identical. Chunks whose parent expansion is degenerate (parent_content
+    == content) still appear individually.
     """
     chunks = state.get("retrieval_results") or []
-    return "\n\n".join(
-        f"[{r['doc_type'].upper()}] {r.get('parent_content') or r['content']}"
-        for r in chunks[:max_chunks]
-    )
+    blocks: list[str] = []
+    seen: set[str] = set()
+    for r in chunks[:max_chunks]:
+        body = r.get("parent_content") or r["content"]
+        if body in seen:
+            continue
+        seen.add(body)
+        blocks.append(f"[{r['doc_type'].upper()}] {body}")
+    return "\n\n".join(blocks)
 
 
 def _build_extra_evidence(state: GraphState) -> tuple[str, str, str]:

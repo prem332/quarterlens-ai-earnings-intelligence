@@ -250,22 +250,49 @@ class OpenAIClient:
         """
         Embed a batch of strings in one API call.
 
+        L1 cache: only the texts not already cached are sent to the API; the
+        rest are spliced back in by index. This matters because the dominant
+        caller is mmr_rerank(), which re-embeds the same retrieved chunk texts
+        on every single retrieval — measured at 1.3-1.9s per call for ~24
+        chunks (~14.5K tokens), paid even when the exact query was just run.
+        Chunk text is immutable, so those vectors never need recomputing.
+
         Returns:
             List of 1536-dim embedding vectors, order-preserving.
         """
         if not texts:
             return []
 
+        from azure_clients.redis_client import (
+            get_embeddings_batch_cached,
+            set_embeddings_batch_cached,
+        )
+
+        cached = get_embeddings_batch_cached(texts)
+        missing_idx = [i for i, emb in enumerate(cached) if emb is None]
+
+        if not missing_idx:
+            logger.debug("OpenAIClient.embed_batch: %d texts, all cached", len(texts))
+            return [emb for emb in cached]  # type: ignore[misc]
+
+        missing_texts = [texts[i] for i in missing_idx]
         response = self._client.embeddings.create(
             model=self._embedding_deployment,
-            input=texts,
+            input=missing_texts,
             dimensions=EMBEDDING_DIMENSIONS,
         )
         sorted_data = sorted(response.data, key=lambda d: d.index)
+        fresh = [d.embedding for d in sorted_data]
+
+        for i, embedding in zip(missing_idx, fresh):
+            cached[i] = embedding
+        set_embeddings_batch_cached(missing_texts, fresh)
+
         logger.debug(
-            "OpenAIClient.embed_batch: %d texts embedded", len(sorted_data)
+            "OpenAIClient.embed_batch: %d texts (%d cached, %d embedded)",
+            len(texts), len(texts) - len(missing_idx), len(missing_idx),
         )
-        return [d.embedding for d in sorted_data]
+        return [emb for emb in cached]  # type: ignore[misc]
 
 
 # Module-level singleton

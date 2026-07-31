@@ -13,17 +13,20 @@ chunk live on every retrieval. This script only builds the test index;
 retrieval-side code changes and evaluation happen separately.
 
 2026-07-31 attempt notes (see project memory for full context):
-  - First two runs both got hit by a duplicate-process bug (two identical
-    python processes launched at the same instant, both hammering the same
-    index) plus what looked like broader F0 quota exhaustion from the day's
-    testing volume -- batch 0 alone took ~17 minutes across all 5 retries.
-  - Reduced UPLOAD_BATCH 100->20 and added a fixed pacing delay between
-    every batch (not just on 429) to stay further under whatever burst
-    threshold was being hit. Untested with this config yet -- try again
-    when quota has had time to reset (next morning is fine), and make
-    ABSOLUTELY sure only one process is launched (run_in_background: true
-    from the very first call; never let this hit a foreground timeout and
-    get "promoted" -- that's what spawned the duplicate both times).
+  - Two runs failed to make progress: batch 0 alone burned ~17 minutes across
+    all 5 retries against Azure AI Search F0-tier 429s, and the index ended
+    up with 0 documents both times.
+  - CORRECTION to an earlier diagnosis recorded here: this was NOT caused by
+    a "duplicate process" launching twice. Two python.exe entries do show up
+    per run, but they are a parent/child pair -- the venv launcher
+    (.venv\\Scripts\\python.exe) re-executing the real interpreter
+    (Python310\\python.exe). Verified via ParentProcessId: the second PID's
+    parent is the first, and killing either one takes down both. It is one
+    logical process. The slowness was plain F0 throttling, most likely with
+    quota already drained by the day's testing volume.
+  - Reduced UPLOAD_BATCH 100->20 and added a fixed pacing delay between every
+    batch (not just on 429) to stay further under the burst threshold.
+    Untested with this config -- retry when quota has had time to reset.
 """
 import json
 import logging

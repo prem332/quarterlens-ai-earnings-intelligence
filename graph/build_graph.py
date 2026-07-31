@@ -39,11 +39,37 @@ from agents.report_agent import report_agent
 logger = logging.getLogger(__name__)
 
 
+def _emit(state, event: dict) -> None:
+    """Push a stage event to the SSE queue if a browser is listening.
+
+    Best-effort by design: this is progress telemetry, and a failure here must
+    never take down an analysis run. put_nowait (not await) so the sync-node
+    branch below can call it too -- LangGraph may execute sync nodes off the
+    event loop thread, where awaiting the queue is not available.
+    """
+    queue = state.get("stream_queue") if isinstance(state, dict) else None
+    if queue is None:
+        return
+    try:
+        queue.put_nowait(event)
+    except Exception:
+        pass
+
+
 def _traced(name, fn):
-    """Wrap a node with entry/exit timing, logged at INFO so it shows up in
-    `az containerapp logs show` without needing exec/py-spy access (Container
-    Apps' Consumption tier does not grant CAP_SYS_PTRACE, confirmed via a real
-    "Permission Denied" from py-spy -- this is the fallback diagnostic path).
+    """Wrap a node with entry/exit timing.
+
+    Two outputs, same instrumentation:
+      * stdout NODE_START/NODE_END lines -- readable via
+        `az containerapp logs show`, which is the only stack-level visibility
+        available on Container Apps' Consumption tier (it does not grant
+        CAP_SYS_PTRACE, confirmed by a real "Permission Denied" from py-spy).
+      * stage_start/stage_end events on the SSE queue, so the UI can show
+        which stage is ACTUALLY running. The progress list used to advance on
+        hardcoded per-stage seconds, which meant it reported a stage as
+        finished while it was still running -- and hid, for example, a
+        numeric_validation step that really took 53s against a 3s guess.
+
     Pure observability: does not touch any agent's logic, inputs, or outputs.
     """
     is_async = inspect.iscoroutinefunction(fn)
@@ -53,12 +79,17 @@ def _traced(name, fn):
             t0 = time.time()
             print(f"NODE_START {name} t=0.0s", flush=True)
             sys.stdout.flush()
+            _emit(state, {"type": "stage_start", "stage": name})
             try:
                 result = await fn(state)
-                print(f"NODE_END {name} t={time.time()-t0:.1f}s", flush=True)
+                elapsed = time.time() - t0
+                print(f"NODE_END {name} t={elapsed:.1f}s", flush=True)
+                _emit(state, {"type": "stage_end", "stage": name, "seconds": round(elapsed, 1)})
                 return result
             except Exception:
-                print(f"NODE_ERROR {name} t={time.time()-t0:.1f}s", flush=True)
+                elapsed = time.time() - t0
+                print(f"NODE_ERROR {name} t={elapsed:.1f}s", flush=True)
+                _emit(state, {"type": "stage_error", "stage": name, "seconds": round(elapsed, 1)})
                 raise
         return wrapped
     else:
@@ -66,12 +97,17 @@ def _traced(name, fn):
             t0 = time.time()
             print(f"NODE_START {name} t=0.0s", flush=True)
             sys.stdout.flush()
+            _emit(state, {"type": "stage_start", "stage": name})
             try:
                 result = fn(state)
-                print(f"NODE_END {name} t={time.time()-t0:.1f}s", flush=True)
+                elapsed = time.time() - t0
+                print(f"NODE_END {name} t={elapsed:.1f}s", flush=True)
+                _emit(state, {"type": "stage_end", "stage": name, "seconds": round(elapsed, 1)})
                 return result
             except Exception:
-                print(f"NODE_ERROR {name} t={time.time()-t0:.1f}s", flush=True)
+                elapsed = time.time() - t0
+                print(f"NODE_ERROR {name} t={elapsed:.1f}s", flush=True)
+                _emit(state, {"type": "stage_error", "stage": name, "seconds": round(elapsed, 1)})
                 raise
         return wrapped
 

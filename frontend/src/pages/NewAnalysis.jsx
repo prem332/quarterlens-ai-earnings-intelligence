@@ -27,41 +27,35 @@ const COMPANY_QUARTERS = {
 
 const AGENTS = ["retrieval","comparison","sentiment","numeric_validation","report"];
 
-// The backend only ever reports overall pending/running/completed/failed — it
-// has no per-agent telemetry to poll, so the "current stage" shown here is an
-// elapsed-time ESTIMATE, not a live signal. It's deliberately framed as an
-// estimate in the UI rather than implying real tracking.
+// Backend node names -> the labels above. supervisor_init/finalize are real
+// nodes but carry no user-meaningful work (both measured at ~0-1s), so they
+// aren't shown as stages.
+const NODE_TO_AGENT = {
+  retrieval_agent: "retrieval",
+  comparison_agent: "comparison",
+  sentiment_agent: "sentiment",
+  numeric_validation_agent: "numeric_validation",
+  report_agent: "report",
+};
+
+// Stage progress is now LIVE, not estimated. graph/build_graph.py's _traced
+// wrapper emits stage_start/stage_end on the same SSE stream the draft tokens
+// use, so each row below reflects what the pipeline is actually doing and
+// reports the real per-stage duration when it finishes.
 //
-// Stage durations below are NOT an even split — they're weighted from real
-// measurements. Re-measured 2026-07-31 by profiling each retrieval sub-step
-// directly and by reading per-node timing logs off a live production run:
-//
-//   retrieval  ~3s warm / ~8s cold  (was listed here as 28s — badly wrong;
-//              the old figure came from one early run whose retrieval share
-//              was inflated by the one-time cross-encoder model load, which
-//              is now paid at server startup instead, and by the uncached
-//              chunk re-embedding that has since been fixed)
-//   comparison ~4s, sentiment ~8s, numeric_validation ~3s
-//   report     ~58s — genuinely dominates (CrewAI bull/bear debate + draft +
-//              verify = 4-5 sequential LLM calls)
-//
-// These remain an ESTIMATE driving a progress animation, not live tracking:
-// the backend reports only overall pending/running/completed. Keeping them
-// roughly honest matters because a wrong retrieval figure makes the UI look
-// stuck on retrieval while the real time is being spent in report_agent.
-const STAGE_SECONDS = { retrieval: 5, comparison: 4, sentiment: 8, numeric_validation: 3, report: 58 };
-const ESTIMATED_TOTAL_SECONDS = Object.values(STAGE_SECONDS).reduce((a, b) => a + b, 0);
-const STAGE_CUMULATIVE = AGENTS.reduce((acc, a) => {
-  const prev = acc.length ? acc[acc.length - 1] : 0;
-  acc.push(prev + STAGE_SECONDS[a]);
-  return acc;
-}, []);
+// This replaces a hardcoded elapsed-time animation, which was actively
+// misleading: it ticked stages off on a fixed schedule regardless of reality,
+// so a run whose numeric_validation genuinely took 53s still showed that stage
+// completing after its guessed 3s. Anyone timing the UI with a stopwatch was
+// measuring the animation, not the pipeline.
 
 function AgentProgress({ runId, onDone }) {
   const [pollStatus, setPollStatus] = useState("running");
   const [elapsed, setElapsed] = useState(0);
   const [draftText, setDraftText] = useState("");
   const [draftPhase, setDraftPhase] = useState(null); // null | "drafting" | "verifying"
+  const [activeStage, setActiveStage] = useState(null);   // stage currently running
+  const [doneStages, setDoneStages] = useState({});       // stage -> real seconds taken
   const pollTimerRef = useRef(null);
   const tickTimerRef = useRef(null);
   const startRef = useRef(Date.now());
@@ -111,7 +105,19 @@ function AgentProgress({ runId, onDone }) {
     const es = new EventSource(`/api/analysis/${runId}/stream`);
     es.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
-      if (msg.type === "draft_token") {
+      if (msg.type === "stage_start") {
+        const a = NODE_TO_AGENT[msg.stage];
+        if (a) setActiveStage(a);
+      } else if (msg.type === "stage_end" || msg.type === "stage_error") {
+        const a = NODE_TO_AGENT[msg.stage];
+        if (a) {
+          setDoneStages(prev => ({ ...prev, [a]: msg.seconds }));
+          // comparison and sentiment run in parallel, so a stage_end does not
+          // imply the next stage has begun — clear only if this was the one
+          // being shown as active.
+          setActiveStage(prev => (prev === a ? null : prev));
+        }
+      } else if (msg.type === "draft_token") {
         setDraftPhase("drafting");
         setDraftText(prev => prev + msg.text);
       } else if (msg.type === "draft_reset") {
@@ -128,20 +134,16 @@ function AgentProgress({ runId, onDone }) {
     return () => es.close();
   }, [runId]);
 
-  // First stage whose cumulative threshold hasn't been reached yet; once
-  // elapsed exceeds every threshold, stay on the last stage (report).
-  const firstUnreached = STAGE_CUMULATIVE.findIndex(threshold => elapsed < threshold);
-  const estimatedIdx = firstUnreached === -1 ? AGENTS.length - 1 : firstUnreached;
-
   return (
     <div className="card" style={{ marginTop: 24 }}>
       <p style={{ fontSize: 12, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-        Pipeline — {pollStatus} ({elapsed}s elapsed — stages below are an estimate, not live tracking)
+        Pipeline — {pollStatus} ({elapsed}s elapsed — live stage tracking)
       </p>
-      {AGENTS.map((a, i) => {
-        const st = pollStatus === "completed" ? "done"
-          : i < estimatedIdx ? "done"
-          : i === estimatedIdx ? "running"
+      {AGENTS.map((a) => {
+        const seconds = doneStages[a];
+        const st = seconds !== undefined ? "done"
+          : activeStage === a ? "running"
+          : pollStatus === "completed" ? "done"
           : null;
         return (
           <div key={a} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
@@ -150,9 +152,14 @@ function AgentProgress({ runId, onDone }) {
                : st === "running" ? <span className="spinner" />
                : <span style={{ color: "var(--border-hi)" }}>·</span>}
             </span>
-            <span className="mono" style={{ fontSize: 13, color: st ? "var(--text-hi)" : "var(--text-dim)" }}>
+            <span className="mono" style={{ fontSize: 13, color: st ? "var(--text-hi)" : "var(--text-dim)", flex: 1 }}>
               {a.replace("_", " ")}
             </span>
+            {seconds !== undefined && (
+              <span className="mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                {seconds}s
+              </span>
+            )}
           </div>
         );
       })}

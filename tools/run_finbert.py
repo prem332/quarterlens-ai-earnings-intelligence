@@ -58,6 +58,22 @@ def _get_pipeline():
     return _pipeline
 
 
+def warm_up() -> None:
+    """Load the model now rather than inside the first user request.
+
+    Mirrors tools/rerank_documents.warm_up(). Measured cost of NOT doing this:
+    sentiment_agent took 7.0s on the first request to a fresh server and
+    0.3-0.4s on every request after -- a 20x difference that is entirely
+    model loading, since warm inference is ~0.06s per passage. The
+    cross-encoder was already warmed at startup; FinBERT was not, so every
+    cold start silently charged one user ~7s.
+
+    Matters most in production: min-replicas is 0, so a scale-from-zero makes
+    the next request pay this again.
+    """
+    _get_pipeline()
+
+
 # ---------------------------------------------------------------------------
 # Sentence splitter (no NLTK dependency — keeps requirements lean)
 # ---------------------------------------------------------------------------

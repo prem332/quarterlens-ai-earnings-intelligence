@@ -11,6 +11,7 @@ from observability.azure_monitor_setup import setup_azure_monitor
 from observability.phoenix_setup import setup_phoenix
 from observability.langfuse_setup import setup_langfuse, flush_langfuse
 from tools.rerank_documents import warm_up as warm_up_cross_encoder
+from tools.run_finbert import warm_up as warm_up_finbert
 
 
 @asynccontextmanager
@@ -19,10 +20,19 @@ async def lifespan(app: FastAPI):
     setup_azure_monitor()   # Azure Monitor first — sets up OTEL provider
     setup_phoenix()         # Phoenix cloud tracing
     setup_langfuse()        # Langfuse LLM call monitoring
-    # Loads the reranker model now (~18s, one-time) instead of on whichever
-    # user's request happens to be first. to_thread so it doesn't block the
-    # event loop from serving /api/health while it loads.
-    await asyncio.to_thread(warm_up_cross_encoder)
+    # Load both CPU models now instead of inside whichever user's request
+    # happens to be first. to_thread so the event loop can still serve
+    # /api/health while they load. Concurrently because they are independent
+    # and both are pure CPU/disk work.
+    #
+    # FinBERT was missing here until measured: sentiment_agent took 7.0s on a
+    # fresh server's first request and 0.3-0.4s on every one after, all of it
+    # model loading (warm inference is ~0.06s/passage). The cross-encoder was
+    # already warmed; FinBERT silently charged that 7s to the first user.
+    await asyncio.gather(
+        asyncio.to_thread(warm_up_cross_encoder),
+        asyncio.to_thread(warm_up_finbert),
+    )
     yield
     flush_langfuse()
 

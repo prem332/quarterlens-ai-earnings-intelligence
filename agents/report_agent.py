@@ -37,8 +37,39 @@ from azure_clients.openai_client import openai_client
 # from the gpt-5-mini dev deployment (10K TPM) more likely to land right as
 # draft was about to run: draft had zero retry, so one 429 collapsed the
 # entire report to empty instead of just costing a few extra seconds.
-_MAX_RETRIES = 3
-_RETRY_BACKOFF = 2.0  # seconds, doubled per retry
+_MAX_RETRIES = 4
+_RETRY_BACKOFF = 4.0   # seconds, doubled per retry (4, 8, 16)
+_MAX_RETRY_AFTER = 60  # cap on an Azure-supplied Retry-After, so a long
+                       # server hint can't stall a request indefinitely
+
+
+def _retry_after_seconds(exc) -> float | None:
+    """Azure returns a Retry-After header on 429 saying when quota frees up.
+
+    The previous policy ignored it and used a fixed 2s/4s backoff, which is
+    far shorter than the deployment actually needs — a real GOOGL run burned
+    all 3 attempts in ~6s and produced an empty report. Honouring the header
+    is what makes the retry meaningful rather than decorative.
+    """
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None) or {}
+    for key in ("retry-after", "Retry-After", "x-ratelimit-reset-requests"):
+        raw = headers.get(key)
+        if not raw:
+            continue
+        try:
+            return min(float(str(raw).rstrip("s")), _MAX_RETRY_AFTER)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _fallback_tier(model_tier: str) -> str | None:
+    """gpt-5-mini (standard) is the low-quota dev deployment and is what
+    actually gets rate-limited; gpt-5.4-mini (primary) is Global Standard with
+    far more headroom. When standard is exhausted, finishing the report on
+    primary beats returning nothing."""
+    return "primary" if model_tier == "standard" else None
 
 
 _DRAFT_SYSTEM = """\
@@ -314,7 +345,16 @@ async def report_agent(state: GraphState) -> dict:
     total_tokens += tokens
 
     if not draft:
-        return _empty("draft generation failed", t0)
+        # Surface this as a real pipeline error rather than an empty-but-
+        # "completed" run. A rate-limited draft used to return report="" with
+        # error=None, so the API stored status=completed and the UI rendered a
+        # blank page with no explanation — a failure disguised as success.
+        out = _empty("draft generation failed", t0)
+        out["error"] = (
+            "Report generation failed: the language model was rate-limited and "
+            "did not return a draft. Retry in a minute."
+        )
+        return out
 
     if stream_queue is not None:
         await stream_queue.put({"type": "verifying"})
@@ -474,29 +514,40 @@ def _build_evidence_summary(state: GraphState) -> str:
 # ── Async LLM wrapper ─────────────────────────────────────────────────────────
 
 async def _llm_call(system: str, user: str, model_tier: str = "primary") -> tuple[str, int]:
-    for attempt in range(1, _MAX_RETRIES + 1):
+    tier = model_tier
+    tried_fallback = False
+    attempt = 0
+    while attempt < _MAX_RETRIES:
+        attempt += 1
         try:
             response = await openai_client.achat_tiered(
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-                model_tier=model_tier,
+                model_tier=tier,
             )
             text = response.choices[0].message.content or ""
             tokens = response.usage.total_tokens if response.usage else 0
             return text, tokens
         except openai.RateLimitError as exc:
-            if attempt == _MAX_RETRIES:
+            fallback = _fallback_tier(tier) if not tried_fallback else None
+            if fallback:
+                tried_fallback = True
+                tier = fallback
+                attempt = 0  # fresh budget on the higher-headroom deployment
+                print(f"[report_agent] {model_tier} rate-limited — switching to {fallback}")
+                continue
+            if attempt >= _MAX_RETRIES:
                 print(f"[report_agent] LLM call rate-limited, giving up after {_MAX_RETRIES} attempts: {exc}")
                 return "", 0
-            wait = _RETRY_BACKOFF * (2 ** (attempt - 1))
+            wait = _retry_after_seconds(exc) or _RETRY_BACKOFF * (2 ** (attempt - 1))
             print(f"[report_agent] LLM call rate-limited (attempt {attempt}/{_MAX_RETRIES}) — retrying in {wait:.0f}s")
             await asyncio.sleep(wait)
         except Exception as exc:
             print(f"[report_agent] LLM call failed: {exc}")
             return "", 0
-    return "", 0  # unreachable — loop always returns or retries
+    return "", 0
 
 
 async def _llm_call_streaming(
@@ -513,7 +564,11 @@ async def _llm_call_streaming(
     returns usage on the final non-streamed response); returns 0, same as
     every other failure path here — total_tokens is already best-effort.
     """
-    for attempt in range(1, _MAX_RETRIES + 1):
+    tier = model_tier
+    tried_fallback = False
+    attempt = 0
+    while attempt < _MAX_RETRIES:
+        attempt += 1
         chunks: list[str] = []
         try:
             async for delta in openai_client.achat_tiered_stream(
@@ -521,23 +576,31 @@ async def _llm_call_streaming(
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-                model_tier=model_tier,
+                model_tier=tier,
             ):
                 chunks.append(delta)
                 await stream_queue.put({"type": "draft_token", "text": delta})
             return "".join(chunks), 0
         except openai.RateLimitError as exc:
-            if attempt == _MAX_RETRIES:
+            # A 429 mid-stream (rare — the request was already accepted, but
+            # possible) leaves partial text already pushed to the queue. Any
+            # retry re-generates from scratch, so the consumer must discard
+            # what it has rather than append the retry on top of it.
+            if chunks:
+                await stream_queue.put({"type": "draft_reset"})
+
+            fallback = _fallback_tier(tier) if not tried_fallback else None
+            if fallback:
+                tried_fallback = True
+                tier = fallback
+                attempt = 0
+                print(f"[report_agent] {model_tier} rate-limited — switching to {fallback}")
+                continue
+            if attempt >= _MAX_RETRIES:
                 print(f"[report_agent] streaming LLM call rate-limited, giving up after {_MAX_RETRIES} attempts: {exc}")
                 return "", 0
-            wait = _RETRY_BACKOFF * (2 ** (attempt - 1))
+            wait = _retry_after_seconds(exc) or _RETRY_BACKOFF * (2 ** (attempt - 1))
             print(f"[report_agent] streaming LLM call rate-limited (attempt {attempt}/{_MAX_RETRIES}) — retrying in {wait:.0f}s")
-            if chunks:
-                # A 429 mid-stream (rare — the request was already accepted,
-                # but possible) leaves partial text already pushed to the
-                # queue. Retrying re-generates from scratch, so the consumer
-                # must discard what it has, not append the retry on top of it.
-                await stream_queue.put({"type": "draft_reset"})
             await asyncio.sleep(wait)
         except Exception as exc:
             print(f"[report_agent] streaming LLM call failed: {exc}")

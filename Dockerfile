@@ -35,8 +35,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Fixed cache path so the model bake-in below (run as root, at build time)
+# and the app's runtime reads (run as the `app` user, after chown below)
+# resolve to the exact same directory.
+ENV HF_HOME=/app/.cache/huggingface
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Bake both HF models into the image at build time instead of letting them
+# lazy-download from HuggingFace Hub on first use at runtime.
+#
+# Root-caused a production hang with this: sentiment_agent's first-ever
+# call in a fresh container lazily pulled ProsusAI/finbert (~440MB) from HF
+# Hub with no pre-warm (unlike the cross-encoder, which IS warmed at
+# startup — see tools/rerank_documents.py's warm_up()). Confirmed via
+# per-node timing logs on a real stuck production request: every node
+# up through comparison_agent completed normally, then sentiment_agent
+# never returned. The literal "sending unauthenticated requests to the
+# HF Hub" warning showed up during diagnosis, proving a live download was
+# in flight, not a cached load. Datacenter egress IPs (Container Apps'
+# included) are exactly the kind HF Hub's anonymous-download throttling
+# targets hardest, which fits a hang that never reproduced locally or in
+# GitHub Actions (both effectively used a warm cache or got through fast).
+# Warming the cross-encoder at startup only reduces this risk for that one
+# model and only for the *first* request after a cold start; baking both
+# in here removes the runtime HF Hub dependency entirely, for good.
+RUN python3 -c "from transformers import pipeline; pipeline('text-classification', model='ProsusAI/finbert', tokenizer='ProsusAI/finbert')" \
+    && python3 -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2', device='cpu')"
 
 # First-party source only — data/, mlruns/, evaluation/, golden_dataset/claims/,
 # frontend/node_modules and frontend/src are excluded via .dockerignore. The

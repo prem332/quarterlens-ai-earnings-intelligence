@@ -53,6 +53,7 @@ def build_index() -> SearchIndex:
             name="embedding",
             type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
             searchable=True,
+            retrievable=True,  # let mmr_rerank() read the vector back instead of re-embedding live
             vector_search_dimensions=EMBED_DIM,
             vector_search_profile_name=VECTOR_PROFILE,
         ),

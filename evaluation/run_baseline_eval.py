@@ -47,22 +47,7 @@ _CONTEXT_PRECISION_CHUNK_CHARS: int = int(os.environ.get("CONTEXT_PRECISION_CHUN
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# ── Observability — must initialize before openai_client is imported ──────────
 _obs_log = logging.getLogger("observability")
-try:
-    from observability.langfuse_setup import setup_langfuse
-    setup_langfuse()
-    _obs_log.info("Langfuse initialized")
-except Exception as _lf_exc:
-    _obs_log.warning("Langfuse init failed (non-fatal): %s", _lf_exc)
-
-try:
-    from observability.phoenix_setup import setup_phoenix
-    setup_phoenix()
-    _obs_log.info("Phoenix initialized")
-except Exception as _px_exc:
-    _obs_log.warning("Phoenix init failed (non-fatal): %s", _px_exc)
-# ─────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
     level=logging.INFO,
@@ -453,6 +438,32 @@ async def run_eval(
     from evaluation.precision_recall_at_k import compute_batch_retrieval_metrics
     from evaluation.llm_as_judge import judge_batch
     from observability.mlflow_tracking import start_run, log_eval_results, log_per_claim_results
+
+    # Deliberately here, not at module import time. This module previously called
+    # setup_langfuse()/setup_phoenix() as a top-level side effect, which fires on
+    # ANY import -- including scripts that only want _load_claims/_build_query/etc
+    # and never call run_eval() at all. Phoenix's OpenAIInstrumentor patches the
+    # openai SDK process-globally, so those unrelated scripts' own LLM calls (e.g.
+    # a standalone RAGAS-scoring pass against production data) got traced too, with
+    # no parent pipeline span to group under -- confirmed live: a standalone
+    # 73-claim RAGAS/judge scoring pass (365 individual LLM calls, zero of them
+    # pipeline calls) inflated Phoenix's trace count from 75 to 471 for that
+    # window. Only run_eval() actually drives claims through the pipeline,
+    # so only run_eval() should turn tracing on.
+    if not dry_run:
+        try:
+            from observability.langfuse_setup import setup_langfuse
+            setup_langfuse()
+            _obs_log.info("Langfuse initialized")
+        except Exception as _lf_exc:
+            _obs_log.warning("Langfuse init failed (non-fatal): %s", _lf_exc)
+
+        try:
+            from observability.phoenix_setup import setup_phoenix
+            setup_phoenix()
+            _obs_log.info("Phoenix initialized")
+        except Exception as _px_exc:
+            _obs_log.warning("Phoenix init failed (non-fatal): %s", _px_exc)
 
     claims = _load_claims(claims_dir)
     runnable = [c for c in claims if c.get("claim_type") in _RUNNABLE_TYPES]

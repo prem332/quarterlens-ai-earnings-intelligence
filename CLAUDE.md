@@ -123,9 +123,34 @@ chunking.py → embedding.py → indexer.py
 
 ### Locked Baselines
 
-**`final-precision-check-75`** (current, 2026-08-01 — full 75-claim golden dataset, no sampling,
-`REPORT_SKIP_VERIFY=0`, `CONTEXT_PRECISION_K=2`/`CONTEXT_PRECISION_CHUNK_CHARS=0`). Authoritative
-baseline — see `evaluation/FINAL_REPORT.md` for full methodology and what was fixed to get here:
+**`production-full-eval-75`** (current, 2026-08-01 — HEADLINE baseline. Full 75-claim golden
+dataset, real HTTP requests against the deployed Container App
+(`https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io`), `no_cache=true` on
+every request, `REPORT_SKIP_VERIFY` at its **production default** (skip when safe) — this is what
+real users actually get, not a config override. Script:
+`evaluation/production_full_eval.py` pattern (ad-hoc, see PR/session notes) — reuses the exact
+scoring functions `run_baseline_eval.py` uses, sourcing `report`/`retrieval_results`/
+`sentiment_scores`/`comparison_findings` from `GET /api/reports/{run_id}` instead of an in-process
+`compiled_graph.ainvoke()` call, so results are directly comparable to local runs.
+- faithfulness=0.9353, answer_relevancy=0.9616
+- context_precision=0.8219 (k=2/full-chunk window, same as `final-precision-check-75`)
+- context_recall=0.8386 (all claim types) / context_recall_excl_oos=0.8918
+- precision@5=0.7222, recall@5=1.0000 — **identical to the local run to 4 decimal places**, a real
+  internal-consistency signal (precision@5 is retrieval-only, unaffected by the one deliberate
+  config difference below)
+- llm_judge=3.9863/5 (79.7%)
+- **Latency (n=75 traces, real end-to-end HTTP wall time)**: p50=7.42s, p90=9.19s, p95=9.33s,
+  p99=10.88s, mean=7.15s, min=4.05s, max=11.01s. Error rate 2/75 (2.7%), both input-guardrail
+  rejections (off-topic phrasing on a legitimate metric claim — see Known Issues), not infra
+  failures — 73/75 completed cleanly.
+
+**`final-precision-check-75`** (2026-08-01, local — methodology/config reference, not the headline
+number. Full 75-claim golden dataset, `REPORT_SKIP_VERIFY=0` (verify forced on, not the default),
+`CONTEXT_PRECISION_K=2`/`CONTEXT_PRECISION_CHUNK_CHARS=0`). Kept because it's what explains the
+small faithfulness/llm_judge gap above — `REPORT_SKIP_VERIFY=0` was validated this session to give
+a real (if modest) faithfulness/llm_judge edge over the default skip-when-safe path; production
+intentionally measures the default, so a small gap here is expected, not a regression. Full
+methodology in `evaluation/FINAL_REPORT.md`:
 - faithfulness=0.9590, answer_relevancy=0.9421
 - context_precision=0.8267 (k=2/full-chunk window — ~0.51-0.56 at the wider default k=5/300-char
   window; both real, disclose whichever is quoted — see FINAL_REPORT.md)
@@ -210,12 +235,13 @@ context_precision=0.2560, precision@5=0.8167, recall@5=1.0000, llm_judge=3.0240
   and failed (see Rolled-Back Experiments).
 
 ### Metric Targets — LOCKED, see `evaluation/FINAL_REPORT.md`
-The reported metric set is exactly 7 (+ L1/L2/L3 cache hit rates). Final values,
-sources, and the cold-vs-warm cache explanation live in `evaluation/FINAL_REPORT.md`.
+The reported metric set is exactly 7 (+ L1/L2/L3 cache hit rates). Headline values are from
+`production-full-eval-75` (real production traffic); sources, the cold-vs-warm cache explanation,
+and the local reference run live in `evaluation/FINAL_REPORT.md`.
 
-- faithfulness 0.9590 ✅ | answer_relevancy 0.9421 ✅ | recall@5 1.0000 ✅
-- context_precision 0.8267 ✅ (k=2/full-chunk window) | context_recall 0.8134 (0.8714 excl_oos)
-- llm_judge 4.04/5 (80.8%) — not cleared | precision@5 0.7222 ✅ (target 0.60)
+- faithfulness 0.9353 ✅ | answer_relevancy 0.9616 ✅ | recall@5 1.0000 ✅
+- context_precision 0.8219 ✅ (k=2/full-chunk window) | context_recall 0.8386 (0.8918 excl_oos)
+- llm_judge 3.99/5 (79.7%) — not cleared | precision@5 0.7222 ✅ (target 0.60)
 
 `numeric_pass_rate` is no longer computed — it is not one of the 7 reported metrics.
 Its implementation was removed with `evaluate_finetuned_vs_baseline.py`; recover from
@@ -296,8 +322,77 @@ heuristics with real data, and confirmed the remaining cost is architecturally e
    `"done"` event the instant the pipeline finishes (success or failure — it carries no
    outcome itself, `/status` is still the source of truth), but the handler only closed
    the stream. Now it also triggers an immediate status check. Verified working live.
+4. **Production SQL connections were completely broken** (`Dockerfile`) — discovered
+   *after* deploying fix #2 above, by checking production logs rather than trusting the
+   green CI/deploy checkmark. `msodbcsql18` installs with `--no-install-recommends`, which
+   silently drops `libgssapi-krb5-2` (Kerberos/GSSAPI) — Microsoft lists it as a
+   Recommends, not a hard Depends, even though `libmsodbcsql-18.6.so.2.1` is unconditionally
+   link-time-dependent on `libgssapi_krb5.so.2` regardless of whether a given connection
+   actually uses Kerberos (this app only ever uses SQL-auth via UID/PWD). Every
+   `calculate_metric()` call was silently failing and returning no data in production.
+   Root-caused via `az containerapp exec` + `ldd` directly against the running container
+   (the failing `.so` genuinely existed at its path — `ldd` was what revealed the *real*
+   missing dependency instead of the misleading "file not found" pyodbc surfaced). Fixed
+   by installing `libgssapi-krb5-2` explicitly; confirmed via a direct in-container
+   `sql_client.count()` call and a live production request exercising
+   `numeric_validation_agent` after redeploying.
 
-### Sub-stage retrieval profiling (real measured data, not estimated)
+### Production latency — real HTTP traffic, not in-process measurement
+
+`evaluation/run_baseline_eval.py` calls `compiled_graph.ainvoke()` **in-process** — running it
+measures "local machine → Azure," not production. A separate ad-hoc script (pattern:
+`production_full_eval.py`, this session) instead makes real HTTP calls against the deployed
+Container App (`POST /api/analysis/run` with `no_cache=true` → poll `/status` → `GET
+/api/reports/{run_id}` for the full response) so the numbers reflect what a real user's browser
+actually experiences, not this project's own dev-machine network path.
+
+**`production-full-eval-75` latency** (n=75 traces, 73 completed): p50=7.42s, p90=9.19s,
+p95=9.33s, p99=10.88s, mean=7.15s, min=4.05s, max=11.01s. Error rate 2.7% (2/75), both
+input-guardrail rejections on a legitimate metric claim phrased without financial keywords
+(see Known Issues) — not infra failures; 73/75 completed cleanly.
+
+**Independent cross-validation via Langfuse** (same n=75 run, `us.cloud.langfuse.com`, project
+`quarterlens-ai`) — a second, independently-instrumented measurement (OTEL trace spans emitted by
+the pipeline itself, not measured by polling from outside) confirms the HTTP-based numbers above
+rather than contradicting them:
+- **Trace count: exactly 75** — matches the HTTP-measured request count precisely, confirming
+  this project's "wrap the pipeline invocation in one OTEL span" instrumentation correctly groups
+  one trace per analysis run. Phoenix, the other observability backend wired into this project,
+  showed 471 "traces" for the same window — root-caused, not just noted: `phoenix_setup.py`'s
+  `OpenAIInstrumentor().instrument(...)` patches the `openai` SDK process-globally, and
+  `run_baseline_eval.py` used to call `setup_phoenix()`/`setup_langfuse()` as a **module-level
+  import side effect**, so any script merely importing its helper functions (e.g. the standalone
+  production-latency-test script that produced this exact run) silently wired up global tracing
+  too. The 365 RAGAS/judge scoring calls that script made — real LLM calls, but with no parent
+  pipeline span to group under — each became their own root-level trace in Phoenix's ingestion,
+  inflating 75 real pipeline traces to 471. **Fixed**: observability setup moved from module
+  import time into `run_eval()` itself, gated on `not dry_run` — only the code path that actually
+  drives claims through the pipeline turns tracing on now. Verified: importing helpers no longer
+  triggers Phoenix/Langfuse init. This does not retroactively clean up the already-ingested 471
+  for that historical window — only Phoenix's own UI/API can do that, as a separate action.
+- **Trace latency (pure backend pipeline execution, no network/polling)**: p50=4.96s, p90=7.21s,
+  p95=8.13s, p99=9.16s — lower than the HTTP numbers at every percentile, exactly as expected: this
+  measures only `compiled_graph.ainvoke()`'s own execution, a strict subset of the full HTTP
+  round-trip (which also includes network time and up to ~1s of polling-detection lag from the
+  1-second poll interval the measurement script uses). The two methods agreeing once you account
+  for what each includes is the validation, not a contradiction to resolve.
+- **Per-call latency** (real, not estimated from log timestamps): LLM completions
+  (`OpenAI-generation`) p50=1.28s/p90=2.30s/p95=2.54s/p99=3.00s; embeddings p50=0.13s/p90=0.27s/
+  p95=0.30s/p99=0.38s.
+- **Real cost for this exact n=75 run: $0.973803 total** — input $0.734588, output $0.234054,
+  input cached-tokens $0.005088. 1.1M tokens on `gpt-5.4-mini`, 3.64K tokens on
+  `text-embedding-3-small`. A concrete, citable per-run cost figure, not an estimate.
+
+**Local vs. production is not the same test, and production is faster** — confirmed via the same
+5 manual queries run against both, same day: local averaged ~11.6s total, production ~4.8s, a
+~2.4x gap driven almost entirely by `retrieval_agent` (local avg ~6.8s vs. production avg ~1.3s).
+This is network locality, not a code difference — the Container App talks to Azure AI Search over
+Azure's internal backbone; a local dev machine talks to the same F0-tier service over the public
+internet. A meaningful share of what earlier local profiling attributed to "AI Search is slow" was
+actually "local-machine-to-Azure distance." Do not use local retrieval timings as a production
+estimate — measure production directly.
+
+### Sub-stage retrieval profiling (local machine, real measured data — see network-locality note above)
 
 | Step | Fresh query | Cached query |
 |---|---:|---:|
@@ -386,6 +481,14 @@ not-yet-applied fix, same pattern as the other four warm-ups).
    error_analysis.py, report.py. Deferred until baseline locked.
 
 9. **ARCHITECTURE.md update** — gpt-5-mini model change pending (documentation only).
+
+10. **Input guardrails false-positive on some legitimate metric claims** — `api/guardrails.py`'s
+    `check_query()` rejects a query as `off_topic` if it doesn't contain obvious
+    earnings/financial-analysis keywords. Confirmed on real golden claims, e.g. `"3.5 billion
+    people using at least one of our apps every day"` (a real DAP metric quote from a Meta earnings
+    call) gets rejected — 2/75 claims hit this in the `production-full-eval-75` run. Not a latency
+    or infra issue; a keyword-heuristic gap in the guardrail itself. Deferred — not investigated
+    this session.
 
 ---
 

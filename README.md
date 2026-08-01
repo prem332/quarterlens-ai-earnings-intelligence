@@ -4,7 +4,9 @@ Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pip
 
 ## 🌐 Live Demo
 
-> **Not currently deployed.** The Azure trial resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and are shut down between working sessions — see `MLOPS.md` for the teardown/cost-control policy. Run locally via **Quick Start** below, or ask for a live walkthrough.
+**https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io**
+
+The Azure trial resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and may be torn down between working sessions — see `MLOPS.md` for the teardown/cost-control policy. If the link above is unresponsive, the resources are likely paused; run locally via **Quick Start** below, or ask for a live walkthrough. Consumption-tier Container Apps also scale to zero when idle, so the first request after a period of inactivity pays a real cold-start cost (container spin-up + model warm-up, ~50s) — subsequent requests are fast (see Production Latency below).
 
 ## 🎯 Project Overview
 
@@ -114,29 +116,44 @@ Step 5: Streamed back to the React frontend
 
 ## 📊 Evaluation Results
 
-Evaluated against a 75-claim hand-verified golden dataset (retrieval, comparison, numeric, sentiment, and out-of-scope claim types) spanning all 5 companies and 5 fiscal quarters. Methodology, run history, and the project's single-variable-ablation discipline are tracked in `CLAUDE.md`; the latest confirmed run is in `evaluation/FINAL_REPORT.md`.
+Evaluated against the full 75-claim hand-verified golden dataset (retrieval, comparison, numeric, sentiment, and out-of-scope claim types) spanning all 5 companies and 5 fiscal quarters. Headline numbers below are from real HTTP requests against the **deployed production API**, not an in-process pipeline call — every claim went through `POST /api/analysis/run` → poll `/status` → `GET /api/reports/{run_id}`, `no_cache=true` forced on every request so no result was served from cache. Methodology, run history, and the project's single-variable-ablation discipline are tracked in `CLAUDE.md`.
 
-### RAGAS Evaluation (n=10, `k=2` measurement window)
+### RAGAS Evaluation (production, n=75, `k=2` measurement window)
 
 | Metric | Score | Locked Target | Status |
 |--------|-------|----------------|--------|
-| **Faithfulness** | 0.9372 | 0.90 | ✅ PASS |
-| **Answer Relevancy** | 0.9440 | 0.90 | ✅ PASS |
-| **Context Precision** | 0.8500 | 0.90 | close, not cleared |
-| **Context Recall** | 0.8233 | 0.90 | close, not cleared |
+| **Faithfulness** | 0.9353 | 0.90 | ✅ PASS |
+| **Answer Relevancy** | 0.9616 | 0.90 | ✅ PASS |
+| **Context Precision** | 0.8219 | 0.60 | ✅ PASS |
+| **Context Recall** | 0.8386 (0.8918 excl. out-of-scope) | 0.90 | close, not cleared |
 
 ### Retrieval Metrics
 
 | Metric | Score | Target |
 |--------|-------|--------|
-| **Precision@5** | 0.7200 | 0.90 |
-| **Recall@5** | 1.0000 | 0.90 |
+| **Precision@5** | 0.7222 | 0.60 |
+| **Recall@5** | 1.0000 | — |
 
 ### LLM-as-Judge
 
-n=10 spot checks this session landed in the 3.7–4.4/5 range depending on sample — this metric is genuinely noisy at n=10 (one LLM opinion per claim, averaged over 10) and this project's own run history shows it swinging accordingly even with zero code changes. A stable n=25 reading is the number worth trusting; see `evaluation/FINAL_REPORT.md` for the latest confirmed value against the 4.5/5 target.
+**3.99 / 5 (79.7%)** at n=75 against production — a stable reading, not a small-sample spot check. Target is 4.5/5 (90%); the worst-performing claim types are `comparison` (language-shift judgment accuracy) and `sentiment`, both documented as open, deferred work in `CLAUDE.md`.
 
-> `context_precision` here is an order-insensitive relevant-chunk fraction over the top-k, judged by an LLM per chunk — not the RAGAS-paper rank-weighted Average Precision. `k` and the per-chunk text window are measurement-scope parameters, not retrieval changes; both values are reported so the number is reproducible, not cherry-picked.
+### Production Latency (n=75 traces, real end-to-end HTTP wall time)
+
+| Metric | Value |
+|--------|------:|
+| p50 | 7.42s |
+| p90 | 9.19s |
+| p95 | 9.33s |
+| p99 | 10.88s |
+| mean | 7.15s |
+| Error rate | 2.7% (2/75 — both input-guardrail false positives, not infra failures) |
+
+Independently cross-validated via Langfuse's own OTEL trace instrumentation on the exact same run — 75 traces (an exact match to the request count) with **pure backend execution time** of p50=4.96s / p90=7.21s / p95=8.13s / p99=9.16s, consistently *lower* than the end-to-end numbers above at every percentile, exactly as expected since it excludes network time and polling overhead. Per-call breakdown: LLM completions p50=1.28s/p99=3.00s, embeddings p50=0.13s/p99=0.38s.
+
+**Real cost for this run: $0.973803 total** — input $0.734588, output $0.234054, input cached-tokens $0.005088 (1.1M tokens on `gpt-5.4-mini`, 3.64K on `text-embedding-3-small`).
+
+> `context_precision` here is an order-insensitive relevant-chunk fraction over the top-k, judged by an LLM per chunk — not the RAGAS-paper rank-weighted Average Precision. `k` and the per-chunk text window are measurement-scope parameters, not retrieval changes; both values are reported so the number is reproducible, not cherry-picked. Production runs `REPORT_SKIP_VERIFY` at its default (skip the verify pass when provably safe) — a local reference run with verify forced on for every claim shows a small (~2.5 point) faithfulness/judge edge, documented in `CLAUDE.md`, since that's the real, measured cost of the latency/quality tradeoff, not something to gloss over.
 
 ## ✨ Features
 
@@ -279,8 +296,18 @@ cost-control and teardown procedure.
   candidate-pool depth) by directly measuring how often reranking changes the retrieved
   evidence: 0% of a stratified 25-claim sample had an identical top-5 before/after
   reranking, and no query-type signal predicted stability — so neither shortcut had a
-  safe target to apply to. Full writeup and measurements in `CLAUDE.md`'s "Production
-  Latency" section.
+  safe target to apply to. Verified against real production traffic (n=75 traces, real
+  HTTP requests, not an in-process measurement): p50=7.42s, p99=10.88s, 2.7% error rate
+  (guardrail false positives, not infra failures) — see the README's Evaluation Results
+  and `CLAUDE.md`'s "Production Latency" section for the full breakdown.
+- **Deploy-time bug caught by reading production logs, not trusting a green checkmark** —
+  a passing CI/deploy pipeline still shipped a container where every Azure SQL connection
+  silently failed: `msodbcsql18`'s `--no-install-recommends` install dropped
+  `libgssapi-krb5-2`, a dependency the driver is unconditionally linked against regardless
+  of auth method. `ldd` against the actual running container (`az containerapp exec`)
+  found it in under a minute; the CI smoke test — one claim, checking only that the
+  pipeline completes and isn't empty — had no way to catch it. Fixed, redeployed, and
+  re-verified with a direct in-container connection test before trusting it.
 - **Retrieval determinism caveat** — Azure AI Search's hybrid BM25+vector RRF scoring
   drifts slightly run to run; this project explicitly measures old-vs-new code in the
   same session rather than trusting a fingerprint captured on a different day.

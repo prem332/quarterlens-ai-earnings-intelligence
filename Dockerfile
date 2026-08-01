@@ -22,8 +22,21 @@ FROM python:3.10-slim AS backend
 # issue, not anything specific to this Dockerfile. Fetching the raw key
 # directly and registering the repo with an explicit signed-by keyring is
 # the current non-deprecated method and avoids that stale bundled cert.
+#
+# --no-install-recommends on the msodbcsql18 install drops libgssapi-krb5-2
+# (Kerberos/GSSAPI) along with it -- Microsoft lists it as a Recommends, not
+# a hard Depends, even though libmsodbcsql-18.6.so.2.1 is unconditionally
+# link-time-dependent on libgssapi_krb5.so.2 regardless of whether a given
+# connection actually uses Kerberos (this app only uses SQL-auth via
+# UID/PWD). Without it, dlopen() fails to resolve that one transitive
+# dependency and pyodbc surfaces it as a generic "file not found" on the
+# driver .so itself -- confirmed directly against the running container via
+# `ldd libmsodbcsql-18.6.so.2.1`, which listed it as the only "not found"
+# entry among otherwise-resolved dependencies. Installed explicitly below,
+# not implied by dropping --no-install-recommends project-wide (that would
+# also pull in everything else msodbcsql18 merely recommends).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl gnupg unixodbc-dev gcc g++ \
+        curl gnupg unixodbc-dev gcc g++ libgssapi-krb5-2 \
     && curl -sSL https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \

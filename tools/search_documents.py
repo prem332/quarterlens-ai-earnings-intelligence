@@ -213,19 +213,26 @@ def search_documents(
             "parent_total": hit.get("parent_total", 1),
             "score":        hit.get("@search.score", 0.0),
         }
-        # Only present if the index marks 'embedding' retrievable. Absent on
-        # the current live index; carried through when available so mmr_rerank
-        # can skip re-embedding entirely. Deliberately NOT written to the L2
-        # cache below — 1536 floats x 24 chunks per entry would bloat Redis for
-        # no gain, since embeddings have their own longer-lived L1 cache.
+        # Present since the index marks 'embedding' retrievable (indexer.py) —
+        # carried through so mmr_rerank can skip re-embedding entirely.
         emb = hit.get("embedding")
         if isinstance(emb, list) and emb:
             row["embedding"] = emb
         results.append(row)
 
     if use_cache and company and quarter and results:
-        cacheable = [{k: v for k, v in r.items() if k != "embedding"} for r in results]
-        set_retrieval_cached(query, company, quarter, cacheable, doc_type=doc_type or "all")
+        # Embedding IS written to the L2 cache (previously stripped on the
+        # theory that L1's embedding cache made this "no gain" — measured
+        # false: embed_batch's own docstring records 1.3-1.9s per call for
+        # ~24 chunks, paid on EVERY retrieval including L2 cache hits, since a
+        # cache hit returning chunks without their embedding forced
+        # mmr_rerank's fallback re-embed path regardless of L1. Confirmed live
+        # (2026-08-01): a cache-hit retrieval_agent call spent 2.34s in MMR
+        # alone versus ~2.6ms with embeddings present. Cost: cache entries
+        # grow ~500-700KB (24 chunks x 1536 floats, JSON-serialized) against a
+        # 30min TTL on Basic C0 (250MB) — comfortable margin for realistic
+        # query diversity.
+        set_retrieval_cached(query, company, quarter, results, doc_type=doc_type or "all")
 
     return {"results": results, "count": len(results)}
 

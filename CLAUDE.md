@@ -258,6 +258,90 @@ captured earlier is not a valid baseline.
 
 ---
 
+## Production Latency (2026-08-01 investigation)
+
+Prior latency work (see README's Engineering Notes) took the full pipeline from a first
+measured 123s to ~18-20s warm. This session's investigation (average query at the time,
+~10s) found and fixed two more real, verified bugs, ruled out two plausible-looking
+heuristics with real data, and confirmed the remaining cost is architecturally external.
+
+### Fixes applied (do not revert)
+
+1. **L2 retrieval cache now stores the `embedding` field** (`tools/search_documents.py`).
+   Previously stripped before writing to Redis on the theory that L1's embedding cache
+   made this "no gain" — measured false: `embed_batch()`'s own docstring already recorded
+   1.3-1.9s per call for ~24 chunks, paid on **every** retrieval including L2 cache hits,
+   because a cache hit returning chunks without their embedding forced `mmr_rerank()`'s
+   fallback re-embed path regardless of L1 state. Confirmed live: a cache-hit retrieval
+   spent 2.34s in MMR alone before the fix, 0.01s after. Cost: cache entries grow to
+   ~500-700KB (24 chunks × 1536 floats, JSON-serialized) against a 30min TTL on Basic C0
+   (250MB) — comfortable margin.
+2. **Azure SQL connection is now pooled** (`azure_clients/sql_client.py`). `calculate_metric()`
+   (numeric_validation_agent's SQL read) opened a brand-new connection on every single call
+   — paying a full connect handshake each time, on top of whatever the Serverless tier's
+   compute-scaling state added underneath (the same tier `warm_up()`'s own docstring
+   already measured at ~49s cold / ~0.95s warm). Fixed with a held-open, lock-protected,
+   health-checked (`SELECT 1` probe, rebuilt via the existing `_connect()` retry/backoff
+   path if dead) connection reused across calls, with an explicit commit-or-rollback on
+   every checkout so no implicit transaction (pyodbc defaults `autocommit=False`) is left
+   open between reuses. Verified in isolation: repeat `sql_client.count()` calls dropped
+   from 3.88s (cold) to a stable ~0.75s. Live: `numeric_validation_agent` stabilized at
+   ~0.7-0.8s from the second call onward (first call after any process restart still pays
+   the one-time connect cost — expected, not a regression).
+3. **Frontend completion detection is now push- not poll-driven**
+   (`frontend/src/pages/NewAnalysis.jsx`). The UI only noticed a finished run via a 2s
+   poll interval (`setInterval(poll, 2000)`), so it could sit for up to ~2s (average ~1s)
+   after `report_agent`/`supervisor_finalize` actually finished before the report page
+   ever loaded — a real, measured gap, not perceived lag. The SSE stream already emits a
+   `"done"` event the instant the pipeline finishes (success or failure — it carries no
+   outcome itself, `/status` is still the source of truth), but the handler only closed
+   the stream. Now it also triggers an immediate status check. Verified working live.
+
+### Sub-stage retrieval profiling (real measured data, not estimated)
+
+| Step | Fresh query | Cached query |
+|---|---:|---:|
+| Azure AI Search (embed + hybrid search, one call) | 5.5–9.3s | 0.4–1.0s |
+| MMR | 0.01s | 0.00s |
+| Cross-encoder rerank | 1.05–1.2s | 1.05–1.2s (no cache possible) |
+| Parent expansion | 0.2–0.4s | 0.2s |
+
+Fresh and cached queries are different optimization problems: Azure Search dominates
+fresh (F0 tier, shared/multi-tenant, no dedicated compute — external, no code fix
+available short of a paid tier); the cross-encoder becomes the largest *remaining* cost
+on a cache hit, since it re-scores every call regardless of cache state.
+
+### Ideas tested and ruled out with data (do not re-attempt without new evidence)
+
+- **Skip reranking heuristically for "simple" queries.** Tested directly: compared
+  MMR-order top-5 against post-rerank top-5 across the stratified 25-claim sample.
+  **0% were identical** (rerank never a no-op); **40% shared fewer than 3 of the same
+  chunks**. No claim-type signal predicts stability — `numeric` (the closest proxy for
+  "simple exact-lookup" queries) showed the same ~2.8/5 average overlap as
+  `comparison`/`sentiment`/`retrieval`/`out_of_scope` (all 2.4-3.0/5). Reranking is doing
+  substantial, non-redundant work uniformly across query types on this corpus; there is
+  no safe target group for a skip heuristic. This is the same failure family as the
+  diversity-cap and section-routing rollbacks below — a shortcut that looks reasonable
+  and isn't supported once measured.
+- **Adaptive candidate depth** (fewer candidates for "exact" queries like "NVDA FY2026 Q3
+  revenue", more for broad analytical ones). Same data disproves the premise: the
+  `numeric` category is not measurably more stable than broader query types, so there's
+  no empirical basis for giving it a smaller pool.
+- **`CANDIDATE_K`/`MMR_TOP_K` pool-widening** — see Rolled-Back Experiments table; already
+  confirmed the bottleneck is final MMR/rerank selection, not pool size, so narrowing for
+  pure speed remains untested but widening is a settled dead end.
+
+### What's left is external, not something the retrieval pipeline's own logic can fix
+
+Azure AI Search's network round-trip (F0 tier), real Azure OpenAI chat-completion time
+(`report_agent`, `comparison_agent`'s extract+compare calls), and Cosmos DB not being
+warmed at API boot (`api/main.py`'s lifespan warms cross-encoder/FinBERT/Redis/SQL but
+not Cosmos — `supervisor_finalize` showed 1.1-1.7s on a fresh process's first request vs
+0.2-0.3s after, consistent with SDK endpoint-discovery-on-first-call; a real, small,
+not-yet-applied fix, same pattern as the other four warm-ups).
+
+---
+
 ## Known Issues / Deferred Items
 
 1. **AI Search duplicate chunks** — hybrid BM25+vector RRF returns same chunk_id twice

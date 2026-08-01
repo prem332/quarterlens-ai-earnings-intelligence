@@ -60,9 +60,14 @@ function AgentProgress({ runId, onDone }) {
   const tickTimerRef = useRef(null);
   const startRef = useRef(Date.now());
 
+  // Merged into one effect so the SSE "done" event (below) can trigger an
+  // immediate status check instead of only closing the stream. Previously
+  // completion was ONLY noticed by the 2s poll interval, so the UI could sit
+  // for up to ~2s (average ~1s) after the pipeline had actually finished
+  // before onDone() ever fired — a real, measured gap, not perceived lag.
   useEffect(() => {
     let cancelled = false;
-    async function poll() {
+    async function checkStatus() {
       try {
         const s = await api.getStatus(runId);
         if (cancelled) return;
@@ -74,34 +79,28 @@ function AgentProgress({ runId, onDone }) {
         }
       } catch { /* transient — keep polling */ }
     }
-    poll();
-    pollTimerRef.current = setInterval(poll, 2000);
+    checkStatus();
+    pollTimerRef.current = setInterval(checkStatus, 2000);
     tickTimerRef.current = setInterval(
       () => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)),
       1000
     );
-    return () => {
-      cancelled = true;
-      clearInterval(pollTimerRef.current);
-      clearInterval(tickTimerRef.current);
-    };
-  }, [runId]);
 
-  // Live token stream for report_agent's draft/verify pass — see
-  // api/routes/analysis.py's /stream endpoint. This is genuinely the only
-  // part of the pipeline that CAN stream: retrieval/comparison/sentiment/
-  // numeric all run and finish before report_agent even starts, so no tokens
-  // exist to show until then regardless of how this connects. EventSource
-  // retries automatically on its own if it connects before the run's queue
-  // is registered (a race of a few ms, not something to special-case here).
-  //
-  // draft_token text is UNVERIFIED — report_agent's verify pass can still
-  // delete or rewrite sentences after drafting finishes. "final" event
-  // replaces the streamed text with what was actually verified, so what's
-  // shown here can visibly change once verification completes; that's
-  // expected, not a bug, and is why the phase label changes to "verifying"
-  // rather than silently continuing to look done.
-  useEffect(() => {
+    // Live token stream for report_agent's draft/verify pass — see
+    // api/routes/analysis.py's /stream endpoint. This is genuinely the only
+    // part of the pipeline that CAN stream: retrieval/comparison/sentiment/
+    // numeric all run and finish before report_agent even starts, so no
+    // tokens exist to show until then regardless of how this connects.
+    // EventSource retries automatically on its own if it connects before the
+    // run's queue is registered (a race of a few ms, not something to
+    // special-case here).
+    //
+    // draft_token text is UNVERIFIED — report_agent's verify pass can still
+    // delete or rewrite sentences after drafting finishes. "final" event
+    // replaces the streamed text with what was actually verified, so what's
+    // shown here can visibly change once verification completes; that's
+    // expected, not a bug, and is why the phase label changes to "verifying"
+    // rather than silently continuing to look done.
     const es = new EventSource(`/api/analysis/${runId}/stream`);
     es.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
@@ -127,11 +126,22 @@ function AgentProgress({ runId, onDone }) {
       } else if (msg.type === "final") {
         setDraftText(msg.report);
       } else if (msg.type === "done") {
+        // Terminal either way (success or failure) but carries no outcome
+        // itself — see the /stream docstring. checkStatus() is what actually
+        // resolves onDone(), and now fires the instant the pipeline is
+        // really done instead of waiting on the next 2s poll tick.
         es.close();
+        checkStatus();
       }
     };
     es.onerror = () => { /* browser retries automatically; nothing to do */ };
-    return () => es.close();
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollTimerRef.current);
+      clearInterval(tickTimerRef.current);
+      es.close();
+    };
   }, [runId]);
 
   return (

@@ -271,7 +271,16 @@ cost-control and teardown procedure.
 - **Latency work** — the full pipeline was profiled end-to-end and cut from a first
   measured 123s to ~18-20s warm through async I/O fixes, multi-level caching, graph
   parallelization, and model-tier routing — each change verified against the locked
-  evaluation baseline before being kept, not assumed safe from theory alone.
+  evaluation baseline before being kept, not assumed safe from theory alone. A follow-up
+  pass found and fixed a Redis cache gap that was forcing redundant re-embedding on every
+  cache hit, pooled a previously per-call Azure SQL connection, and moved the frontend's
+  completion detection from a 2s poll interval to an SSE push. It also *ruled out* two
+  plausible-looking heuristics (skipping the reranker for "simple" queries; adaptive
+  candidate-pool depth) by directly measuring how often reranking changes the retrieved
+  evidence: 0% of a stratified 25-claim sample had an identical top-5 before/after
+  reranking, and no query-type signal predicted stability — so neither shortcut had a
+  safe target to apply to. Full writeup and measurements in `CLAUDE.md`'s "Production
+  Latency" section.
 - **Retrieval determinism caveat** — Azure AI Search's hybrid BM25+vector RRF scoring
   drifts slightly run to run; this project explicitly measures old-vs-new code in the
   same session rather than trusting a fingerprint captured on a different day.

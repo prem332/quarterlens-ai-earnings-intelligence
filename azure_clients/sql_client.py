@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -42,6 +43,8 @@ class SQLClient:
         self._password = _require("AZURE_SQL_PASSWORD")
         self._connect_retries = connect_retries
         self._retry_backoff = retry_backoff
+        self._pooled_conn: pyodbc.Connection | None = None
+        self._lock = threading.Lock()
 
     @property
     def _conn_str(self) -> str:
@@ -74,13 +77,54 @@ class SQLClient:
         assert last is not None  # unreachable; loop either returns or raises
         raise last
 
+    def _is_alive(self, conn: pyodbc.Connection) -> bool:
+        try:
+            conn.cursor().execute("SELECT 1").fetchone()
+            return True
+        except pyodbc.Error:
+            return False
+
     @contextmanager
     def connection(self):
-        conn = self._connect()
-        try:
-            yield conn
-        finally:
-            conn.close()
+        """Reuse a single held-open connection across calls instead of
+        opening a fresh one every time.
+
+        calculate_metric() (numeric_validation_agent's SQL read) was paying a
+        full connect handshake on every single call -- measured contributing
+        to that stage's 0.6-1.6s per-call latency, on top of whatever the
+        Serverless tier's compute-scaling state added underneath. A pyodbc
+        Connection isn't safe for concurrent use across threads, so access is
+        serialized with a lock; this path is low-QPS financial_facts lookups,
+        not a high-concurrency hot path, so serializing it is a non-issue.
+
+        A pooled connection can go stale on its own -- the Serverless DB
+        auto-pausing drops the underlying socket server-side, independent of
+        anything the client does -- so every checkout is health-probed with a
+        cheap SELECT 1 and rebuilt via the existing _connect() retry/backoff
+        path (the same one warm_up() relies on) if it's dead.
+
+        Every checkout ends the read/write with a commit-or-rollback so no
+        implicit transaction (pyodbc defaults to autocommit=False) is left
+        open on the connection between reuses.
+        """
+        with self._lock:
+            if self._pooled_conn is None or not self._is_alive(self._pooled_conn):
+                if self._pooled_conn is not None:
+                    try:
+                        self._pooled_conn.close()
+                    except pyodbc.Error:
+                        pass
+                self._pooled_conn = self._connect()
+            conn = self._pooled_conn
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except pyodbc.Error:
+                    pass
+                raise
 
     def warm_up(self) -> None:
         """Open one throwaway connection so a paused Serverless database

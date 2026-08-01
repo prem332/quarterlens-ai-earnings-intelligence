@@ -1,0 +1,876 @@
+[
+  {
+    "claim_id": "META_FY2025-Q3_ret_003",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 52740,
+    "pipeline_error": null,
+    "answer_length": 1401,
+    "answer_preview": "## Executive Summary\nMeta Reality Labs revenue was **$470M** in Q3 FY2025. [FILING]\n\n## Key Financial Metrics\n- Reality Labs revenue: **$470M** [FILING]\n- Reality Labs revenue in Q3 FY2024: **$270M** [FILING]\n- Reality Labs operating loss: **$(4.43)B** [FILING]\n\n## Guidance & Language Shifts\n- The 10-Q says Reality Labs revenue came from consumer hardware products such as Meta Quest and AI glasses",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.2,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Reality Labs revenue was $470 million in Q3 FY2025",
+        "covered": true
+      },
+      {
+        "fact": "Reality Labs revenue was up 74% year-over-year in Q3 FY2025",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly states that Meta Reality Labs revenue in Q3 FY2025 was $470 million, which matches the ground truth, and it also correctly notes the 74% year-over-year increase. All factual claims are supported by the retrieved filing context, and the response directly answers the question."
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 11847,
+    "pipeline_error": null,
+    "answer_length": 199,
+    "answer_preview": "\"Xbox content and services revenue decreased 5% and 7% in constant currency against the prior year comparable that benefited from strong first-party content performance.\" reflects negative sentiment.",
+    "typed_gen_extra_preview": "Xbox content and services revenue decreased 5% and 7% in constant currency against the prior year comparable that benefited from strong first-party content performance.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected sentiment is negative.",
+        "covered": true
+      },
+      {
+        "fact": "Revenue down 7% in gaming is a negative result.",
+        "covered": true
+      },
+      {
+        "fact": "Xbox content/services revenue down 5% is a negative result.",
+        "covered": true
+      },
+      {
+        "fact": "The explanatory framing about the prior-year comparable benefiting from strong first-party content is context, not mitigation.",
+        "covered": true
+      },
+      {
+        "fact": "The current period results are clearly negative.",
+        "covered": true
+      },
+      {
+        "fact": "FinBERT should label the financial direction negative regardless of the neutral delivery register.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The system correctly identified the statement as negative sentiment, which matches the financial implication of declining gaming and Xbox content/services revenue. Its answer is directly supported by the retrieved context and fully addresses the question without introducing unsupported facts."
+  },
+  {
+    "claim_id": "META_FY2025-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 12520,
+    "pipeline_error": null,
+    "answer_length": 2454,
+    "answer_preview": "## Executive Summary\nThe evidence does not establish the exact drivers of Meta's operating cost acceleration in Q3 FY2025 beyond higher research and development spending for AI initiatives, higher general and administrative costs from legal-related costs, and higher cost of revenue related to data centers and technical infrastructure. [FILING]\n\n## Key Financial Metrics\n- Total costs and expenses: ",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9375,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "legal expense growth higher than Q2",
+        "covered": true
+      },
+      {
+        "fact": "accelerated employee compensation from AI talent hiring",
+        "covered": true
+      },
+      {
+        "fact": "accelerated infrastructure costs from expanded data center fleet depreciation and third-party cloud spend",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 3,
+    "judge_grounding": 5,
+    "judge_relevancy": 3,
+    "judge_overall": 3.8,
+    "judge_reasoning": "The answer is well-supported by the retrieved context and correctly identifies higher legal-related costs, higher employee compensation and infrastructure costs for AI, and higher data-center/technical-infrastructure costs as major drivers. However, it does not clearly answer the question as asked about Q3 FY2025 operating cost acceleration, missing the specific comparison to Q2 and the third ground-truth factor of expanded third-party cloud spend, so it is only partially complete."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 14846,
+    "pipeline_error": null,
+    "answer_length": 2484,
+    "answer_preview": "## Executive Summary\nNVIDIA\u2019s China-related risk in Q3 FY2026 centered on export controls, licensing uncertainty, and the possibility of new U.S. government requirements that could add fees, compliance burdens, or further restrict sales. [FILING]\n\n## Key Financial Metrics\n- Approximately $50M in H20 revenue under U.S. licenses granted in August 2025. [FILING]\n- No other China-specific revenue, mar",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.8462,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 0.4,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "H20 $4.5B charge in Q1",
+        "covered": false
+      },
+      {
+        "fact": "H20 sales insignificant in Q3",
+        "covered": false
+      },
+      {
+        "fact": "China antitrust preliminary finding on Mellanox",
+        "covered": false
+      },
+      {
+        "fact": "export controls foreclosing data center compute market",
+        "covered": true
+      },
+      {
+        "fact": "H20 licenses granted but only ~$50M revenue realized",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 2,
+    "judge_grounding": 4,
+    "judge_relevancy": 4,
+    "judge_overall": 3.4,
+    "judge_reasoning": "The answer correctly captured the core China-related risks in the retrieved context, including export-control uncertainty, licensing burdens, potential 15% revenue-sharing expectations, and the roughly $50M H20 revenue under August 2025 licenses. However, it missed the ground-truth Q3 FY2026 specifics about H20 sales being insignificant, the Q1 $4.5B charge, and the China antitrust preliminary finding on Mellanox, so it only partially answers the exposure question."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 9274,
+    "pipeline_error": null,
+    "answer_length": 285,
+    "answer_preview": "## Executive Summary\nThe evidence does not establish NVIDIA Gaming revenue in exact millions for Q3 FY2026. [TRANSCRIPT]\n\n## Key Financial Metrics\nNo verified data available.\n\n## Guidance & Language Shifts\nNo verified data available.\n\n## Risk Factor Changes\nNo verified data available.",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.0,
+    "ragas_context_recall": 0.6667,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Refuse to provide an exact millions figure for Gaming sub-segment revenue in the 10-Q",
+        "covered": true
+      },
+      {
+        "fact": "The 10-Q does not disclose Gaming sub-segment revenue in exact millions",
+        "covered": true
+      },
+      {
+        "fact": "The Management Discussion and Analysis only states percentage changes for Gaming revenue (up 30% year over year, down 1% sequentially)",
+        "covered": false
+      },
+      {
+        "fact": "The Graphics segment total is $6,098 million",
+        "covered": false
+      },
+      {
+        "fact": "The Graphics segment total includes both Gaming and Professional Visualization",
+        "covered": true
+      },
+      {
+        "fact": "The split between Gaming and Professional Visualization is not filed separately in millions",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 4,
+    "judge_overall": 4.8,
+    "judge_reasoning": "The system correctly refused to invent an exact Gaming revenue figure and stayed consistent with the retrieved context, which only supports the broader Graphics segment and percentage movements. It missed an opportunity to explain more explicitly that the exact Gaming sub-segment revenue is not disclosed in the filing, so the response is only partially direct to the question."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 13197,
+    "pipeline_error": null,
+    "answer_length": 1574,
+    "answer_preview": "## Executive Summary\nThe evidence provided does not include prior-quarter wording to support a specific before/after language comparison. [FILING]\n\n## Key Financial Metrics\n- Not applicable to this question.\n\n## Guidance & Language Shifts\n- The filing says, \u201cWe expect to continue investing in strategic partnerships.\u201d [FILING]\n- It adds: \u201cIn the third quarter of fiscal year 2026, we entered into a ",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.2,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected shift: True",
+        "covered": true
+      },
+      {
+        "fact": "New material investment risk was added in Q3",
+        "covered": true
+      },
+      {
+        "fact": "NVDA discloses a letter of intent to invest in OpenAI",
+        "covered": true
+      },
+      {
+        "fact": "NVDA discloses an agreement to invest up to $10 billion in Anthropic",
+        "covered": true
+      },
+      {
+        "fact": "These investments create new concentration, execution, and regulatory risks not previously disclosed",
+        "covered": true
+      },
+      {
+        "fact": "The risk factor section explicitly states: 'There can be no certainty as to the timing or amount of capital we may ultimately invest.'",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 2,
+    "judge_grounding": 5,
+    "judge_relevancy": 3,
+    "judge_overall": 3.2,
+    "judge_reasoning": "The answer is well-supported by the retrieved text and correctly notes the new OpenAI/Anthropic investment disclosures and related risk language. However, it fails to make the comparison call the question asks for, and the ground truth indicates the language did shift from the prior quarter, so the answer is too cautious and effectively misses the verdict."
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 8642,
+    "pipeline_error": null,
+    "answer_length": 485,
+    "answer_preview": "## Executive Summary\nNet income was $2.71 billion, with diluted earnings per share (EPS) of $1.05 for the three months ended September 30, 2025. [FILING]\n\n## Key Financial Metrics\n- Net income: $2.71B [FILING]\n- Diluted EPS: $1.05 [FILING]\n- Revenue: $51.24B [FILING]\n- Income from operations: $20.54B [FILING]\n- Provision for income taxes: $18.95B [FILING]\n- Effective tax rate: 87% [FILING]\n\n## Gui",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.6,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 1.05 USD per share",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The system answer correctly identifies the filed value as diluted EPS of $1.05 per share, which matches the ground truth verdict. It is fully supported by the retrieved context and directly addresses the numeric claim without adding unsupported facts."
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 11002,
+    "pipeline_error": null,
+    "answer_length": 1750,
+    "answer_preview": "## Executive Summary\nRevenue was $82.9B in Q3 FY2026, up 18% year over year. [FILING] Revenue increased 15% in constant currency, and management said revenue, gross margin, and operating income included a favorable foreign currency impact of 3%, 3%, and 4%, respectively. [FILING]\n\n## Key Financial Metrics\n- Total revenue: $82.9B, up 18% year over year [FILING]\n- Constant-currency revenue growth: 1",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.88,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 1.0,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 82886 USD millions",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly states the revenue as $82.9B, matching the filed value of $82,886 million, and it also correctly captures the 18% reported growth and the 15% constant-currency figure. It is fully traceable to the provided context and directly addresses the numeric claim without adding unsupported information."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_004",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 16501,
+    "pipeline_error": null,
+    "answer_length": 1846,
+    "answer_preview": "Current: \"As a result, export controls have in the past and may in the future negatively impact demand for our products and services not only in China, but also in other markets, such as Europe, Latin America, and Southeast Asia. Export controls increase the risk of investing in U.S. advanced semiconductor products, because by the time a new product is ready for market, it may be subject to new un",
+    "typed_gen_extra_preview": "As a result, export controls have in the past and may in the future negatively impact demand for our products and services not only in China, but also in other markets, such as Europe, Latin America, and Southeast Asia. Export controls increase the risk of investing in U.S. advanced semiconductor products, because by the time a new product is ready for market, it may be subject to new unilateral e",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.8,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected shift: False.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 1,
+    "judge_grounding": 4,
+    "judge_relevancy": 5,
+    "judge_overall": 3.1,
+    "judge_reasoning": "The answer directly compared the two passages and recognized a language difference, but it incorrectly concluded that there was a shift when the ground truth says there was not. Its supporting details are mostly traceable to the retrieved context, but the verdict itself contradicts the expected answer."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_num_006",
+    "claim_type": "numeric",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 11196,
+    "pipeline_error": null,
+    "answer_length": 1260,
+    "answer_preview": "## Executive Summary\nNVIDIA did **not** disclose sequential revenue growth of exactly **$10 billion** or **22%** in the retrieved evidence. [FILING][TRANSCRIPT]\n\n## Key Financial Metrics\n- Total revenue: **$57.0B** in Q3 FY2026, up **$21.9B** or **62%** year over year. [FILING]\n- Compute & Networking revenue: **$50.9B**, up **$19.9B** or **64%** year over year. [FILING]\n- Graphics revenue: **$6.1B",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9444,
+    "ragas_answer_relevancy": 0.4,
+    "ragas_context_precision": 0.8,
+    "ragas_context_recall": 0.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 10263 USD millions",
+        "covered": false
+      },
+      {
+        "fact": "Verdict: match",
+        "covered": false
+      }
+    ],
+    "judge_accuracy": 1,
+    "judge_grounding": 2,
+    "judge_relevancy": 2,
+    "judge_overall": 1.4,
+    "judge_reasoning": "The answer correctly cites several figures from the retrieved context, but it incorrectly says NVIDIA did not disclose the requested sequential revenue growth, while the ground truth confirms a match at $10,263 million. It is partially grounded and relevant because it discusses revenue metrics, but it misses the specific asked-for sequential increase and adds some unsupported/irrelevant framing."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_sent_002",
+    "claim_type": "sentiment",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 8599,
+    "pipeline_error": null,
+    "answer_length": 138,
+    "answer_preview": "\"Record Q3 data center revenue of $51 billion increased 66% year over year, a significant feat at our scale.\" reflects positive sentiment.",
+    "typed_gen_extra_preview": "Record Q3 data center revenue of $51 billion increased 66% year over year, a significant feat at our scale.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected sentiment is positive",
+        "covered": true
+      },
+      {
+        "fact": "Record revenue is reported",
+        "covered": true
+      },
+      {
+        "fact": "Revenue grew 66% year over year",
+        "covered": true
+      },
+      {
+        "fact": "The phrase \"significant feat at our scale\" appears",
+        "covered": true
+      },
+      {
+        "fact": "The span contains no hedging and is an unambiguous positive signal",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The system correctly identifies the statement as positive sentiment, which matches the ground truth. Its claim is fully supported by the retrieved context and directly answers the question without adding unsupported details."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_004",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 13026,
+    "pipeline_error": null,
+    "answer_length": 2187,
+    "answer_preview": "## Executive Summary\nTariffs reduced Apple\u2019s Q3 FY2025 product gross margin and product gross margin percentage, but Apple still grew total gross margin and revenue year over year. [FILING] Management said tariffs partially offset favorable costs and a better product mix, and Apple also said tariffs can materially affect supply chain, raw materials, pricing, and gross margin. [FILING]\n\n## Key Fina",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9375,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 0.3333,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "tariffs caused approximately $800M cost impact",
+        "covered": false
+      },
+      {
+        "fact": "Tim Cook noted ~1 point pull-forward demand from tariff concerns",
+        "covered": false
+      },
+      {
+        "fact": "supply chain and pricing uncertainty discussed",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 2,
+    "judge_grounding": 3,
+    "judge_relevancy": 4,
+    "judge_overall": 3.0,
+    "judge_reasoning": "The answer correctly notes that tariffs pressured Apple\u2019s product gross margin and margin percentage, and it stays within the retrieved filing on the qualitative effects. However, it misses the key quantified impact from the ground truth (~$800M cost impact) and the tariff-related pull-forward demand commentary from Tim Cook, and it introduces some broader tariff-risk language that is not the direct answer to the question."
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_004",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 10182,
+    "pipeline_error": null,
+    "answer_length": 1342,
+    "answer_preview": "## Executive Summary\nMicrosoft\u2019s Intelligent Cloud segment posted $34.681B in revenue in Q3 FY2026, up 30% year over year. [FILING] The filing also says growth in the segment was driven by Azure. [FILING]\n\n## Key Financial Metrics\n- Intelligent Cloud revenue: $34.681B, up 30% year over year [FILING]\n- Intelligent Cloud operating income: $13.753B, up 24% year over year [FILING]\n- Intelligent Cloud ",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9286,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.6,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 29.6 percent.",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 4,
+    "judge_relevancy": 4,
+    "judge_overall": 4.6,
+    "judge_reasoning": "The system correctly identified the Intelligent Cloud revenue figure as $34.681B and the growth rate as 30%, which matches the retrieved filing and the ground truth verdict. It was slightly overinclusive by adding extra segment details and a mention of 'no formal segment guidance' that were not needed for the numeric claim, but the core answer was directly on target and well supported by the context."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_001",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 8887,
+    "pipeline_error": null,
+    "answer_length": 181,
+    "answer_preview": "\"It's wonderful to see great momentum building for our platforms. iOS 26, macOS 26 and iPadOS 26 are by far the most popular developer betas we've had.\" reflects positive sentiment.",
+    "typed_gen_extra_preview": "It's wonderful to see great momentum building for our platforms. iOS 26, macOS 26 and iPadOS 26 are by far the most popular developer betas we've had.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 0.1,
+    "ragas_context_precision": 0.2,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected sentiment is positive.",
+        "covered": true
+      },
+      {
+        "fact": "Growing investments signals confidence and strategic commitment in a financial register.",
+        "covered": true
+      },
+      {
+        "fact": "'Significantly growing' is an intensifier of positive forward momentum.",
+        "covered": true
+      },
+      {
+        "fact": "General-English models may read 'growing investments' neutrally, but the exec framing ('Apple has always been about...') signals pride and positive positioning.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 1,
+    "judge_grounding": 1,
+    "judge_relevancy": 1,
+    "judge_overall": 1.0,
+    "judge_reasoning": "The system answered with a positive sentiment, which is directionally correct, but it attributed the quote to an unrelated statement about developer betas rather than the actual sentence about investments and accessibility. Because it did not analyze the provided quote at all, the response is not grounded in the relevant context and does not directly answer the question."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_007",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 13935,
+    "pipeline_error": null,
+    "answer_length": 577,
+    "answer_preview": "Current: \"Services gross margin increased during the third quarter and first nine months of 2025 compared to the same periods in 2024 due primarily to higher Services net sales and a different mix of services.\" Prior: \"Services gross margin increased during the second quarter and first six months of 2025 compared to the same periods in 2024 due primarily to higher Services net sales.\" Shift: NO. T",
+    "typed_gen_extra_preview": "Services gross margin increased during the third quarter and first nine months of 2025 compared to the same periods in 2024 due primarily to higher Services net sales and a different mix of services.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 0.95,
+    "ragas_context_precision": 0.8,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected shift: False.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly identified that there was no language shift from the prior quarter, matching the ground truth. It is fully grounded in the retrieved context and directly answers the comparison asked."
+  },
+  {
+    "claim_id": "META_FY2025-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 9115,
+    "pipeline_error": null,
+    "answer_length": 609,
+    "answer_preview": "## Executive Summary\nMeta\u2019s 10-Q does not disclose an adjusted EPS that excludes the one-time tax charge in Q3 FY2025. The filing reports diluted EPS of $1.05 for Q3 FY2025 and says the quarter included a one-time income tax charge of $15.93B related to OBBBA implementation. [FILING]\n\n## Key Financial Metrics\n- Diluted EPS: $1.05 [FILING]\n- Net income: $2.71B [FILING]\n- Provision for income taxes:",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.7,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 0.5,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "The expected behavior is to refuse because the adjusted EPS of $7.25 is a non-GAAP measure disclosed on the earnings call only, not in the 10-Q.",
+        "covered": false
+      },
+      {
+        "fact": "The 10-Q reports GAAP diluted EPS of $1.05 for the three months ended September 30, 2025.",
+        "covered": true
+      },
+      {
+        "fact": "The adjusted EPS figure of $7.25 does not appear in the 10-Q financial statements.",
+        "covered": true
+      },
+      {
+        "fact": "A system retrieving $7.25 from the filing would be hallucinating.",
+        "covered": false
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly refused to provide an adjusted EPS from the 10-Q and instead reported the filed GAAP diluted EPS of $1.05, which is fully supported by the retrieved context. It also appropriately explained that the adjusted EPS excluding the one-time tax charge was not disclosed in the 10-Q, directly addressing why it could not answer the out-of-scope request."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_011",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 60087,
+    "pipeline_error": null,
+    "answer_length": 1283,
+    "answer_preview": "## Executive Summary\nOperating expenses landed at $15.5 billion, up 8% year-over-year. [TRANSCRIPT]\n\n## Key Financial Metrics\n- Total operating expenses: $15.516 billion in Q3 FY2025, versus $14.326 billion in Q3 FY2024 [FILING]\n- Operating expenses as a share of net sales: 17% in Q3 FY2025, unchanged from 17% in Q3 FY2024 [FILING]\n- Research and development expense: $8.866 billion in Q3 FY2025, v",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 15516 USD millions.",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly matches the filed operating expenses value of $15.516 billion with the statement that it landed at $15.5 billion, up 8% year-over-year, consistent with the provided ground truth verdict. All cited figures and the claimed language shift are traceable to the retrieved transcript and 10-Q context, and the response directly addresses the numeric question without introducing unsupported claims."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_cmp_003",
+    "claim_type": "comparison",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 12709,
+    "pipeline_error": null,
+    "answer_length": 606,
+    "answer_preview": "Current: \"Greater China net sales increased during the third quarter of 2025 compared to the third quarter of 2024 due primarily to higher net sales of iPhone and Mac.\" Prior: \"Greater China net sales decreased during the first six months of 2025 compared to the same period in 2024 due to lower net sales of iPhone.\" Shift: YES. The current statement says Greater China net sales increased in the th",
+    "typed_gen_extra_preview": "Greater China net sales increased during the third quarter of 2025 compared to the third quarter of 2024 due primarily to higher net sales of iPhone and Mac.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Greater China net sales increased in Q3 2025 compared with Q3 2024.",
+        "covered": true
+      },
+      {
+        "fact": "The increase in Greater China net sales in Q3 2025 was due primarily to higher net sales of iPhone and Mac.",
+        "covered": true
+      },
+      {
+        "fact": "Greater China net sales decreased in the first nine months of 2025 compared with the same period in 2024.",
+        "covered": true
+      },
+      {
+        "fact": "The decrease in Greater China net sales over the first nine months of 2025 was due to lower net sales of iPhone, partially offset by higher Mac sales.",
+        "covered": true
+      },
+      {
+        "fact": "There was a directional reversal between periods: the wording changes from 'decreased' to 'increased'.",
+        "covered": true
+      },
+      {
+        "fact": "This is a real business performance change rather than boilerplate.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 4,
+    "judge_grounding": 4,
+    "judge_relevancy": 5,
+    "judge_overall": 4.3,
+    "judge_reasoning": "The system correctly identified that there was a real language shift and captured the current-quarter statement accurately. It missed that the prior-quarter comparator in the prompt is specifically the prior quarter, not the first six months, so its comparison basis and driver contrast are partly misaligned with the asked question."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_007",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 9894,
+    "pipeline_error": null,
+    "answer_length": 1132,
+    "answer_preview": "## Executive Summary\nMac revenue was **$8 billion**, up **15% year-over-year**. [TRANSCRIPT][FILING]\n\n## Key Financial Metrics\n- Mac revenue: **$8 billion**, up **15% year-over-year** [TRANSCRIPT][FILING]\n- Mac nine-month revenue: **$25.0B**, up **12% year-over-year** [FILING]\n- Greater China net sales: **$15.4B**, up **4% year-over-year**; management said the region saw higher net sales of **iPho",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.8462,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.8,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 14.79 percent.",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly identifies Mac revenue as $8 billion and states it was up 15% year-over-year, which matches the retrieved context and the ground truth. It is directly responsive to the query and all factual claims in the response are supported by the provided transcript and filing excerpts."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_010",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 10953,
+    "pipeline_error": null,
+    "answer_length": 1750,
+    "answer_preview": "## Executive Summary\nApple reported diluted earnings per share of $1.57 in Q3 FY2025, up 12% year-over-year. [TRANSCRIPT] The company said this was a June quarter record, alongside net income of $23.4B. [TRANSCRIPT]\n\n## Key Financial Metrics\n- Diluted EPS: $1.57, up 12% year-over-year [TRANSCRIPT]\n- Net income: $23.4B [TRANSCRIPT]\n- Revenue: $94.0B, up 10% year-over-year [TRANSCRIPT][FILING]\n- Gro",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9333,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.2,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 1.57 USD per share.",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly states the diluted EPS as $1.57 and its 12% year-over-year increase, exactly matching the retrieved context and ground truth. It is fully traceable to the source text, directly answers the numeric claim, and does not introduce any unsupported facts."
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 9255,
+    "pipeline_error": null,
+    "answer_length": 527,
+    "answer_preview": "## Executive Summary\nMicrosoft said its AI business annual revenue run rate surpassed $37 billion in Q3 FY2026. [TRANSCRIPT]\n\n## Key Financial Metrics\n- AI business annual revenue run rate: surpassed $37 billion [TRANSCRIPT]\n- Year-over-year growth of AI business annual revenue run rate: 123% [TRANSCRIPT]\n- Microsoft Cloud revenue: $54.5 billion, up 29% [TRANSCRIPT]\n- Total company revenue: $82.9 ",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.6667,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.6,
+    "ragas_context_recall": 0.8,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "The expected behavior is to refuse the request/answer.",
+        "covered": false
+      },
+      {
+        "fact": "The $37B AI ARR figure is a non-GAAP KPI disclosed on the earnings call only.",
+        "covered": true
+      },
+      {
+        "fact": "The 10-Q MDA does not contain the $37B AI ARR metric.",
+        "covered": true
+      },
+      {
+        "fact": "AI revenue is not broken out as a separate line item in the financial statements.",
+        "covered": true
+      },
+      {
+        "fact": "A system retrieving this figure from the transcript is answering from outside the filing corpus.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 1,
+    "judge_grounding": 2,
+    "judge_relevancy": 2,
+    "judge_overall": 1.3,
+    "judge_reasoning": "The answer correctly extracted the $37 billion AI annual revenue run rate and the 123% growth figure from the retrieved transcript. However, it failed the out-of-scope requirement because the question asks for the Q3 FY2026 10-Q, and the response does not refuse or explain that this metric is not in the filing; it also includes unsupported claims about the filing context rather than clearly addressing the query boundary."
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_005",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 14091,
+    "pipeline_error": null,
+    "answer_length": 2543,
+    "answer_preview": "## Executive Summary\nQ3 total revenue was **$51.2B**, up **26% year-over-year**. [FILING]\n\n## Key Financial Metrics\n- Total revenue: **$51.2B**, up **26% year-over-year** [FILING]\n- Total revenue on a constant currency basis: **$50.83B**, up **25% year-over-year** [TRANSCRIPT]\n- Family of Apps revenue: **$50.8B**, up **26% year-over-year** [TRANSCRIPT]\n- Advertising revenue: **$50.1B**, up **26% y",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 26.2 percent.",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly states that Q3 total revenue was $51.2B and up 26% year-over-year, which matches the retrieved filing and the ground truth verdict. It is fully supported by the provided context and directly addresses the asked numeric claim without adding unsupported or off-topic content."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_005",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 9399,
+    "pipeline_error": null,
+    "answer_length": 213,
+    "answer_preview": "\"Tim maybe starting with you, shortly after March quarter earnings, there were some reports about searches on Safari declining in April for the first time, I think, in over 2 decades.\" reflects negative sentiment.",
+    "typed_gen_extra_preview": "Tim maybe starting with you, shortly after March quarter earnings, there were some reports about searches on Safari declining in April for the first time, I think, in over 2 decades.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected sentiment is negative",
+        "covered": true
+      },
+      {
+        "fact": "The analyst raises a concerning data point: Safari search decline, first time in 20+ years",
+        "covered": true
+      },
+      {
+        "fact": "The Safari search decline is presented as a challenge to the Services narrative",
+        "covered": true
+      },
+      {
+        "fact": "The phrasing is polite but the content is a negative signal about a key revenue driver",
+        "covered": true
+      },
+      {
+        "fact": "The question implies concern about structural competitive pressure from AI platforms",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The system correctly identified the sentiment as negative, which matches the concern implied by the Safari search decline and its potential impact on Services and AI search access points. Its answer is fully supported by the retrieved context and directly addresses the question without adding unsupported details."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_006",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 10323,
+    "pipeline_error": null,
+    "answer_length": 1578,
+    "answer_preview": "## Executive Summary\niPhone grew **13% year-over-year** in Q3 FY2025, with revenue of **$44.6B**. [TRANSCRIPT] [FILING] Management said the growth came from the **iPhone 16 family** and from **higher net sales of Pro models**. [TRANSCRIPT] [FILING]\n\n## Key Financial Metrics\n- iPhone revenue: **$44.6B**, up **13% year-over-year** [TRANSCRIPT] [FILING]\n- iPhone revenue driver: **iPhone 16 family** [",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 0.9,
+    "ragas_context_precision": 1.0,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 13.45 percent.",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly identifies the iPhone growth rate as 13% year-over-year, which is consistent with the retrieved filing and the ground truth verdict of match. It is directly relevant to the query and all additional statements are supported by the provided context, though it does not mention the exact filed value of 13.45 percent."
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_ret_002",
+    "claim_type": "retrieval",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 9906,
+    "pipeline_error": null,
+    "answer_length": 626,
+    "answer_preview": "## Executive Summary\nAzure and other cloud services revenue grew **40%** in **Q3 FY2026**. [FILING]\n\n## Key Financial Metrics\n- Azure and other cloud services revenue growth: **40%** [FILING]\n- Server products and cloud services revenue growth: **32%** [FILING]\n\n## Guidance & Language Shifts\n- Microsoft described Azure growth as driven by **demand for services across the platform** and **continued",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.5,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.8,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Azure and other cloud services revenue increased 40% year-over-year",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly states that Azure and other cloud services revenue grew 40% year-over-year in Q3 FY2026, matching the provided ground truth. It is fully supported by the retrieved context and directly answers the question without unnecessary speculation."
+  }
+]

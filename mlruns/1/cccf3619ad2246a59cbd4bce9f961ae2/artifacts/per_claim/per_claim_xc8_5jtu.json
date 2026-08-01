@@ -1,0 +1,382 @@
+[
+  {
+    "claim_id": "AAPL_FY2025-Q3_sent_005",
+    "claim_type": "sentiment",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 45682,
+    "pipeline_error": null,
+    "answer_length": 213,
+    "answer_preview": "\"Tim maybe starting with you, shortly after March quarter earnings, there were some reports about searches on Safari declining in April for the first time, I think, in over 2 decades.\" reflects negative sentiment.",
+    "typed_gen_extra_preview": "Tim maybe starting with you, shortly after March quarter earnings, there were some reports about searches on Safari declining in April for the first time, I think, in over 2 decades.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 0.9,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "The expected sentiment is negative.",
+        "covered": true
+      },
+      {
+        "fact": "The analyst raises Safari search decline as a concerning data point.",
+        "covered": true
+      },
+      {
+        "fact": "Safari search decline was first seen in over 20 years / first time in 20+ years.",
+        "covered": true
+      },
+      {
+        "fact": "The question challenges the Services narrative.",
+        "covered": true
+      },
+      {
+        "fact": "The content is a negative signal about a key revenue driver.",
+        "covered": true
+      },
+      {
+        "fact": "The question implies concern about structural competitive pressure from AI platforms.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The system correctly identifies the sentiment as negative, which matches the ground truth. Its statement is fully supported by the retrieved context and directly answers the question without unnecessary content."
+  },
+  {
+    "claim_id": "META_FY2025-Q3_oos_001",
+    "claim_type": "out_of_scope",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 11869,
+    "pipeline_error": null,
+    "answer_length": 481,
+    "answer_preview": "## Executive Summary\nMeta\u2019s 10-Q does not disclose an adjusted EPS excluding the one-time tax charge for Q3 FY2025. [FILING]\n\n## Key Financial Metrics\n- Diluted EPS: $1.05 [FILING]\n- Net income: $2.71B [FILING]\n- Provision for income taxes: $18.95B [FILING]\n- One-time income tax charge related to OBBBA: $15.93B [FILING]\n- Effective tax rate: 87% [FILING]\n\n## Guidance & Language Shifts\n- Not applic",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.4444,
+    "ragas_answer_relevancy": 0.9,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 0.4,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "The expected behavior is to refuse the query/claim.",
+        "covered": false
+      },
+      {
+        "fact": "Adjusted EPS of $7.25 is a non-GAAP measure disclosed on the earnings call only.",
+        "covered": false
+      },
+      {
+        "fact": "The 10-Q reports GAAP diluted EPS of $1.05 for the three months ended September 30, 2025.",
+        "covered": true
+      },
+      {
+        "fact": "The adjusted $7.25 EPS does not appear in the 10-Q financial statements.",
+        "covered": true
+      },
+      {
+        "fact": "A system retrieving $7.25 from the filing would be hallucinating.",
+        "covered": false
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly refused to provide an adjusted EPS figure because the 10-Q only discloses GAAP EPS of $1.05 and does not contain the non-GAAP adjusted EPS from the earnings call. It is fully supported by the retrieved context and directly addresses why the requested figure cannot be answered from the filing."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_num_010",
+    "claim_type": "numeric",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 14924,
+    "pipeline_error": null,
+    "answer_length": 873,
+    "answer_preview": "## Executive Summary\nApple reported diluted earnings per share of $1.57 in Q3 FY2025, and that figure was up 12% year-over-year. [TRANSCRIPT]\n\n## Key Financial Metrics\n- Diluted EPS: $1.57, up 12% year-over-year [TRANSCRIPT]\n- Net income: $23.4B [TRANSCRIPT]\n- Revenue: $94.0B, up 10% year-over-year [TRANSCRIPT]\n- Gross margin: 46.5% [TRANSCRIPT]\n- Operating expenses: $15.5B, up 8% year-over-year [",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.7857,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.2,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value is 1.57 USD per share",
+        "covered": true
+      },
+      {
+        "fact": "Verdict is match",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The answer correctly states the diluted EPS as $1.57 and the year-over-year increase as 12%, exactly matching the filed value and the ground truth verdict. It is fully supported by the retrieved transcript and directly addresses the numeric claim without adding unsupported or irrelevant information."
+  },
+  {
+    "claim_id": "META_FY2025-Q3_num_002",
+    "claim_type": "numeric",
+    "company": "META",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 11431,
+    "pipeline_error": null,
+    "answer_length": 1832,
+    "answer_preview": "## Executive Summary\nNet income was $2.71 billion and diluted EPS was $1.05 for the three months ended September 30, 2025. [FILING]\n\n## Key Financial Metrics\n- Revenue: $51.242 billion [FILING]\n- Net income: $2.709 billion [FILING]\n- Diluted EPS: $1.05 [FILING]\n- Income from operations: $20.535 billion [FILING]\n- Provision for income taxes: $18.954 billion [FILING]\n- Effective tax rate: 87% [FILIN",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.6,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 1.05 USD per share",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 4,
+    "judge_relevancy": 5,
+    "judge_overall": 4.7,
+    "judge_reasoning": "The answer correctly identifies the filed value as diluted EPS of $1.05 and the ground truth marks this as a match. It is well targeted to the query, though it includes several extra financial metrics and interpretive sections that are not necessary for the specific claim, slightly reducing grounding focus."
+  },
+  {
+    "claim_id": "MSFT_FY2026-Q3_num_001",
+    "claim_type": "numeric",
+    "company": "MSFT",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 12165,
+    "pipeline_error": null,
+    "answer_length": 1315,
+    "answer_preview": "## Executive Summary\nMicrosoft reported Q3 FY2026 revenue of $82.9B, up 18% year over year. Management also said revenue rose 15% in constant currency. [FILING]\n\n## Key Financial Metrics\n- Total revenue: $82.886B, up 18% [FILING]\n- Revenue growth in constant currency: 15% [FILING]\n- Operating income: $38.398B, up 20% [FILING]\n- Cost of revenue: $26.828B, up 22% [FILING]\n- Operating expenses: $17.6",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.6923,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 1.0,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Filed value: 82886 USD millions",
+        "covered": true
+      },
+      {
+        "fact": "Verdict: match",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 4,
+    "judge_relevancy": 4,
+    "judge_overall": 4.6,
+    "judge_reasoning": "The answer correctly matches the filed revenue figure of $82.886B and the stated 18% year-over-year growth, which aligns with the ground truth verdict. It also mentions the 15% constant-currency figure, but some of the extra commentary (for example, the risk-factor note and the specific currency-impact breakdown) is not directly needed for the query and is only partially supported by the retrieved context."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_004",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 17263,
+    "pipeline_error": null,
+    "answer_length": 1859,
+    "answer_preview": "Current: \"As a result, export controls have in the past and may in the future negatively impact demand for our products and services not only in China, but also in other markets, such as Europe, Latin America, and Southeast Asia. Export controls increase the risk of investing in U.S. advanced semiconductor products, because by the time a new product is ready for market, it may be subject to new un",
+    "typed_gen_extra_preview": "As a result, export controls have in the past and may in the future negatively impact demand for our products and services not only in China, but also in other markets, such as Europe, Latin America, and Southeast Asia. Export controls increase the risk of investing in U.S. advanced semiconductor products, because by the time a new product is ready for market, it may be subject to new unilateral e",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.8,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected shift: False.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 1,
+    "judge_grounding": 4,
+    "judge_relevancy": 4,
+    "judge_overall": 2.8,
+    "judge_reasoning": "The system directly answered the comparison question and cited language from both periods, but it got the core verdict wrong: the ground truth says there was no shift, while the system said there was a shift. Its explanation is mostly traceable to the provided context, though it overstates the change as a substantive wording difference rather than recognizing that the passages are materially the same."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_sent_002",
+    "claim_type": "sentiment",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 10299,
+    "pipeline_error": null,
+    "answer_length": 138,
+    "answer_preview": "\"Record Q3 data center revenue of $51 billion increased 66% year over year, a significant feat at our scale.\" reflects positive sentiment.",
+    "typed_gen_extra_preview": "Record Q3 data center revenue of $51 billion increased 66% year over year, a significant feat at our scale.",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected sentiment is positive",
+        "covered": true
+      },
+      {
+        "fact": "Record revenue is mentioned as a positive signal",
+        "covered": true
+      },
+      {
+        "fact": "Revenue increased 66% year over year",
+        "covered": true
+      },
+      {
+        "fact": "The phrase 'significant feat at our scale' appears",
+        "covered": true
+      },
+      {
+        "fact": "There is no hedging in the span",
+        "covered": true
+      },
+      {
+        "fact": "This should be classified as positive by FinBERT",
+        "covered": true
+      },
+      {
+        "fact": "This is a baseline calibration case for strongly positive financial language",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 5,
+    "judge_grounding": 5,
+    "judge_relevancy": 5,
+    "judge_overall": 5.0,
+    "judge_reasoning": "The system correctly identifies the statement as positive sentiment, matching the ground truth. It is fully grounded in the retrieved context and directly answers the question without adding unsupported claims."
+  },
+  {
+    "claim_id": "AAPL_FY2025-Q3_ret_004",
+    "claim_type": "retrieval",
+    "company": "AAPL",
+    "fiscal_label": "FY2025-Q3",
+    "latency_ms": 14315,
+    "pipeline_error": null,
+    "answer_length": 1848,
+    "answer_preview": "## Executive Summary\nTariffs reduced Apple\u2019s Q3 FY2025 products gross margin and products gross margin percentage, but Apple did not disclose a specific dollar amount for the tariff impact. [FILING] Management said products gross margin increased during the third quarter of 2025 due primarily to a different mix of products and favorable costs, partially offset by tariffs. [FILING]\n\n## Key Financia",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.9286,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.6,
+    "ragas_context_recall": 0.5,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Tariffs caused approximately $800M cost impact",
+        "covered": false
+      },
+      {
+        "fact": "Tim Cook noted about 1 point of pull-forward demand from tariff concerns",
+        "covered": false
+      },
+      {
+        "fact": "Supply chain uncertainty was discussed in relation to tariffs",
+        "covered": true
+      },
+      {
+        "fact": "Pricing uncertainty was discussed in relation to tariffs",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 3,
+    "judge_grounding": 3,
+    "judge_relevancy": 4,
+    "judge_overall": 3.3,
+    "judge_reasoning": "The answer correctly states that tariffs hurt Apple\u2019s Q3 FY2025 products gross margin and margin percentage and ties this to the filing language about tariffs and supply-chain/pricing risk. However, it misses the key ground-truth details that Apple quantified the impact at about $800M and that Tim Cook discussed roughly 1 point of demand pull-forward from tariff concerns, and it adds a claim that no language shift was detected that is not supported by the provided context."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_ret_001",
+    "claim_type": "retrieval",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 10816,
+    "pipeline_error": null,
+    "answer_length": 2112,
+    "answer_preview": "## Executive Summary\nNVIDIA\u2019s China-related risk in Q3 FY2026 centered on export controls, licensing uncertainty, and the possibility of new revenue-sharing, compliance, and product-design burdens. [FILING] Its explicit China-related financial exposure disclosed in the quarter was approximately $50M of H20 revenue generated under August 2025 licenses, while the company said any broader restriction",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 1.0,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.4,
+    "ragas_context_recall": 0.4,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "H20 $4.5B charge in Q1",
+        "covered": false
+      },
+      {
+        "fact": "H20 sales insignificant in Q3",
+        "covered": false
+      },
+      {
+        "fact": "China antitrust preliminary finding on Mellanox",
+        "covered": false
+      },
+      {
+        "fact": "export controls foreclosing data center compute market",
+        "covered": true
+      },
+      {
+        "fact": "H20 licenses granted but only ~$50M revenue realized",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 4,
+    "judge_grounding": 4,
+    "judge_relevancy": 4,
+    "judge_overall": 4.0,
+    "judge_reasoning": "The answer correctly identifies the main Q3 FY2026 China-related exposure that is directly supported by the context: about $50M of H20 revenue under August 2025 licenses, plus the export-control and licensing risks around China. It misses key ground-truth items such as the Q1 $4.5B H20 charge, the fact that H20 sales were insignificant in Q3, the China antitrust preliminary finding on Mellanox, and the more explicit framing that export controls are foreclosing the data center compute market."
+  },
+  {
+    "claim_id": "NVDA_FY2026-Q3_cmp_001",
+    "claim_type": "comparison",
+    "company": "NVDA",
+    "fiscal_label": "FY2026-Q3",
+    "latency_ms": 14449,
+    "pipeline_error": null,
+    "answer_length": 1665,
+    "answer_preview": "## Executive Summary\nThe retrieved evidence does not include the prior-quarter wording, so it does not establish whether the OpenAI and Anthropic investment language shifted from the prior quarter. [FILING]\n\n## Key Financial Metrics\n- OpenAI: letter of intent entered in Q3 FY2026 for an opportunity to invest; no definitive agreement is assured. [FILING]\n- Anthropic: agreement entered into in Novem",
+    "typed_gen_extra_preview": "",
+    "ragas_faithfulness": 0.7333,
+    "ragas_answer_relevancy": 1.0,
+    "ragas_context_precision": 0.2,
+    "ragas_context_recall": 1.0,
+    "ragas_context_recall_facts": [
+      {
+        "fact": "Expected shift: True.",
+        "covered": true
+      },
+      {
+        "fact": "New material investment risk was added in Q3.",
+        "covered": true
+      },
+      {
+        "fact": "NVDA discloses a letter of intent to invest in OpenAI.",
+        "covered": true
+      },
+      {
+        "fact": "NVDA discloses an agreement to invest up to $10 billion in Anthropic.",
+        "covered": true
+      },
+      {
+        "fact": "These investments create new concentration, execution, and regulatory risks not previously disclosed.",
+        "covered": true
+      },
+      {
+        "fact": "The risk factor section explicitly notes there can be no certainty as to the timing or amount of capital NVDA may ultimately invest.",
+        "covered": true
+      }
+    ],
+    "judge_accuracy": 2,
+    "judge_grounding": 5,
+    "judge_relevancy": 3,
+    "judge_overall": 3.2,
+    "judge_reasoning": "The answer is well grounded in the provided filing excerpts and correctly summarizes the new OpenAI, Anthropic, and Intel investment language plus related risks. However, it misses the comparison task by declining to say whether the language shifted from the prior quarter, while the ground truth indicates that it did shift."
+  }
+]

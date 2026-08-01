@@ -91,6 +91,23 @@ _RECOMMENDATION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# The numeric-token check below is blind to SOURCE -- it only asks "does this
+# digit sequence appear somewhere in the evidence blob", filing and transcript
+# merged together. That structurally can't catch _VERIFY_SYSTEM rule 0a's two
+# named failures (UNIT CONVERSION, SOURCE SUBSTITUTION): a transcript-only
+# figure quoted verbatim passes the numeric check even when the question asked
+# what a SPECIFIC document discloses, or asked for a precision the source
+# doesn't have. Measured: both worst-scoring out_of_scope claims in a real
+# eval (judge_overall 1.0 and 1.3 of 5) were exactly this -- "what is the AI
+# revenue run rate reported in the Q3 FY2026 10-Q" answered with the
+# transcript's figure, and "Gaming revenue in exact millions" answered with
+# the transcript's billions figure -- both skipped verify because the digits
+# were present, just from the wrong source/precision.
+_PRECISION_SENSITIVE_RE = re.compile(
+    r"\b10-?[qk]\b|\bexact(ly)?\b|\bprecisely\b|\bin (the )?(exact )?(millions?|thousands?)\b",
+    re.IGNORECASE,
+)
+
 
 def _numeric_tokens(text: str) -> list[str]:
     """Digit sequences with separators stripped, so '$62,578' in a draft still
@@ -104,6 +121,8 @@ def _verify_needed(draft: str, evidence: str, query: str) -> tuple[bool, str]:
         return True, "skip disabled"
     if _RECOMMENDATION_RE.search(query or ""):
         return True, "recommendation-style question"
+    if _PRECISION_SENSITIVE_RE.search(query or ""):
+        return True, "precision/source-sensitive question — numeric presence alone can't confirm the right source/precision was used"
 
     draft_nums = _numeric_tokens(draft)
     if not draft_nums:

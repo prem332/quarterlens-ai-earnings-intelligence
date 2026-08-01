@@ -330,8 +330,25 @@ def _build_typed_answer(
     claim_type = claim.get("claim_type", "")
 
     if claim_type == "sentiment" and sentiment_scores:
-        pool = [s for s in sentiment_scores if s.get("label") != "neutral"] or sentiment_scores
-        best = max(pool, key=lambda s: s.get("score", 0.0))
+        # Topic-match first, same principle as _select_comparison_finding: picking
+        # by raw FinBERT confidence alone can grab a passage about a DIFFERENT
+        # topic than the claim's target span if it happens to score more
+        # confidently (e.g. answering a revenue quote when the claim asked about
+        # an EPS-beat quote — confirmed on AAPL_FY2025-Q3_sent_002 at n=75).
+        # sentiment_agent already pre-filters candidates by topic overlap with the
+        # query, but that ranking is discarded here in favor of pure confidence —
+        # restore it as the primary signal, falling back to confidence only when
+        # no candidate clearly matches the claim's own target span.
+        target_span = (claim.get("payload") or {}).get("span", "")
+        best = None
+        if target_span:
+            scored = [(s, _overlap_ratio(target_span, s.get("passage", ""))) for s in sentiment_scores]
+            scored.sort(key=lambda pair: pair[1], reverse=True)
+            if scored[0][1] >= 0.3:
+                best = scored[0][0]
+        if best is None:
+            pool = [s for s in sentiment_scores if s.get("label") != "neutral"] or sentiment_scores
+            best = max(pool, key=lambda s: s.get("score", 0.0))
         full_passage = best.get("passage", "") or ""
         passage = full_passage[:400]
         answer = f'"{passage}" reflects {best.get("label", "neutral")} sentiment.'
@@ -508,8 +525,16 @@ async def run_eval(
         # typed answer is generated FROM this evidence, so it belongs first.
         gen_contexts = typed_gen_extra + gen_contexts
 
+        # faithfulness_contexts: when a typed quote-only answer exists, grade it
+        # against ONLY the evidence it was actually built from (typed_gen_extra),
+        # not the 5 retrieval chunks merged in above for context_recall's benefit.
+        # See ragas_eval.py's faithfulness_contexts comment for the reproduced
+        # judge-instability evidence this fixes.
+        faithfulness_contexts = typed_gen_extra if faithfulness_answer else None
+
         ragas_samples.append({"question": query, "answer": answer,
                                "faithfulness_answer": faithfulness_answer,
+                               "faithfulness_contexts": faithfulness_contexts,
                                "contexts": contexts, "gen_contexts": gen_contexts,
                                "ground_truth": ground_truth, "claim_type": claim_type})
 
@@ -580,8 +605,26 @@ async def run_eval(
     from azure_clients.redis_client import get_cache_stats
     cache_stats = get_cache_stats()
 
+    # context_recall_excl_oos: an out_of_scope claim's ground_truth is
+    # "Expected behavior: refuse. <policy reason>" (see _build_ground_truth) — a
+    # statement about the SYSTEM's own scope, not a filing/transcript fact. No
+    # retrieved chunk can ever "cover" it, so scoring context_recall against it is
+    # a category error that drags the metric down regardless of retrieval quality
+    # (confirmed: out_of_scope context_recall=0.44 vs 0.86-0.93 for every other
+    # claim type on the same n=75 run). Same treatment already applied to
+    # context_precision's numeric/sentiment dilution — see CLAUDE.md.
+    _recall_excl_oos = [
+        ps.get("context_recall", 0.0)
+        for s, ps in zip(ragas_samples, _ragas_per_sample)
+        if s.get("claim_type") != "out_of_scope" and "context_recall" in ps
+    ]
+    context_recall_excl_oos = (
+        round(sum(_recall_excl_oos) / len(_recall_excl_oos), 4) if _recall_excl_oos else 0.0
+    )
+
     metrics = {
         **{f"ragas_{k_}": v for k_, v in ragas_scores.items()},
+        "ragas_context_recall_excl_oos": context_recall_excl_oos,
         f"precision_at_{k}": retrieval_scores.get("mean_precision_at_k", 0.0),
         f"recall_at_{k}": retrieval_scores.get("mean_recall_at_k", 0.0),
         "llm_judge_mean": mean_judge,

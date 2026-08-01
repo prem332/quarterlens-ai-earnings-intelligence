@@ -47,10 +47,15 @@ from tools.search_documents import search_documents, mmr_rerank
 from tools.rerank_documents import rerank_documents
 
 # Retrieval config
-_CANDIDATE_K = 12   # raw candidates per source — slightly over 10 to compensate
-                    # for AI Search returning duplicate chunk_ids within one call
-                    # (hybrid BM25+vector RRF can surface same doc twice).
-                    # After dedup, ~10 unique candidates remain per source.
+# CANDIDATE_K — raw candidates per source, overridable for ablation:
+#   CANDIDATE_K=20 python evaluation/run_baseline_eval.py --run-name baseline-candk-20
+# Default 12 is slightly over 10 to compensate for AI Search returning duplicate
+# chunk_ids within one call (hybrid BM25+vector RRF can surface same doc twice) —
+# after dedup, ~10 unique candidates remain per source. Confirmed (2026-08-01,
+# retrieval-only diagnostic) that MMR_TOP_K alone cannot recover a chunk this
+# stage never fetched: raising MMR_TOP_K 10->15 left precision@5 and every
+# per-claim result byte-identical, since MMR only reorders what's already here.
+_CANDIDATE_K: int = int(os.environ.get("CANDIDATE_K", "12"))
 _FINAL_TOP_K = 5    # final chunks after global cross-encoder rerank
 
 # MMR lambda — overridable via env var for ablation:

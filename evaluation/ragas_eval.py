@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,29 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 log = logging.getLogger(__name__)
+
+# report_agent.py templates these two lines VERBATIM (see its own comments on
+# "No data available." / "No verified data available.") whenever a section has
+# no evidence or had its content deleted by verify — deterministic boilerplate,
+# not organic LLM prose. Stripping them before faithfulness scoring is more
+# reliable than instructing the judge to recognize and skip them itself: tested
+# empirically, the judge still extracted these exact lines as "claims" needing
+# support 4/5 times even with an explicit prompt instruction not to.
+_ABSENCE_LINE_RE = re.compile(
+    r"(?im)^[ \t]*no (?:verified )?data available\.?[ \t]*(?:\[[A-Z]+\])*[ \t]*$\n?"
+)
+# Markdown section headers ("## Key Financial Metrics") are never themselves a
+# factual claim — stripped unconditionally so an all-boilerplate answer reduces
+# to true emptiness instead of leaving orphaned headers that the judge then
+# treats AS claims (observed: "Executive Summary" / "Key Financial Metrics"
+# extracted and marked unsupported, on an answer with zero actual content).
+_MD_HEADER_RE = re.compile(r"(?im)^[ \t]*#{1,6}[ \t].*$\n?")
+
+
+def _strip_absence_boilerplate(text: str) -> str:
+    text = _ABSENCE_LINE_RE.sub("", text)
+    text = _MD_HEADER_RE.sub("", text)
+    return text
 
 # ── Prompts (following RAGAS paper definitions) ───────────────────────────────
 
@@ -48,6 +72,15 @@ Answer:
 
 Task: List every distinct factual claim made in the answer. For each claim,
 state whether it is supported by the context (yes/no).
+
+Do not list boilerplate statements that a fact/figure is unavailable, not
+disclosed, not established by the evidence, or outside scope (e.g. "No
+verified data available", "The evidence does not establish X", "I cannot
+provide investment advice") as claims to check — these describe an absence
+or a scope boundary, not an assertion the context could support or
+contradict, so they carry no faithfulness signal either way. Only extract
+claims that assert something IS the case. If every statement in the answer
+is one of these absence/scope statements, return an empty claims list.
 
 Respond ONLY with valid JSON, no markdown:
 {{
@@ -194,15 +227,36 @@ def _score_faithfulness(
     prior-quarter language) that run_baseline_eval appends beyond the 5 retrieval
     chunks, scoring verbatim-quote answers as 0.0 because their source was never
     shown to the judge.
+
+    An empty claims list is NOT automatically 0.0: the prompt instructs the judge
+    to omit refusal/absence boilerplate ("No verified data available") from
+    extraction, so a well-formed, entirely correct refusal answer legitimately
+    produces zero checkable claims — that means nothing false was asserted, not
+    maximal unfaithfulness. Only an outright call/parse failure (no "claims" key
+    at all, vs. a genuine empty list) is scored 0.0, since that case can't be
+    verified either way.
+
+    report_agent.py's templated "No data available."/"No verified data available."
+    lines are stripped deterministically before the judge ever sees them — the
+    prompt instruction above catches free-form refusal prose reasonably often, but
+    was measured extracting these exact templated lines as unsupported claims 4/5
+    times even with the instruction present. If stripping empties the answer
+    entirely (every section was this boilerplate), that's the same "nothing false
+    asserted" case as an empty claims list — score 1.0, not 0.0.
     """
     if not answer.strip() or not contexts:
         return 0.0
+    stripped_answer = _strip_absence_boilerplate(answer).strip()
+    if not stripped_answer:
+        return 1.0
     context_text = "\n\n---\n\n".join(contexts[:gen_k])
-    prompt = _FAITHFULNESS_PROMPT.format(context=context_text, answer=answer)
+    prompt = _FAITHFULNESS_PROMPT.format(context=context_text, answer=stripped_answer)
     result = _call_llm(client, deployment, prompt)
-    claims = result.get("claims", [])
-    if not claims:
+    if "claims" not in result:
         return 0.0
+    claims = result["claims"]
+    if not claims:
+        return 1.0
     supported = sum(1 for c in claims if c.get("supported", False))
     return round(supported / len(claims), 4)
 
@@ -352,8 +406,21 @@ def run_ragas_eval(
             # can. answer_relevancy/context_precision below still use the full
             # `answer` — they need the label to judge relevance/accuracy.
             faith_answer = s.get("faithfulness_answer") or answer
+            # faithfulness_contexts, when provided, replaces gen_contexts for this
+            # metric only — the typed answer's OWN evidence (the passage it was
+            # built from), not the full 5-chunk retrieval pool it was never drawn
+            # from. Reproduced directly: the identical faithfulness_answer/context
+            # pair scored 0.0, 0.6667, and 1.0 across three back-to-back calls when
+            # graded against gen_contexts (5 unrelated chunks mixed in with the
+            # true source) — the same pair scored a stable 1.0 four times in a row
+            # when graded against its true source alone. Mixing in unrelated
+            # context doesn't make a verbatim quote less supported; it makes the
+            # judge's claim-decomposition less reliable. context_recall below
+            # still uses the full gen_contexts — it legitimately needs the whole
+            # retrieved pool to judge ground-truth coverage.
+            faith_contexts = s.get("faithfulness_contexts") or gen_contexts
             scores["faithfulness"].append(
-                _score_faithfulness(client, deployment, faith_answer, gen_contexts, gen_k=gen_context_k)
+                _score_faithfulness(client, deployment, faith_answer, faith_contexts, gen_k=gen_context_k)
             )
         if "answer_relevancy" in requested:
             scores["answer_relevancy"].append(

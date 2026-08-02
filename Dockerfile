@@ -57,7 +57,7 @@ ENV HF_HOME=/app/.cache/huggingface
 # additionally carries the evaluation suite (mlflow) and the test runner, which
 # the served API never imports -- dropping them removes ~244 MB from the image.
 # See that file's header for how each exclusion was verified.
-COPY requirements-api.txt .
+COPY requirements/requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 
 # Bake both HF models into the image at build time instead of letting them

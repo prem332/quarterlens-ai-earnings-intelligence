@@ -32,3 +32,13 @@ Thumbs.db
 # ---- Logs ----
 *.log
 k8s/bin/
+
+# ---- MLflow local tracking store ----
+# Regenerable local experiment data. Was committed until 2026-08-02 -- caused
+# a real bug: a Windows-absolute artifact_location baked into the committed
+# mlflow.db crashed CI on the Linux runner (see CLAUDE.md's "MLOps / Deploy
+# Gate" section). Locked baseline numbers live in CLAUDE.md/evaluation/
+# FINAL_REPORT.md, not in this file, so nothing of record is lost by not
+# tracking it.
+mlflow.db
+mlruns/

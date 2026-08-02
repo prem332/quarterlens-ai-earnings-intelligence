@@ -6,7 +6,7 @@ Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pip
 
 **https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io**
 
-The Azure trial resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and may be torn down between working sessions — see `MLOPS.md` for the teardown/cost-control policy. If the link above is unresponsive, the resources are likely paused; run locally via **Quick Start** below, or ask for a live walkthrough. Consumption-tier Container Apps also scale to zero when idle, so the first request after a period of inactivity pays a real cold-start cost (container spin-up + model warm-up, ~50s) — subsequent requests are fast (see Production Latency below).
+The Azure trial resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and may be torn down between working sessions — see `docs/MLOPS.md` for the teardown/cost-control policy. If the link above is unresponsive, the resources are likely paused; run locally via **Quick Start** below, or ask for a live walkthrough. Consumption-tier Container Apps also scale to zero when idle, so the first request after a period of inactivity pays a real cold-start cost (container spin-up + model warm-up, ~50s) — subsequent requests are fast (see Production Latency below).
 
 ## 🎯 Project Overview
 
@@ -214,7 +214,7 @@ npm run dev
 
 Open browser at `http://localhost:5173` (Vite's default dev port).
 
-`requirements.txt` is the full development set (eval suite, tests, ingestion tooling). The deployed container installs `requirements-api.txt` — a runtime-only subset that trims ~235 MB of packages the running service never imports (see that file's header for exactly what's excluded and why).
+`requirements.txt` is the full development set (eval suite, tests, ingestion tooling). The deployed container installs `requirements/requirements-api.txt` — a runtime-only subset that trims ~235 MB of packages the running service never imports (see that file's header for exactly what's excluded and why).
 
 ### Populating the index from scratch
 
@@ -276,7 +276,7 @@ docker run -p 8000:8000 --env-file .env quarterlens-api
 Production deployment is CI-driven, not manual — a push to `main` runs lint + tests +
 a Docker build-verification step; on success, an evaluation smoke-test gate
 (`eval_gate.yml`) runs before `az containerapp update` pushes the new image to
-`quarterlens-api`. See `.github/workflows/` for the full pipeline and `MLOPS.md` for
+`quarterlens-api`. See `.github/workflows/` for the full pipeline and `docs/MLOPS.md` for
 cost-control and teardown procedure.
 
 ## 📈 Engineering Notes
@@ -336,7 +336,7 @@ tests/              Unit + integration tests
 - **`CLAUDE.md`** — architecture detail, locked evaluation baselines, active
   experiments, and the constraints this project runs under (single-variable ablations,
   no compounded changes before measuring, deviation log from the original spec)
-- **`MLOPS.md`** — deployment pipeline, cost control, teardown procedure
+- **`docs/MLOPS.md`** — deployment pipeline, cost control, teardown procedure
 - **`evaluation/FINAL_REPORT.md`** — latest confirmed evaluation results and methodology
 
 ## ⚠️ Disclaimer

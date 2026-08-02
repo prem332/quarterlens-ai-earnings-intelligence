@@ -84,7 +84,7 @@ jobs:
       # Container Apps keeps prior revisions by default -- rollback is
       # `az containerapp revision activate` on the previous one, or shifting
       # traffic back with `az containerapp ingress traffic set`. No custom
-      # rollback tooling needed; see MLOPS.md.
+      # rollback tooling needed; see docs/MLOPS.md.
       - name: Deploy new revision
         run: |
           az containerapp update \

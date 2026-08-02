@@ -22,7 +22,12 @@ azure-core==1.41.0
 azure-cosmos==4.16.1
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
-azure-monitor-opentelemetry==1.8.9
+azure-monitor-opentelemetry          # NOT pinned: 1.8.9 (what's locally installed) requires
+                                      # opentelemetry-sdk~=1.43.0, which conflicts with
+                                      # crewai 1.15.3's opentelemetry-sdk~=1.42.0 -- confirmed via
+                                      # a real fresh-install failure (2026-08-02). Unpinned lets
+                                      # pip's resolver pick a version compatible with crewai's
+                                      # constraint, same as before this was ever pinned.
 azure-search-documents==12.0.0
 azure-storage-blob==12.30.0
 cryptography<49,>=43.0.0        # mlflow 3.14.0 requires cryptography<49

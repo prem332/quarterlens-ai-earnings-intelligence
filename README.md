@@ -2,11 +2,23 @@
 
 Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pipeline, Azure OpenAI, Azure AI Search and LangGraph — built 100% on Microsoft Azure
 
+---
+
+## 🎬 Video Demo
+
+*Demo video link to be added.*
+
+> Demo will cover: problem statement, the multi-agent retrieval/verification pipeline, live analysis walkthrough, evaluation methodology (RAGAS + LLM-as-Judge against a 75-claim golden dataset), and production monitoring (Langfuse/Application Insights).
+
+---
+
 ## 🌐 Live Demo
 
 **https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io**
 
-The Azure trial resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and may be torn down between working sessions — see `docs/MLOPS.md` for the teardown/cost-control policy. If the link above is unresponsive, the resources are likely paused; run locally via **Quick Start** below, or ask for a live walkthrough. Consumption-tier Container Apps also scale to zero when idle, so the first request after a period of inactivity pays a real cold-start cost (container spin-up + model warm-up, ~50s) — subsequent requests are fast (see Production Latency below).
+> **Note:** The Azure resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and may be paused between working sessions — see `docs/MLOPS.md` for the teardown/cost-control policy. If the link above is unresponsive, the resources are likely paused; run locally via **Quick Start** below, or ask for a live walkthrough. Consumption-tier Container Apps also scale to zero when idle, so the first request after a period of inactivity pays a real cold-start cost (container spin-up + model warm-up, ~50s) — subsequent requests are fast (see Evaluation Results below).
+
+---
 
 ## 🎯 Project Overview
 
@@ -15,80 +27,70 @@ QuarterLens AI cross-verifies what executives say on quarterly earnings calls ag
 Covers 5 companies (AAPL, MSFT, NVDA, GOOGL, META) across 5 fiscal quarters, retrieving over a 3,500-chunk hybrid-search index built from 25 filings and 25 earnings-call transcripts.
 
 ### Three Core Capabilities
-- **Retrieval-grounded Q&A** → hybrid (BM25 + vector) search across filings and transcripts, reranked and cited
-- **Numeric fact-checking** → every number in the draft report is verified against a SQL-backed financial-facts table before the report ships
-- **Language-shift + sentiment analysis** → LLM-based comparison of current vs. prior-quarter filing language, plus deterministic FinBERT sentiment scoring of the earnings call itself
+- **Retrieval-grounded Q&A** — hybrid (BM25 + vector) search across filings and transcripts, reranked and cited
+- **Numeric fact-checking** — every number in the draft report is verified against a SQL-backed financial-facts table before the report ships
+- **Language-shift + sentiment analysis** — LLM-based comparison of current vs. prior-quarter filing language, plus deterministic FinBERT sentiment scoring of the earnings call itself
+
+---
 
 ## 🏗️ Architecture
 
+### High-Level System Architecture
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  LAYER 1: DATA PIPELINE                                      │
-│  SEC EDGAR filings + earnings-call transcripts                │
-│  Hierarchical + semantic chunking (structure-aware, MD&A-     │
-│  header-aware parent blocks → MiniLM topic-boundary children) │
-│  ~3,500 chunks, text-embedding-3-small, Azure AI Search       │
-├──────────────────────────────────────────────────────────────┤
-│  LAYER 2: RETRIEVAL                                           │
-│  Hybrid BM25 + vector search (RRF fusion)                     │
-│  MMR diversity reranking (relevance vs. redundancy)            │
-│  Cross-encoder relevance reranking (ms-marco-MiniLM-L-6-v2)    │
-│  Small-to-big parent-block reconstruction for reasoning agents │
-├──────────────────────────────────────────────────────────────┤
-│  LAYER 3: AGENT ORCHESTRATION (LangGraph)                     │
-│  supervisor → retrieval_agent →                                │
-│    [comparison_agent ‖ sentiment_agent ‖ numeric_validation]   │
-│    → report_agent                                              │
-│  Three agents run as concurrent branches off one retrieval pass│
-├──────────────────────────────────────────────────────────────┤
-│  LAYER 4: VERIFICATION                                        │
-│  Deterministic numeric validation (Azure SQL financial_facts)  │
-│  FinBERT sentiment (no LLM call — deterministic)                │
-│  Draft → targeted verify pass before a report reaches the user │
-│  Optional CrewAI bull/bear debate, on demand                   │
-├──────────────────────────────────────────────────────────────┤
-│  LAYER 5: APPLICATION                                          │
-│  FastAPI + Uvicorn (REST + SSE streaming, port 8000)           │
-│  React + Vite frontend                                         │
-│  Both containerized; API deployed to Azure Container Apps      │
-├──────────────────────────────────────────────────────────────┤
-│  LAYER 6: OBSERVABILITY & EVALUATION                            │
-│  MLflow (experiment tracking, per-claim eval artifacts)         │
-│  Langfuse + Phoenix (LLM tracing)                                │
-│  RAGAS (faithfulness, relevancy, context precision/recall)      │
-│  LLM-as-Judge + precision/recall@k vs. a 75-claim golden dataset│
-│  Application Insights (infra monitoring)                        │
-└──────────────────────────────────────────────────────────────┘
+User Browser
+     │
+Azure Container Apps (Consumption, scale-to-zero)
+     │
+FastAPI + Uvicorn (REST + SSE streaming, port 8000)
+├── Input Guardrails (PII, prompt injection, harmful content, off-topic filtering)
+├── Session/run tracking (UUID per analysis)
+     │
+LangGraph Multi-Agent Pipeline (StateGraph)
+├── supervisor_init
+├── retrieval_agent          — hybrid search + MMR + cross-encoder rerank
+├── comparison_agent  ┐
+├── sentiment_agent   ├── run as three concurrent branches off one retrieval pass
+├── numeric_validation┘
+├── report_agent             — draft + targeted verify pass
+└── supervisor_finalize       — writes the audit trail to Cosmos DB
+     │
+MLflow + Langfuse + Phoenix (experiment tracking, LLM tracing)
+     │
+React + Vite Frontend (SSE live progress, citations, report export)
 ```
 
 ### Detailed Query Flow
-
 ```
 Step 1: User submits a question (company, quarter, natural-language query)
-        ↓
+        │
+        Input guardrails: PII / prompt-injection / harmful-content / off-topic checks
+        (runs before any LLM call — a rejection costs zero tokens)
+        │
 Step 2: retrieval_agent
         ├── Hybrid search: filing pass + transcript pass, run concurrently
         ├── Cross-source dedup, merge into one candidate pool
         ├── MMR rerank (relevance vs. diversity, λ=0.5)
         ├── Cross-encoder rerank → top-5
         └── Small-to-big: reconstruct parent context for reasoning agents
-        ↓
+        │
 Step 3: Three agents run concurrently off that one retrieval pass
         ├── comparison_agent    — LLM language-shift check vs. prior quarter
         ├── sentiment_agent     — FinBERT scoring of transcript passages
         └── numeric_validation  — every number checked against Azure SQL
-        ↓
+        │
 Step 4: report_agent
         ├── Drafts a cited report from all three agents' findings
         ├── Runs a targeted verify pass (skipped only when every numeric
         │   claim in the draft is provably present in the evidence)
         └── (on demand) CrewAI bull/bear debate over the same evidence
-        ↓
+        │
 Step 5: Streamed back to the React frontend
         ├── Live per-stage progress (SSE) — not a simulated progress bar
         ├── Token-level report drafting stream
         └── Full citations back to source filing/transcript passages
 ```
+
+---
 
 ## 🛠️ Tech Stack
 
@@ -111,21 +113,23 @@ Step 5: Streamed back to the React frontend
 | **Experiment Tracking** | MLflow |
 | **Backend** | FastAPI + Uvicorn, Server-Sent Events for live streaming |
 | **Frontend** | React + Vite |
-| **Containerization** | Docker |
-| **Build & Deploy** | GitHub Actions → Azure Container Registry → Azure Container Apps |
+| **Containerization** | Docker (also validated on Kubernetes/AKS — see `k8s/`) |
+| **Build & Deploy** | GitHub Actions (OIDC, no stored secret) → Azure Container Registry → Azure Container Apps |
+
+---
 
 ## 📊 Evaluation Results
 
-Evaluated against the full 75-claim hand-verified golden dataset (retrieval, comparison, numeric, sentiment, and out-of-scope claim types) spanning all 5 companies and 5 fiscal quarters. Headline numbers below are from real HTTP requests against the **deployed production API**, not an in-process pipeline call — every claim went through `POST /api/analysis/run` → poll `/status` → `GET /api/reports/{run_id}`, `no_cache=true` forced on every request so no result was served from cache. Methodology, run history, and the project's single-variable-ablation discipline are tracked in `CLAUDE.md`.
+Evaluated against the full 75-claim hand-verified golden dataset (retrieval, comparison, numeric, sentiment, and out-of-scope claim types) spanning all 5 companies and 5 fiscal quarters. Headline numbers below are from real HTTP requests against the **deployed production API**, not an in-process pipeline call — every claim went through `POST /api/analysis/run` → poll `/status` → `GET /api/reports/{run_id}`, `no_cache=true` forced on every request so no result was served from cache, Redis flushed immediately beforehand. Methodology, run history, and the project's single-variable-ablation discipline are tracked in `CLAUDE.md`.
 
 ### RAGAS Evaluation (production, n=75, `k=2` measurement window)
 
 | Metric | Score | Locked Target | Status |
 |--------|-------|----------------|--------|
-| **Faithfulness** | 0.9353 | 0.90 | ✅ PASS |
-| **Answer Relevancy** | 0.9616 | 0.90 | ✅ PASS |
-| **Context Precision** | 0.8219 | 0.60 | ✅ PASS |
-| **Context Recall** | 0.8386 (0.8918 excl. out-of-scope) | 0.90 | close, not cleared |
+| **Faithfulness** | 0.9646 | 0.90 | ✅ PASS |
+| **Answer Relevancy** | 0.9361 | 0.90 | ✅ PASS |
+| **Context Precision** | 0.8176 | 0.60 | ✅ PASS |
+| **Context Recall** | 0.8218 (0.8682 excl. out-of-scope) | 0.90 | close, not cleared (see Known Issues in `CLAUDE.md`) |
 
 ### Retrieval Metrics
 
@@ -136,24 +140,34 @@ Evaluated against the full 75-claim hand-verified golden dataset (retrieval, com
 
 ### LLM-as-Judge
 
-**3.99 / 5 (79.7%)** at n=75 against production — a stable reading, not a small-sample spot check. Target is 4.5/5 (90%); the worst-performing claim types are `comparison` (language-shift judgment accuracy) and `sentiment`, both documented as open, deferred work in `CLAUDE.md`.
+**4.09 / 5 (81.8%)** at n=75 against production. Target is 4.5/5 (90%) — not cleared, and this project does not have an active plan to close that remaining gap further (the root cause is an architectural MMR concentration-vs-diversity tradeoff, fully diagnosed in `CLAUDE.md`, with four prior remediation attempts already tried and reverted for regressing other metrics).
 
 ### Production Latency (n=75 traces, real end-to-end HTTP wall time)
 
 | Metric | Value |
 |--------|------:|
-| p50 | 7.42s |
-| p90 | 9.19s |
-| p95 | 9.33s |
-| p99 | 10.88s |
-| mean | 7.15s |
-| Error rate | 2.7% (2/75 — both input-guardrail false positives, not infra failures) |
+| p50 | 5.99s |
+| p90 | 9.27s |
+| p95 | 9.41s |
+| p99 | 21.44s |
+| mean | 7.06s |
+| Error rate | 1.3% (1/75 — an input-guardrail false positive, not an infra failure) |
 
-Independently cross-validated via Langfuse's own OTEL trace instrumentation on the exact same run — 75 traces (an exact match to the request count) with **pure backend execution time** of p50=4.96s / p90=7.21s / p95=8.13s / p99=9.16s, consistently *lower* than the end-to-end numbers above at every percentile, exactly as expected since it excludes network time and polling overhead. Per-call breakdown: LLM completions p50=1.28s/p99=3.00s, embeddings p50=0.13s/p99=0.38s.
+Independently cross-validated via Langfuse's own OTEL trace instrumentation on the exact same run: pure backend execution time of p50=4.74s / p90=6.93s / p95=7.62s / p99=20.46s — consistently *lower* than the end-to-end numbers above at every percentile, exactly as expected since it excludes network time and polling overhead. Notably, both independent measurement methods caught the same p99 latency spike, real evidence of a genuine backend-side event (consistent with an Azure SQL Serverless cold-resume) rather than a measurement artifact.
 
-**Real cost for this run: $0.973803 total** — input $0.734588, output $0.234054, input cached-tokens $0.005088 (1.1M tokens on `gpt-5.4-mini`, 3.64K on `text-embedding-3-small`).
+**Real cost for this run: $0.947491 total** — input $0.725825, output $0.218435, input cached-tokens $0.003149.
 
-> `context_precision` here is an order-insensitive relevant-chunk fraction over the top-k, judged by an LLM per chunk — not the RAGAS-paper rank-weighted Average Precision. `k` and the per-chunk text window are measurement-scope parameters, not retrieval changes; both values are reported so the number is reproducible, not cherry-picked. Production runs `REPORT_SKIP_VERIFY` at its default (skip the verify pass when provably safe) — a local reference run with verify forced on for every claim shows a small (~2.5 point) faithfulness/judge edge, documented in `CLAUDE.md`, since that's the real, measured cost of the latency/quality tradeoff, not something to gloss over.
+> `context_precision` here is an order-insensitive relevant-chunk fraction over the top-k, judged by an LLM per chunk — not the RAGAS-paper rank-weighted Average Precision. `k` and the per-chunk text window are measurement-scope parameters, not retrieval changes; both values are reported so the number is reproducible, not cherry-picked.
+
+### Automated Test Results
+
+- **97/97 tests passing**, ruff lint clean
+- **Unit tests** — `agents/` (router, comparison_agent, sentiment_agent), `numeric_validation_agent`, `tools/` (calculate_metric, rerank_documents, search_documents, run_finbert), `api/guardrails.py`
+- **Integration tests** — full LangGraph pipeline wiring: fan-out/fan-in across the three parallel agents, the decision-log reducer, error routing
+- All offline — no live Azure calls, no real model loads (Key-Vault-backed client singletons are stubbed, `azure.cosmos.CosmosClient` specifically patched since it uniquely makes a real network call at construction time)
+- CI-gated: a failing eval-metric quality gate (RAGAS/judge/retrieval scores against regression-guard floors, not just a completion check) blocks the Azure Container Apps deploy — see "Deployment" below
+
+---
 
 ## ✨ Features
 
@@ -166,6 +180,11 @@ Independently cross-validated via Langfuse's own OTEL trace instrumentation on t
 - Self-verifying report generation: a targeted verify pass catches unsupported claims before they ship
 - On-demand CrewAI bull/bear debate over the same retrieved evidence
 
+### Security Features
+- Input guardrails run before any LLM call (a rejection spends zero tokens): PII detection (email, phone, SSN, credit card), prompt-injection pattern matching (instruction-override, role-hijack, fake chat-role tags), harmful-content keyword filtering, off-topic/out-of-scope detection
+- Secrets never baked into the image or committed — resolved from Azure Key Vault (RBAC) at runtime via the deployed workload's managed identity
+- Live-verified against the deployed production API across all four guardrail categories, plus two confirmed real-world false-positive fixes (see `CLAUDE.md`)
+
 ### Reliability & Performance Features
 - Multi-level Redis caching (query embeddings, retrieval results, full report responses)
 - Real per-stage SSE progress streaming — not a simulated progress bar
@@ -176,14 +195,17 @@ Independently cross-validated via Langfuse's own OTEL trace instrumentation on t
 ### MLOps & Evaluation Features
 - 75-claim hand-verified golden dataset across 5 claim types
 - RAGAS + LLM-as-Judge + precision/recall@k, tracked per-run in MLflow with per-claim artifacts
-- CI-gated deployment: a failing evaluation smoke test blocks the Azure Container Apps deploy, not just a failing unit test
+- CI-gated deployment: a two-stage eval gate (cheap completion smoke test, then a 10-claim RAGAS/judge/retrieval quality gate against regression-guard floors) blocks the deploy on a real quality regression, not just a crash
+- Independent cross-validation of every production latency/cost claim via Langfuse OTEL tracing, not a single self-reported source
 - Documented single-variable-ablation discipline — every retrieval/generation change measured in isolation, with a rolled-back-experiments log kept in `CLAUDE.md`
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.11, Node.js 18+
-- An Azure subscription with: AI Search, Azure OpenAI (chat + embedding deployments), Cosmos DB, Azure SQL, Cache for Redis, Blob Storage, Key Vault
+- An Azure subscription with: AI Search, Azure OpenAI (chat + embedding deployments), Cosmos DB, Azure SQL, Cache for Redis, Blob Storage, Key Vault — full setup runbook in `docs/AZURE_SETUP.md`
 
 ### Local Setup
 
@@ -232,21 +254,59 @@ python data_pipeline/indexer.py --manifest data/embeddings/embedding_manifest.js
 
 `data/` is gitignored — chunk and embedding files are regenerated locally, not committed.
 
-## ☁️ Azure Resources
+---
 
-| Resource | Value |
-|----------|-------|
-| **Resource Group** | `quarterlens-phase1-rg` |
-| **Region** | East US (AI Search, OpenAI, Key Vault) / Central US (SQL) / West US 2 (Cosmos DB) |
-| **AI Search** | `quarterlens-search` (Free F0) — index `quarterlens-filings` |
-| **Azure OpenAI** | `quarterlens-openai` — `gpt-5-mini`, `gpt-5.4-mini`, `text-embedding-3-small` |
-| **Cosmos DB** | `quarterlens-cosmos` (NoSQL, decision log) |
-| **Azure SQL** | `quarterlens-sqlserver` (Serverless Free — `financial_facts`) |
-| **Redis** | Azure Cache Basic C0 |
-| **Blob Storage** | `quarterlensstorage` — container `raw-documents` |
-| **Key Vault** | `quarterlens-kv` (RBAC) — all secrets, hyphen-named |
-| **Container Registry** | `quarterlensacr` |
-| **Container App** | `quarterlens-api` |
+## 🔐 Environment Variables
+
+```env
+# Optional: use real Key Vault instead of the vars below (requires az login,
+# a managed identity, or service-principal env vars DefaultAzureCredential picks up)
+AZURE_KEY_VAULT_URL=
+
+# Azure OpenAI
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_KEY=
+AZURE_OPENAI_DEPLOYMENT_NAME=              # gpt-5.4-mini
+AZURE_OPENAI_DEPLOYMENT_NAME_STANDARD=     # gpt-5-mini
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=         # text-embedding-3-small
+
+# Azure AI Search
+AZURE_SEARCH_ENDPOINT=
+AZURE_SEARCH_ADMIN_KEY=
+AZURE_SEARCH_INDEX=quarterlens-filings
+
+# Azure Cosmos DB (decision log)
+AZURE_COSMOS_URI=
+AZURE_COSMOS_KEY=
+
+# Azure Cache for Redis (L2/L3 retrieval + report cache)
+AZURE_REDIS_HOST=
+AZURE_REDIS_KEY=
+
+# Azure Blob Storage (serves raw source documents for citation display)
+AZURE_BLOB_CONNECTION_STRING=
+
+# Azure SQL (financial_facts table)
+AZURE_SQL_SERVER=
+AZURE_SQL_DATABASE=
+AZURE_SQL_USERNAME=
+AZURE_SQL_PASSWORD=
+
+# Observability -- all optional, each degrades gracefully if unset
+APPLICATIONINSIGHTS_CONNECTION_STRING=
+PHOENIX_ENDPOINT=
+PHOENIX_API_KEY=
+LANGFUSE_PUBLIC_KEY=
+LANGFUSE_SECRET_KEY=
+LANGFUSE_HOST=
+
+# SEC EDGAR fetcher (offline ingestion only, not required to run the API)
+SEC_USER_AGENT=
+```
+
+Every secret is resolved from Azure Key Vault first if `AZURE_KEY_VAULT_URL` is set and reachable, falling back to these environment variables — see `azure_clients/key_vault_client.py`.
+
+---
 
 ## 📡 API Endpoints
 
@@ -261,7 +321,31 @@ python data_pipeline/indexer.py --manifest data/embeddings/embedding_manifest.js
 | `POST` | `/api/export/{run_id}/docx` | Export report as DOCX |
 | `GET` | `/api/reports` | List saved reports |
 | `GET` | `/api/reports/{run_id}` | Fetch a saved report |
+| `GET` | `/api/health` | Health check |
 | `GET` | `/docs` | Swagger UI |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest tests/ -q
+
+# Run a specific level
+pytest tests/unit/ -q
+pytest tests/integration/ -q
+
+# Lint
+ruff check .
+```
+
+**Test Coverage:**
+- Unit tests — `test_agents.py` (router, comparison_agent, sentiment_agent), `test_numeric_validation.py`, `test_tools.py` (calculate_metric, rerank_documents, search_documents, run_finbert), `test_guardrails.py`
+- Integration tests — `test_full_pipeline.py`: graph wiring, parallel fan-out/fan-in, the decision-log `operator.add` reducer, error routing
+- **Total: 97/97 tests passing**, ruff clean, all offline (no live Azure calls, no real model downloads)
+
+---
 
 ## 🐳 Docker & Deployment
 
@@ -273,11 +357,35 @@ docker build -t quarterlens-api .
 docker run -p 8000:8000 --env-file .env quarterlens-api
 ```
 
-Production deployment is CI-driven, not manual — a push to `main` runs lint + tests +
-a Docker build-verification step; on success, an evaluation smoke-test gate
-(`eval_gate.yml`) runs before `az containerapp update` pushes the new image to
-`quarterlens-api`. See `.github/workflows/` for the full pipeline and `docs/MLOPS.md` for
-cost-control and teardown procedure.
+### Deployment Architecture
+
+```
+GitHub (push to main)
+     │
+GitHub Actions CI
+├── ruff lint
+├── pytest (97 tests)
+└── Docker build verification
+     │ (on pass)
+GitHub Actions Deploy — OIDC login, no stored secret
+├── eval-gate
+│   ├── smoke-test      — 1 real claim, completion/time-budget check
+│   └── quality-gate    — 10 claims, RAGAS/judge/retrieval regression-guard floors
+│                          (must pass or the deploy is blocked)
+├── build-and-push  →  Azure Container Registry (quarterlensacr, SHA-tagged + :latest)
+└── deploy          →  az containerapp update
+     │
+Azure Container Apps (quarterlens-api)
+├── Consumption tier, min-replicas=0 (scale-to-zero)
+├── System-assigned managed identity → Key Vault (RBAC), no baked-in secrets
+└── Post-deploy health check with patient retries (cold start ~50s)
+```
+
+Production deployment is CI-driven, not manual. See `.github/workflows/` for the full pipeline, `docs/AZURE_SETUP.md` for the complete infrastructure runbook, and `docs/MLOPS.md` for cost-control and teardown procedure.
+
+A Kubernetes/AKS deployment path also exists and was live-validated (cluster created, pod healthy, `/api/health` verified through a real Service, then fully torn down) — see `k8s/` and `docs/AZURE_SETUP.md` §14. This is a deliberately separate proof-of-concept, not the production serving path.
+
+---
 
 ## 📈 Engineering Notes
 
@@ -291,53 +399,68 @@ cost-control and teardown procedure.
   evaluation baseline before being kept, not assumed safe from theory alone. A follow-up
   pass found and fixed a Redis cache gap that was forcing redundant re-embedding on every
   cache hit, pooled a previously per-call Azure SQL connection, and moved the frontend's
-  completion detection from a 2s poll interval to an SSE push. It also *ruled out* two
-  plausible-looking heuristics (skipping the reranker for "simple" queries; adaptive
-  candidate-pool depth) by directly measuring how often reranking changes the retrieved
-  evidence: 0% of a stratified 25-claim sample had an identical top-5 before/after
-  reranking, and no query-type signal predicted stability — so neither shortcut had a
-  safe target to apply to. Verified against real production traffic (n=75 traces, real
-  HTTP requests, not an in-process measurement): p50=7.42s, p99=10.88s, 2.7% error rate
-  (guardrail false positives, not infra failures) — see the README's Evaluation Results
-  and `CLAUDE.md`'s "Production Latency" section for the full breakdown.
+  completion detection from a 2s poll interval to an SSE push.
 - **Deploy-time bug caught by reading production logs, not trusting a green checkmark** —
   a passing CI/deploy pipeline still shipped a container where every Azure SQL connection
   silently failed: `msodbcsql18`'s `--no-install-recommends` install dropped
   `libgssapi-krb5-2`, a dependency the driver is unconditionally linked against regardless
   of auth method. `ldd` against the actual running container (`az containerapp exec`)
-  found it in under a minute; the CI smoke test — one claim, checking only that the
-  pipeline completes and isn't empty — had no way to catch it. Fixed, redeployed, and
-  re-verified with a direct in-container connection test before trusting it.
+  found it in under a minute; the CI smoke test alone had no way to catch it.
+- **Two real eval-gate bugs found and fixed via the gate's own first live runs** — a
+  committed `mlflow.db` with a Windows-absolute artifact path crashed on Linux CI; and the
+  gate initially never flushed Redis before running, so it could have passed indefinitely by
+  replaying stale cached reports without ever re-testing the live pipeline. Both fixed and
+  documented in `CLAUDE.md`.
 - **Retrieval determinism caveat** — Azure AI Search's hybrid BM25+vector RRF scoring
   drifts slightly run to run; this project explicitly measures old-vs-new code in the
   same session rather than trusting a fingerprint captured on a different day.
 
+---
+
 ## 📁 Project Structure
 
 ```
-agents/            LangGraph agent nodes (supervisor, retrieval, comparison,
-                    sentiment, numeric_validation, report, CrewAI debate crew)
-api/                FastAPI app, routes, request/response schemas
-azure_clients/      Azure SDK wrappers (AI Search, OpenAI, Redis, Key Vault, SQL,
-                    Cosmos, Blob) — never named azure/, which would shadow the SDK
-data_pipeline/      Ingestion, hierarchical + semantic chunking, embedding, indexing
-data/               Local pipeline output (gitignored) — parsed/chunks/embeddings/raw
-evaluation/         Eval runner, RAGAS wrapper, LLM-as-judge, precision/recall@k,
-                    golden_dataset/ (75 hand-verified claims), FINAL_REPORT.md
-frontend/           React + Vite single-page app
-graph/              GraphState schema, LangGraph pipeline wiring
-observability/      MLflow, Langfuse, Phoenix setup
-tools/              Shared retrieval/reranking/calculation utilities used by agents
-tests/              Unit + integration tests
+agents/             LangGraph agent nodes (supervisor, retrieval, comparison,
+                     sentiment, numeric_validation, report, CrewAI debate crew)
+api/                 FastAPI app, routes, request/response schemas, guardrails
+azure_clients/       Azure SDK wrappers (AI Search, OpenAI, Redis, Key Vault, SQL,
+                     Cosmos, Blob) — never named azure/, which would shadow the SDK
+data_pipeline/       Ingestion, hierarchical + semantic chunking, embedding, indexing
+data/                Local pipeline output (gitignored) — parsed/chunks/embeddings/raw
+docs/                Azure setup runbook, MLOps/cost-control policy
+evaluation/          Eval runner, RAGAS wrapper, LLM-as-judge, precision/recall@k,
+                     deploy quality gate, golden_dataset/ (75 hand-verified claims)
+frontend/            React + Vite single-page app
+graph/               GraphState schema, LangGraph pipeline wiring
+k8s/                 Kubernetes/AKS manifests (resume POC, not the production path)
+observability/       MLflow, Langfuse, Phoenix setup
+requirements/        Runtime-only dependency subset installed by the Docker image
+tools/               Shared retrieval/reranking/calculation utilities used by agents
+tests/               Unit + integration tests (97 tests, all offline)
 ```
+
+---
 
 ## 📚 Documentation
 
 - **`CLAUDE.md`** — architecture detail, locked evaluation baselines, active
   experiments, and the constraints this project runs under (single-variable ablations,
   no compounded changes before measuring, deviation log from the original spec)
+- **`docs/AZURE_SETUP.md`** — full Azure infrastructure runbook, resource by resource,
+  plus the CI/CD OIDC setup and the Kubernetes/AKS POC
 - **`docs/MLOPS.md`** — deployment pipeline, cost control, teardown procedure
 - **`evaluation/FINAL_REPORT.md`** — latest confirmed evaluation results and methodology
+
+---
+
+## 📡 Monitoring
+
+Production observability spans three independent tools, cross-validated against each other rather than trusted individually:
+- **Langfuse** — full LLM call tracing, per-call and per-trace latency percentiles, real token cost breakdown by type (input/output/cached)
+- **MLflow** — per-run experiment tracking with per-claim eval artifacts (RAGAS scores, judge reasoning)
+- **Application Insights** — infra-level monitoring for the Container App itself
+
+---
 
 ## ⚠️ Disclaimer
 
@@ -345,8 +468,12 @@ This application is built for portfolio and demonstration purposes. AI-generated
 financial analysis is a decision-support aid, not investment advice, and should be
 independently verified against primary source filings before being relied upon.
 
+---
+
 ## 👨‍💻 Developer
 
 **Prem** | AI/ML Engineer
 
 [![GitHub](https://img.shields.io/badge/GitHub-prem332-181717?logo=github)](https://github.com/prem332)
+
+> Live Project: quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io

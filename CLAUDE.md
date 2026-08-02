@@ -507,6 +507,20 @@ not-yet-applied fix, same pattern as the other four warm-ups).
    toward concentration (diversity cap, section routing, MDA rechunk, table demotion) has regressed
    something else. A real fix needs topic-aware MMR (diversify across different sub-topics,
    concentrate within one) — genuine design work, not a same-session ablation.
+
+   **`context_recall`'s gap (0.8386, target 0.90) is very likely the same root cause, not a
+   separate issue** — investigated 2026-08-02 (branch `fix10-known-issues-punch-list`, not
+   merged into a code change, diagnosis only). Real per-claim data from that session's own eval
+   runs showed `retrieval`-type claims specifically underperforming (0.4-0.5 vs ~1.0 for other
+   claim types). Checked the two lowest-scoring claims directly against `golden_dataset/claims/`:
+   both need coverage from two genuinely different filing sections in the same query —
+   `AAPL_FY2025-Q3_ret_004` ("tariff impact") spans `mda` + a second section;
+   `NVDA_FY2026-Q3_ret_001` ("China risks and financial exposure") needs both `risk_factors` and
+   `mda`. That's the same shape as this issue: a query needing multi-section coverage only
+   reliably gets one section into the final 5-chunk pool. No independently-actionable fix for
+   `context_recall` distinct from the topic-aware MMR work above — whatever fixes #3 should fix
+   this too. Not attempted this session given the cost/risk of #3's redesign (see above) and a
+   tight eval budget; left for the same future dedicated session as #3.
 4. **`llm_judge` gap (4.04/5, target 4.5/5)** — worst categories: `comparison` (~3.4),
    `sentiment` (~3.6). Split root cause: some comparison failures are the same MMR-concentration
    issue as #3 (confirmed on `GOOGL_FY2025-Q3_cmp_003` — the correct target sentence was never in

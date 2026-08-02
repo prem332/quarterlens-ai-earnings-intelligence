@@ -123,15 +123,52 @@ chunking.py → embedding.py → indexer.py
 
 ### Locked Baselines
 
-**`production-full-eval-75`** (current, 2026-08-01 — HEADLINE baseline. Full 75-claim golden
-dataset, real HTTP requests against the deployed Container App
-(`https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io`), `no_cache=true` on
-every request, `REPORT_SKIP_VERIFY` at its **production default** (skip when safe) — this is what
-real users actually get, not a config override. Script:
-`evaluation/production_full_eval.py` pattern (ad-hoc, see PR/session notes) — reuses the exact
-scoring functions `run_baseline_eval.py` uses, sourcing `report`/`retrieval_results`/
-`sentiment_scores`/`comparison_findings` from `GET /api/reports/{run_id}` instead of an in-process
-`compiled_graph.ainvoke()` call, so results are directly comparable to local runs.
+**`production-full-eval-75-fixes`** (current, 2026-08-02 — HEADLINE baseline, supersedes the
+2026-08-01 run below). Full 75-claim golden dataset, real HTTP requests against the deployed
+Container App, `no_cache=true` on every request, `REPORT_SKIP_VERIFY` at its production default.
+Same script/methodology as the prior run (`evaluation/production_full_eval.py` pattern), rerun
+after this session's fixes landed: the comparison_agent magnitude-instability fix (Known Issue
+#4, prompt half), the faithfulness judge free-form-refusal fix (Known Issue #5), and the
+guardrail domain-term broadening. Redis flushed immediately before running (mandatory — see
+"Running Evaluations").
+- faithfulness=0.9646 (▲ +0.029 vs 2026-08-01), answer_relevancy=0.9361 (▼ −0.026)
+- context_precision=0.8176 (k=2/full-chunk window, ≈flat) | context_recall=0.8218 (▼ −0.017) /
+  context_recall_excl_oos=0.8682 (▼ −0.024) — expected: nothing touched retrieval this session,
+  see Known Issues #2/#3
+- precision@5=0.7222 (exactly identical to the prior run — real internal-consistency signal,
+  retrieval-only and unaffected by anything changed this session) | recall@5=1.0000
+- **llm_judge=4.0878/5 (81.8%)** — ▲ +0.10 vs 2026-08-01's 3.9863, consistent with the
+  comparison_agent fix; still short of the 4.5 target because the MMR-concentration half of that
+  gap (#3) is untouched
+- **Latency (n=75 traces, real end-to-end HTTP wall time)**: p50=5.99s (▲ faster than 7.42s),
+  mean=7.06s, p90=9.27s, p95=9.41s, p99=21.44s (▼ much worse tail vs 10.88s), min=4.05s,
+  max=22.04s. The two slow outliers (`AAPL_FY2025-Q3_num_002`=21.22s, `_num_004`=22.04s) are both
+  `numeric` claims, same company/quarter, early in the run — the signature of Azure SQL
+  Serverless resuming from auto-pause (documented elsewhere as up to ~49s cold), not a code
+  regression; every other numeric claim later in the same run was back to 5-7s. Plausible, not
+  independently proven via SQL-side logs.
+- Error rate 1/75 (1.3%, ▼ improved from 2/75) — but **not the same claim**: the two original
+  false positives are fixed, and this run surfaced a **third, different** off-topic false
+  positive the guardrail fix didn't cover — `"iPhone, which grew a strong 13% year-over-year"`
+  matches none of `_FINANCIAL_DOMAIN_TERMS` ("grew" ≠ "growth", spelled-out "year-over-year" ≠
+  "yoy"). Not yet fixed — a real, still-open residual gap in the same heuristic.
+
+**Independent cross-validation via Langfuse** (same n=75 run, window 21:18–21:31 IST
+2026-08-02 — confirmed via Langfuse's own "Observations by time" graph, which ramps up and drops
+off at exactly that window):
+- **Trace latency (backend-only, no network/polling)**: p50=4.74s, p90=6.93s, p95=7.62s,
+  p99=20.46s — lower than the HTTP numbers at every percentile, same expected pattern as the
+  2026-08-01 cross-validation (trace latency is a strict subset of HTTP latency). Notably, **both
+  independent measurement methods caught the same p99 spike** (20.46s here vs 21.44s HTTP) — real
+  evidence it's a genuine backend-side event, not an artifact of HTTP polling.
+- **Real cost: $0.947491 total** — input $0.725825, output $0.218435, input cached-tokens
+  $0.003149. Essentially flat vs the 2026-08-01 run's $0.973803 — no cost regression.
+- 382 observations tracked (not the same as trace count — each of the 74 completed traces fans
+  out to multiple observations, one per embedding/generation call; ~5.2 observations/trace is
+  expected for this multi-agent pipeline, not a discrepancy).
+
+**`production-full-eval-75`** (2026-08-01 — prior baseline, pre this-session's fixes, kept for
+trend comparison only). Full 75-claim golden dataset, same methodology as above.
 - faithfulness=0.9353, answer_relevancy=0.9616
 - context_precision=0.8219 (k=2/full-chunk window, same as `final-precision-check-75`)
 - context_recall=0.8386 (all claim types) / context_recall_excl_oos=0.8918
@@ -238,12 +275,14 @@ context_precision=0.2560, precision@5=0.8167, recall@5=1.0000, llm_judge=3.0240
 
 ### Metric Targets — LOCKED, see `evaluation/FINAL_REPORT.md`
 The reported metric set is exactly 7 (+ L1/L2/L3 cache hit rates). Headline values are from
-`production-full-eval-75` (real production traffic); sources, the cold-vs-warm cache explanation,
-and the local reference run live in `evaluation/FINAL_REPORT.md`.
+`production-full-eval-75-fixes` (2026-08-02, real production traffic, post this-session's
+fixes); sources, the cold-vs-warm cache explanation, and the local reference run live in
+`evaluation/FINAL_REPORT.md`.
 
-- faithfulness 0.9353 ✅ | answer_relevancy 0.9616 ✅ | recall@5 1.0000 ✅
-- context_precision 0.8219 ✅ (k=2/full-chunk window) | context_recall 0.8386 (0.8918 excl_oos)
-- llm_judge 3.99/5 (79.7%) — not cleared | precision@5 0.7222 ✅ (target 0.60)
+- faithfulness 0.9646 ✅ | answer_relevancy 0.9361 ✅ | recall@5 1.0000 ✅
+- context_precision 0.8176 ✅ (k=2/full-chunk window) | context_recall 0.8218 (0.8682 excl_oos)
+- llm_judge 4.09/5 (81.8%) — not cleared (target 4.5), improved from 3.99 this session, see
+  Known Issue #4 | precision@5 0.7222 ✅ (target 0.60)
 
 `numeric_pass_rate` is no longer computed — it is not one of the 7 reported metrics.
 Its implementation was removed with `evaluate_finetuned_vs_baseline.py`; recover from
@@ -298,7 +337,7 @@ regression would have deployed with zero automated detection. Two things now clo
 `smoke-test` job. Runs 10 stratified claims (`GATE_MAX_CLAIMS` env var to override) through the
 real pipeline via `run_baseline_eval.run_eval()` — the same function `run_baseline_eval.py`
 itself uses — locked to `CONTEXT_PRECISION_K=2`/`CONTEXT_PRECISION_CHUNK_CHARS=0` to match the
-headline `production-full-eval-75` measurement window. Compares against **regression-guard
+headline `production-full-eval-75-fixes` measurement window. Compares against **regression-guard
 floors**, not the aspirational targets in "Metric Targets — LOCKED" above — `llm_judge` and
 `context_recall` aren't at target yet and this gate isn't meant to block every deploy until they
 are; it exists to catch a broken prompt or a retrieval regression, not to freeze development.
@@ -537,7 +576,10 @@ not-yet-applied fix, same pattern as the other four warm-ups).
    (`_COMPARE_SYSTEM` rule 6, `agents/comparison_agent.py`) — re-verified the previously-unstable
    case now returns `false` consistently (5/5), no regression on 4 other cases. Zero added LLM
    calls (still the same 2-call extract+compare flow) — no production latency impact. The
-   MMR-concentration half (#3) is unrelated and still open.
+   MMR-concentration half (#3) is unrelated and still open. **Confirmed at full production scale**
+   (`production-full-eval-75-fixes`, 2026-08-02): aggregate `llm_judge` improved 3.9863→4.0878
+   (+0.10) — a real, measured gain, not just an isolated-test artifact, though still short of the
+   4.5 target since #3 remains untouched.
 5. **~~Faithfulness judge unreliable on free-form (non-templated) refusal prose~~ — FIXED
    2026-08-02** (branch `fix10-known-issues-punch-list`). The deterministic boilerplate-stripping
    fix (Session Fixes #5) only ever covered `report_agent.py`'s two exact templated strings —
@@ -568,17 +610,20 @@ not-yet-applied fix, same pattern as the other four warm-ups).
 
 9. **ARCHITECTURE.md update** — gpt-5-mini model change pending (documentation only).
 
-10. **~~Input guardrails false-positive on some legitimate metric claims~~ — FIXED 2026-08-02.**
-    `api/guardrails.py`'s `_FINANCIAL_DOMAIN_TERMS` broadened again (same pattern as the earlier
-    "leadership"/"investment" fix) to cover engagement/usage-metric vocabulary: "user(s)", "app(s)",
-    "daily active", "monthly active", "dau", "mau", "dap", "active people", "install", "downloads".
-    Confirmed fixed: `"3.5 billion people using at least one of our apps every day"` (the exact
-    real DAP-metric quote that failed in `production-full-eval-75`, 2/75 claims) now passes;
-    confirmed the off-topic check still rejects a genuinely unrelated query ("Write me a poem
-    about the ocean.") — see `tests/unit/test_guardrails.py`. Not yet re-validated against a full
-    75-claim production run — the fix is unit-tested and logically scoped to the one failure
-    mode, but the error-rate improvement itself (2.7%→lower) is only confirmed at the next full
-    production eval, not claimed here as measured.
+10. **~~Input guardrails false-positive on some legitimate metric claims~~ — PARTIALLY FIXED
+    2026-08-02, one new residual case found.** `api/guardrails.py`'s `_FINANCIAL_DOMAIN_TERMS`
+    broadened (same pattern as the earlier "leadership"/"investment" fix) to cover engagement/
+    usage-metric vocabulary: "user(s)", "app(s)", "daily active", "monthly active", "dau", "mau",
+    "dap", "active people", "install", "downloads". Confirmed fixed both via unit tests and live
+    against production (`tests/unit/test_guardrails.py`; manually verified through the deployed
+    UI): the exact DAP-metric quote that failed before now passes, the off-topic check still
+    correctly rejects a genuinely unrelated query. **Re-measured at full scale**
+    (`production-full-eval-75-fixes`, 2026-08-02): error rate improved 2/75→1/75, confirming the
+    two original false positives are gone — but that run surfaced a **third, different** false
+    positive the fix doesn't cover: `"iPhone, which grew a strong 13% year-over-year"` matches no
+    `_FINANCIAL_DOMAIN_TERMS` entry ("grew" ≠ "growth", spelled-out "year-over-year" ≠ "yoy").
+    Same underlying heuristic gap (keyword-list matching doesn't generalize to paraphrases), not
+    a new bug class. Not yet fixed — deferred, same reasoning as the rest of this list.
 
 **Not attempted this session, deliberately: items #1, #3, #4, #5 above.** Each is explicitly
 documented as needing real design work or careful multi-case validation, not a same-session

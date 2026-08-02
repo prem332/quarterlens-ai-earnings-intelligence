@@ -76,11 +76,22 @@ state whether it is supported by the context (yes/no).
 Do not list boilerplate statements that a fact/figure is unavailable, not
 disclosed, not established by the evidence, or outside scope (e.g. "No
 verified data available", "The evidence does not establish X", "I cannot
-provide investment advice") as claims to check — these describe an absence
-or a scope boundary, not an assertion the context could support or
-contradict, so they carry no faithfulness signal either way. Only extract
-claims that assert something IS the case. If every statement in the answer
-is one of these absence/scope statements, return an empty claims list.
+provide investment advice", "Management did not address this topic", "The
+retrieved context does not provide sufficient information") as claims to
+check — these describe an absence, a scope boundary, or a statement about
+what the EVIDENCE/DOCUMENTS do or don't say, not an assertion about the
+company or the world that the context could support or contradict. Simple
+test, apply it to every sentence regardless of exact phrasing: is this
+sentence describing what the DOCUMENTS say or don't contain (a meta-
+statement about the evidence itself), or is it asserting something that
+actually happened at the company? Only the second kind is a checkable
+claim. If every statement in the answer is the first kind, return an empty
+claims list.
+
+Worked example — answer: "Management did not address this topic in the
+reviewed materials, so no verified figure is available here." Both
+sentences describe what the documents do or don't contain, not a fact
+about the company. Correct output: {{"claims": []}}
 
 Respond ONLY with valid JSON, no markdown:
 {{
@@ -237,12 +248,30 @@ def _score_faithfulness(
     verified either way.
 
     report_agent.py's templated "No data available."/"No verified data available."
-    lines are stripped deterministically before the judge ever sees them — the
-    prompt instruction above catches free-form refusal prose reasonably often, but
-    was measured extracting these exact templated lines as unsupported claims 4/5
-    times even with the instruction present. If stripping empties the answer
-    entirely (every section was this boilerplate), that's the same "nothing false
-    asserted" case as an empty claims list — score 1.0, not 0.0.
+    lines are stripped deterministically before the judge ever sees them. If
+    stripping empties the answer entirely (every section was this boilerplate),
+    that's the same "nothing false asserted" case as an empty claims list — score
+    1.0, not 0.0.
+
+    Free-form (non-templated) refusal prose — e.g. "Management did not address
+    this topic" — is handled by the prompt instruction above, not regex (regex was
+    ruled unsafe: these sentences can carry real embedded facts worth checking,
+    e.g. "X wasn't established, though Y was 47.1%"). The original single
+    abstract rule + enumerated example phrases was measured unreliable: 2 of 4
+    realistic free-form phrasings either flip-flopped (3x 1.0 / 2x 0.0 across 5
+    repeated calls) or were consistently wrong (5x 0.0 when the correct score is
+    1.0 — a pure absence statement, nothing false asserted). Fixed 2026-08-02 by
+    replacing the phrase-matching approach with a general test the judge applies
+    to every sentence regardless of exact wording ("is this describing what the
+    DOCUMENTS say, or what happened at the company") plus one worked example.
+    Re-verified: the same 4 phrasings now score a consistent, correct 1.0 across
+    5 repeats each, with no regression on a plain-supported-claim control case.
+    One narrower residual case remains, not fixed: a sentence that both hedges
+    one claim and states a real one in the same breath ("X wasn't established,
+    though Y was 47.1%") now consistently scores 0.5 rather than 1.0 — the real
+    claim (Y) is correctly extracted and supported, but the explicitly-negated
+    claim (X) is still extracted and dinged even though the answer never actually
+    asserted it. Narrower and rarer than the original bug; not chased further.
     """
     if not answer.strip() or not contexts:
         return 0.0

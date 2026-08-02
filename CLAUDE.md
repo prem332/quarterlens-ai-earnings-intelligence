@@ -507,21 +507,55 @@ not-yet-applied fix, same pattern as the other four warm-ups).
    toward concentration (diversity cap, section routing, MDA rechunk, table demotion) has regressed
    something else. A real fix needs topic-aware MMR (diversify across different sub-topics,
    concentrate within one) — genuine design work, not a same-session ablation.
+
+   **`context_recall`'s gap (0.8386, target 0.90) is very likely the same root cause, not a
+   separate issue** — investigated 2026-08-02 (branch `fix10-known-issues-punch-list`, not
+   merged into a code change, diagnosis only). Real per-claim data from that session's own eval
+   runs showed `retrieval`-type claims specifically underperforming (0.4-0.5 vs ~1.0 for other
+   claim types). Checked the two lowest-scoring claims directly against `golden_dataset/claims/`:
+   both need coverage from two genuinely different filing sections in the same query —
+   `AAPL_FY2025-Q3_ret_004` ("tariff impact") spans `mda` + a second section;
+   `NVDA_FY2026-Q3_ret_001` ("China risks and financial exposure") needs both `risk_factors` and
+   `mda`. That's the same shape as this issue: a query needing multi-section coverage only
+   reliably gets one section into the final 5-chunk pool. No independently-actionable fix for
+   `context_recall` distinct from the topic-aware MMR work above — whatever fixes #3 should fix
+   this too. Not attempted this session given the cost/risk of #3's redesign (see above) and a
+   tight eval budget; left for the same future dedicated session as #3.
 4. **`llm_judge` gap (4.04/5, target 4.5/5)** — worst categories: `comparison` (~3.4),
    `sentiment` (~3.6). Split root cause: some comparison failures are the same MMR-concentration
    issue as #3 (confirmed on `GOOGL_FY2025-Q3_cmp_003` — the correct target sentence was never in
-   `comparison_agent`'s retrieved context at all); others are `_COMPARE_SYSTEM` prompt-rule
-   ambiguity (a metric's reported value flipping sign quarter-to-quarter vs. management's actual
-   characterization changing aren't currently well-distinguished). Not attempted — comparison_agent's
-   compare-rules have already been iterated on extensively in prior sessions; further changes need
-   careful validation against currently-passing cases, not a quick tweak.
-5. **Faithfulness judge still unreliable on free-form (non-templated) refusal prose** — the
-   deterministic boilerplate-stripping fix (Session Fixes #5) only covers `report_agent.py`'s two
-   exact templated strings. An LLM-generated refusal sentence like "The evidence does not establish
-   X" is not templated and remains inconsistently judged (measured: same input scored 0.0 four
-   times out of five, 1.0 once, across identical repeated judge calls). Regex-stripping this class
-   is unsafe — these sentences can carry real embedded facts (e.g. a specific dollar figure) worth
-   checking. Unsolved; low remaining impact since the deterministic case covers most instances.
+   `comparison_agent`'s retrieved context at all, still open, needs the topic-aware MMR work in #3);
+   others were `_COMPARE_SYSTEM` prompt-rule ambiguity — **the prompt-rule half fixed 2026-08-02**
+   (branch `fix10-known-issues-punch-list`). Root-caused properly before touching the prompt: 5
+   scenarios covering the originally-suspected "value flip vs. characterization change" ambiguity
+   (sign flips, same-number-different-tone, verbatim, new-topic) all scored perfectly and
+   consistently against the *unmodified* prompt — that hypothesis didn't reproduce. The real,
+   reproduced instability was narrower: a *small, same-driver* magnitude difference (e.g. "up 15%"
+   vs "up 17%") flip-flopped 3-true/1-false across 4 repeated isolated calls, while a large,
+   clearly-meaningful magnitude change (32%→15%) and a pure paraphrase (same number, different
+   words) were both 100% stable and correct. Fixed by adding an explicit materiality-threshold rule
+   (`_COMPARE_SYSTEM` rule 6, `agents/comparison_agent.py`) — re-verified the previously-unstable
+   case now returns `false` consistently (5/5), no regression on 4 other cases. Zero added LLM
+   calls (still the same 2-call extract+compare flow) — no production latency impact. The
+   MMR-concentration half (#3) is unrelated and still open.
+5. **~~Faithfulness judge unreliable on free-form (non-templated) refusal prose~~ — FIXED
+   2026-08-02** (branch `fix10-known-issues-punch-list`). The deterministic boilerplate-stripping
+   fix (Session Fixes #5) only ever covered `report_agent.py`'s two exact templated strings —
+   free-form refusal sentences (e.g. "The evidence does not establish X") were still handled only
+   by a single abstract prompt rule + enumerated example phrases, and regex-stripping this class is
+   unsafe (these sentences can carry real embedded facts worth checking). Reproduced fresh, cheaply
+   (isolated `_score_faithfulness` calls, not a pipeline run — zero production latency impact,
+   `ragas_eval.py` never runs during a live request): 2 of 4 realistic free-form phrasings either
+   flip-flopped (3x 1.0/2x 0.0 across 5 repeats) or were consistently wrong (5x 0.0 when correct is
+   1.0). Fixed by replacing the phrase-matching approach with a general test the judge applies to
+   every sentence regardless of wording ("is this describing what the DOCUMENTS say, or what
+   happened at the company") plus one worked example — see `_score_faithfulness`'s own docstring
+   in `evaluation/ragas_eval.py`. Re-verified: same 4 phrasings now score a consistent, correct 1.0
+   across 5 repeats each, no regression on a plain-supported-claim control. One narrower residual
+   case remains, not fixed: a sentence that both hedges one claim and states a real one in the same
+   breath ("X wasn't established, though Y was 47.1%") now consistently scores 0.5 rather than
+   1.0 — the real claim is correctly checked, but the explicitly-negated claim is still extracted
+   and dinged even though the answer never asserted it. Narrower and rarer than the original bug.
 
 6. **Alias map split** — `calculate_metric.py` `_CONCEPT_ALIASES` should split into
    `FINANCIAL_METRIC_ALIASES` + `SEGMENT_METRIC_ALIASES`. Deferred (numeric_pass=1.0).

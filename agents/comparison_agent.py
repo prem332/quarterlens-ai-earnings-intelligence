@@ -24,6 +24,19 @@ the verdict step a much narrower, less distracting input to reason over.
 
 Tools: fetch_prior_quarter(company, quarters_back) → list[dict]
 LLM: gpt-5-mini via openai_client.achat_tiered() (async, Phase 2).
+
+_COMPARE_SYSTEM rule 6 (2026-08-02, Known Issue #4): fixed a real, reproduced
+instability in how small magnitude-only differences are judged. Rules 1-5
+alone handled clear cases fine (large deceleration, pure paraphrase, sign
+flips, verbatim) with 100% consistency across repeated isolated calls, but a
+trivial difference with the same driver/tone (e.g. "up 15%" vs "up 17%")
+flip-flopped 3-true/1-false across 4 repeats — the model had no materiality
+threshold to anchor on. Added a rule giving one explicitly: a small
+same-driver magnitude difference is not a shift; only flag magnitude changes
+an analyst would actually call out. Re-verified: the same case now returns
+false consistently (5/5), with no regression on the 4 previously-passing
+cases. Zero added LLM calls (still the same 2-call extract+compare flow) —
+prompt got longer, not more calls, so no production latency impact.
 """
 
 import asyncio
@@ -86,6 +99,18 @@ shift_detected — get these right, they are the cases analysts most often get w
    given statements. Do not infer intent, motivation, or characterize what
    management is "now emphasizing" unless directly stated. When in doubt, describe
    less rather than more.
+
+6. A SMALL, MARGINAL DIFFERENCE IN A REPORTED NUMBER (a few percentage points,
+   e.g. 15% vs 17%) is NOT by itself a meaningful shift when the driver,
+   direction, and tone are otherwise the same — treat it like rule 3's
+   "explanatory addition" case: shift_detected: false. Reserve shift_detected:
+   true for a magnitude change an analyst would actually call out: a clear
+   deceleration/acceleration (e.g. 32% -> 15%), a change from growth to decline
+   or vice versa, or a genuinely different driver/tone. If the current figure
+   could fairly be described as "roughly in line with" the prior one, that is
+   false, not true — this is the rule most often gotten wrong, so apply it even
+   when the exact wording differs slightly (e.g. "continued growth" vs
+   "increased").
 
 Respond ONLY with JSON, no markdown fences:
 {"shift_detected": boolean, "shift_description": string or null}"""

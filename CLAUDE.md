@@ -510,11 +510,20 @@ not-yet-applied fix, same pattern as the other four warm-ups).
 4. **`llm_judge` gap (4.04/5, target 4.5/5)** — worst categories: `comparison` (~3.4),
    `sentiment` (~3.6). Split root cause: some comparison failures are the same MMR-concentration
    issue as #3 (confirmed on `GOOGL_FY2025-Q3_cmp_003` — the correct target sentence was never in
-   `comparison_agent`'s retrieved context at all); others are `_COMPARE_SYSTEM` prompt-rule
-   ambiguity (a metric's reported value flipping sign quarter-to-quarter vs. management's actual
-   characterization changing aren't currently well-distinguished). Not attempted — comparison_agent's
-   compare-rules have already been iterated on extensively in prior sessions; further changes need
-   careful validation against currently-passing cases, not a quick tweak.
+   `comparison_agent`'s retrieved context at all, still open, needs the topic-aware MMR work in #3);
+   others were `_COMPARE_SYSTEM` prompt-rule ambiguity — **the prompt-rule half fixed 2026-08-02**
+   (branch `fix10-known-issues-punch-list`). Root-caused properly before touching the prompt: 5
+   scenarios covering the originally-suspected "value flip vs. characterization change" ambiguity
+   (sign flips, same-number-different-tone, verbatim, new-topic) all scored perfectly and
+   consistently against the *unmodified* prompt — that hypothesis didn't reproduce. The real,
+   reproduced instability was narrower: a *small, same-driver* magnitude difference (e.g. "up 15%"
+   vs "up 17%") flip-flopped 3-true/1-false across 4 repeated isolated calls, while a large,
+   clearly-meaningful magnitude change (32%→15%) and a pure paraphrase (same number, different
+   words) were both 100% stable and correct. Fixed by adding an explicit materiality-threshold rule
+   (`_COMPARE_SYSTEM` rule 6, `agents/comparison_agent.py`) — re-verified the previously-unstable
+   case now returns `false` consistently (5/5), no regression on 4 other cases. Zero added LLM
+   calls (still the same 2-call extract+compare flow) — no production latency impact. The
+   MMR-concentration half (#3) is unrelated and still open.
 5. **~~Faithfulness judge unreliable on free-form (non-templated) refusal prose~~ — FIXED
    2026-08-02** (branch `fix10-known-issues-punch-list`). The deterministic boilerplate-stripping
    fix (Session Fixes #5) only ever covered `report_agent.py`'s two exact templated strings —

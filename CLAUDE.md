@@ -515,13 +515,24 @@ not-yet-applied fix, same pattern as the other four warm-ups).
    characterization changing aren't currently well-distinguished). Not attempted — comparison_agent's
    compare-rules have already been iterated on extensively in prior sessions; further changes need
    careful validation against currently-passing cases, not a quick tweak.
-5. **Faithfulness judge still unreliable on free-form (non-templated) refusal prose** — the
-   deterministic boilerplate-stripping fix (Session Fixes #5) only covers `report_agent.py`'s two
-   exact templated strings. An LLM-generated refusal sentence like "The evidence does not establish
-   X" is not templated and remains inconsistently judged (measured: same input scored 0.0 four
-   times out of five, 1.0 once, across identical repeated judge calls). Regex-stripping this class
-   is unsafe — these sentences can carry real embedded facts (e.g. a specific dollar figure) worth
-   checking. Unsolved; low remaining impact since the deterministic case covers most instances.
+5. **~~Faithfulness judge unreliable on free-form (non-templated) refusal prose~~ — FIXED
+   2026-08-02** (branch `fix10-known-issues-punch-list`). The deterministic boilerplate-stripping
+   fix (Session Fixes #5) only ever covered `report_agent.py`'s two exact templated strings —
+   free-form refusal sentences (e.g. "The evidence does not establish X") were still handled only
+   by a single abstract prompt rule + enumerated example phrases, and regex-stripping this class is
+   unsafe (these sentences can carry real embedded facts worth checking). Reproduced fresh, cheaply
+   (isolated `_score_faithfulness` calls, not a pipeline run — zero production latency impact,
+   `ragas_eval.py` never runs during a live request): 2 of 4 realistic free-form phrasings either
+   flip-flopped (3x 1.0/2x 0.0 across 5 repeats) or were consistently wrong (5x 0.0 when correct is
+   1.0). Fixed by replacing the phrase-matching approach with a general test the judge applies to
+   every sentence regardless of wording ("is this describing what the DOCUMENTS say, or what
+   happened at the company") plus one worked example — see `_score_faithfulness`'s own docstring
+   in `evaluation/ragas_eval.py`. Re-verified: same 4 phrasings now score a consistent, correct 1.0
+   across 5 repeats each, no regression on a plain-supported-claim control. One narrower residual
+   case remains, not fixed: a sentence that both hedges one claim and states a real one in the same
+   breath ("X wasn't established, though Y was 47.1%") now consistently scores 0.5 rather than
+   1.0 — the real claim is correctly checked, but the explicitly-negated claim is still extracted
+   and dinged even though the answer never asserted it. Narrower and rarer than the original bug.
 
 6. **Alias map split** — `calculate_metric.py` `_CONCEPT_ALIASES` should split into
    `FINANCIAL_METRIC_ALIASES` + `SEGMENT_METRIC_ALIASES`. Deferred (numeric_pass=1.0).

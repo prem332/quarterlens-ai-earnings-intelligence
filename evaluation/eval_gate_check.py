@@ -31,6 +31,22 @@ fail every run.
 
 Exit code 0 = metrics within floor, safe to deploy. Non-zero = do not
 deploy; prints which metric(s) failed and by how much.
+
+Flushes Redis before running (see _main) — CLAUDE.md's "Running Evaluations"
+section states this is mandatory for every eval run, and it's not optional
+here specifically: run_baseline_eval.py's _run_pipeline() has an L3 "full
+report" cache (24h TTL, shared across local dev/CI/production on the same
+Azure Redis instance) that returns a cached answer string with DELIBERATELY
+EMPTY contexts/chunks on a hit (the chunks that produced that old report
+were never cached alongside it). Confirmed live (2026-08-02): a CI run that
+didn't flush first got cache_l3_hits=10/10 and every context-dependent
+metric (faithfulness, context_precision, context_recall, precision@5,
+recall@5) came back exactly 0.0, while answer_relevancy/llm_judge (which
+don't need contexts, or degrade rather than zero out) stayed real-looking —
+that split is what gave it away. Without the flush, this gate would keep
+replaying old cached reports and could pass indefinitely without ever
+re-testing the live pipeline, silently defeating the entire point of a
+regression gate.
 """
 from __future__ import annotations
 
@@ -65,6 +81,10 @@ _FLOORS: dict[str, float] = {
 
 
 async def _main() -> None:
+    from azure_clients.redis_client import clear_all_caches
+    clear_all_caches()
+    print("Redis flushed (mandatory before every eval run — see module docstring).\n")
+
     print(
         f"Eval gate: running {_MAX_CLAIMS} stratified claims "
         f"(CONTEXT_PRECISION_K={os.environ['CONTEXT_PRECISION_K']}, "

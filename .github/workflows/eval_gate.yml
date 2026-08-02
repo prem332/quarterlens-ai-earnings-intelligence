@@ -88,4 +88,11 @@ jobs:
       - name: Run eval-metric threshold gate
         env:
           AZURE_KEY_VAULT_URL: ${{ vars.AZURE_KEY_VAULT_URL }}
+          # Fresh, runner-local MLflow store -- the committed mlflow.db's
+          # experiment metadata carries an absolute Windows artifact_location
+          # (file:///E:/...) baked in from local dev, which resolves to the
+          # nonsense path '/E:/...' on this Linux runner and crashes
+          # mlflow.log_artifact with a permission error. This CI job gets its
+          # own experiment/artifact store instead of touching that file.
+          MLFLOW_TRACKING_URI: sqlite:////tmp/quarterlens-eval-gate-mlflow.db
         run: python evaluation/eval_gate_check.py

@@ -1,0 +1,12 @@
+# Mirrors the one env var the Container App deployment actually sets
+# (`az containerapp show ... env[].name` → AZURE_KEY_VAULT_URL only).
+# Every other secret is fetched at runtime from Key Vault via the pod's
+# managed identity — see deployment.yaml and the README below for the
+# identity/RBAC wiring, which has no YAML equivalent (it's `az` CLI only).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quarterlens-config
+  namespace: quarterlens
+data:
+  AZURE_KEY_VAULT_URL: "https://quarterlens-kv.vault.azure.net/"

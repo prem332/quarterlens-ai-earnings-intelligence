@@ -1,0 +1,99 @@
+# AKS deployment path for QuarterLens — a parallel POC, not the production
+# serving path (that stays Container Apps: scale-to-zero on a low-traffic
+# demo app is cheaper than an always-on AKS node, see CLAUDE.md). This exists
+# to give real, provable Kubernetes/AKS experience: real manifests, real
+# `kubectl`/`az aks` commands, verified pod health — timeboxed, torn down
+# same session, not left running.
+#
+# Same image the production Container App runs (quarterlensacr.azurecr.io/
+# quarterlens-ai:latest), same single env var (AZURE_KEY_VAULT_URL — every
+# other secret is fetched from Key Vault at runtime, never baked into the
+# image or a K8s Secret). Container Apps gets Key Vault access via a
+# system-assigned managed identity + "Key Vault Secrets User" RBAC role;
+# AKS needs the equivalent wired at cluster-create time (no YAML for this
+# part — it's `az` CLI):
+#
+#   az aks create -g quarterlens-phase1-rg -n quarterlens-aks \
+#     --node-count 1 --node-vm-size Standard_D2s_v3 \
+#     --enable-managed-identity --generate-ssh-keys \
+#     --attach-acr quarterlensacr --tier free
+#
+#   Standard_B2s was the original target (cheapest burstable SKU) but this
+#   subscription's East US quota only allows a fixed SKU list that excludes
+#   amd64 B-series entirely -- the B-series it does allow (b2ps_v2/b2pls_v2)
+#   is ARM64 (Ampere), which can't run this image (torch/transformers wheels
+#   here are amd64). D2s_v3 is the cheapest amd64 SKU on the allowed list.
+#
+#   IDENTITY=$(az aks show -g quarterlens-phase1-rg -n quarterlens-aks \
+#     --query identityProfile.kubeletidentity.objectId -o tsv)
+#   az role assignment create --assignee "$IDENTITY" \
+#     --role "Key Vault Secrets User" \
+#     --scope $(az keyvault show -n quarterlens-kv --query id -o tsv)
+#
+#   az aks get-credentials -g quarterlens-phase1-rg -n quarterlens-aks
+#   kubectl apply -f k8s/namespace.yaml -f k8s/configmap.yaml -f k8s/deployment.yaml -f k8s/service.yaml
+#   kubectl -n quarterlens get pods -w
+#   kubectl -n quarterlens port-forward svc/quarterlens-api 8000:80
+#   curl http://localhost:8000/api/health
+#
+#   # teardown, same sitting:
+#   az aks delete -g quarterlens-phase1-rg -n quarterlens-aks --yes --no-wait
+#
+# Resource requests/limits below are sized to actually fit on a single
+# Standard_D2s_v3 node (2 vCPU / 8GB total) alongside kube-system pods
+# (coredns, konnectivity-agent, etc.) — the Container App's own allocation
+# (2 CPU / 4Gi, from `az containerapp show`) would leave too little headroom.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quarterlens-api
+  namespace: quarterlens
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quarterlens-api
+  template:
+    metadata:
+      labels:
+        app: quarterlens-api
+    spec:
+      containers:
+        - name: quarterlens-api
+          image: quarterlensacr.azurecr.io/quarterlens-ai:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: quarterlens-config
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          # Startup does real work — cross-encoder + FinBERT warm-up alone is
+          # ~18s (tools/rerank_documents.py), plus a cold image pull. Same
+          # reasoning as the Dockerfile HEALTHCHECK and deploy.yml's patient
+          # post-deploy curl retry: a tight liveness probe would kill the pod
+          # mid-warm-up. startupProbe absorbs that; liveness/readiness only
+          # start counting once it succeeds once.
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            failureThreshold: 20
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 5

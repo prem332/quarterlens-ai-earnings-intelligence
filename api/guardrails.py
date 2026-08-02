@@ -82,6 +82,13 @@ _FINANCIAL_DOMAIN_TERMS = [
     "engagement", "advertising", "monetiz", "retention", "capacity", "utilization",
     "r&d", "research and development", "partnership", "acquisition", "strategy",
     "strategic", "priorit", "business", "company", "plan",
+    # Broadened again after a second real false positive: "3.5 billion people
+    # using at least one of our apps every day" (a real Meta DAP metric quote)
+    # — a legitimate operational-KPI claim with no obvious finance keyword.
+    # Engagement/usage metrics are routinely discussed on earnings calls
+    # without ever using words like "revenue" or "quarter".
+    "user", "users", "app", "apps", "daily active", "monthly active",
+    "dau", "mau", "dap", "active people", "install", "downloads",
 ]
 
 

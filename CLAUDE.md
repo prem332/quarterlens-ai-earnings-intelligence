@@ -211,6 +211,8 @@ context_precision=0.2560, precision@5=0.8167, recall@5=1.0000, llm_judge=3.0240
    what was asked, purely because it scored more confidently.
 8. **`CANDIDATE_K` wired to an env var** (`retrieval_agent.py`, 2026-08-01, was hardcoded 12) —
    enables raw-candidate-pool ablation; default behavior unchanged.
+9. **Deploy quality gate + test suite** (2026-08-02) — see "MLOps / Deploy Gate" below. No
+   retrieval/generation behavior change; CI/testing infrastructure only.
 
 ### Key Diagnostic Findings
 
@@ -281,6 +283,56 @@ captured earlier is not a valid baseline.
 - Run 10 claims first → check → 25 claims → confirm
 - Never run 50/75 without reviewing 25-claim results
 - Log all experiments in MLflow with descriptive run names
+
+---
+
+## MLOps / Deploy Gate (2026-08-02)
+
+Before this session, nothing in the deploy pipeline checked quality metrics at all —
+`eval_gate.yml` ran only `smoke_test.py` (one claim, completion/non-empty/time-budget check,
+explicitly by its own docstring "not the real eval suite"). A faithfulness or precision
+regression would have deployed with zero automated detection. Two things now close that gap:
+
+**1. Eval-metric threshold gate** — `evaluation/eval_gate_check.py`, wired into
+`.github/workflows/eval_gate.yml` as a second job (`quality-gate`) that runs after the existing
+`smoke-test` job. Runs 10 stratified claims (`GATE_MAX_CLAIMS` env var to override) through the
+real pipeline via `run_baseline_eval.run_eval()` — the same function `run_baseline_eval.py`
+itself uses — locked to `CONTEXT_PRECISION_K=2`/`CONTEXT_PRECISION_CHUNK_CHARS=0` to match the
+headline `production-full-eval-75` measurement window. Compares against **regression-guard
+floors**, not the aspirational targets in "Metric Targets — LOCKED" above — `llm_judge` and
+`context_recall` aren't at target yet and this gate isn't meant to block every deploy until they
+are; it exists to catch a broken prompt or a retrieval regression, not to freeze development.
+Floors (see the script's own docstring for the full reasoning): faithfulness≥0.80,
+answer_relevancy≥0.80, context_precision≥0.65, context_recall_excl_oos≥0.65, precision@5≥0.55,
+recall@5≥0.90, llm_judge≥3.30. `deploy.yml`'s `build-and-push` job has `needs: eval-gate` — since
+a called reusable workflow's overall status is success only if every job inside it succeeds,
+this second job failing blocks the image build/push exactly like `smoke-test` failing already
+did. **Validated live** against current `main` (2026-08-02, n=10): faithfulness=0.9778,
+answer_relevancy=0.9830, context_precision=0.8500, context_recall_excl_oos=0.8593,
+precision@5=0.7200, recall@5=1.0000, llm_judge=4.3400 — all comfortably above floor, gate
+printed PASS.
+
+**2. Real test coverage** — `tests/unit/test_agents.py`, `tests/unit/test_numeric_validation.py`,
+`tests/unit/test_tools.py`, and `tests/integration/test_full_pipeline.py` were all previously
+0-byte empty files (only `test_guardrails.py` had real tests). Now 95 tests total, all offline —
+no live Azure calls, no real model loads. `tests/conftest.py` is why: every `azure_clients/*.py`
+module builds its client as a module-level singleton constructed at import time (`kv =
+KeyVaultClient()`, `openai_client = OpenAIClient()`, etc.), so importing any agent/tool module in
+CI (which never runs `azure/login` for the plain `lint-and-test` job) would otherwise raise
+`ValueError` before a single test body runs. `conftest.py` sets dummy env-var secrets so those
+constructors succeed, and specifically patches `azure.cosmos.CosmosClient` — unlike every other
+client, `CosmosDecisionLogClient.__init__` makes a **real** network call
+(`create_database_if_not_exists`/`create_container_if_not_exists`) at construction time, pulled
+in transitively by `agents/supervisor.py`. Test design split: unit tests mock at the tool/LLM
+boundary (`openai_client.chat`, `calculate_metric`, `run_finbert`, `fetch_prior_quarter`) and
+exercise each agent's real internal logic; the integration test replaces whole agent functions
+with fakes matching their return-shape contract and asserts on the **graph wiring** itself (the
+retrieval → fan-out → fan-in structure, the `decision_log_entries` `operator.add` reducer
+accumulating across parallel branches, the `error_exit` routing path) — a different concern from
+what the unit tests already cover, not a duplicate of them. Several tests pin down specific bugs
+already documented elsewhere in this file (the skip-not-break chunk-budget fix in three
+different agents, the delta-vs-level category-error guard, etc.) as real regression tests, not
+just generic coverage.
 
 ---
 
@@ -482,13 +534,26 @@ not-yet-applied fix, same pattern as the other four warm-ups).
 
 9. **ARCHITECTURE.md update** — gpt-5-mini model change pending (documentation only).
 
-10. **Input guardrails false-positive on some legitimate metric claims** — `api/guardrails.py`'s
-    `check_query()` rejects a query as `off_topic` if it doesn't contain obvious
-    earnings/financial-analysis keywords. Confirmed on real golden claims, e.g. `"3.5 billion
-    people using at least one of our apps every day"` (a real DAP metric quote from a Meta earnings
-    call) gets rejected — 2/75 claims hit this in the `production-full-eval-75` run. Not a latency
-    or infra issue; a keyword-heuristic gap in the guardrail itself. Deferred — not investigated
-    this session.
+10. **~~Input guardrails false-positive on some legitimate metric claims~~ — FIXED 2026-08-02.**
+    `api/guardrails.py`'s `_FINANCIAL_DOMAIN_TERMS` broadened again (same pattern as the earlier
+    "leadership"/"investment" fix) to cover engagement/usage-metric vocabulary: "user(s)", "app(s)",
+    "daily active", "monthly active", "dau", "mau", "dap", "active people", "install", "downloads".
+    Confirmed fixed: `"3.5 billion people using at least one of our apps every day"` (the exact
+    real DAP-metric quote that failed in `production-full-eval-75`, 2/75 claims) now passes;
+    confirmed the off-topic check still rejects a genuinely unrelated query ("Write me a poem
+    about the ocean.") — see `tests/unit/test_guardrails.py`. Not yet re-validated against a full
+    75-claim production run — the fix is unit-tested and logically scoped to the one failure
+    mode, but the error-rate improvement itself (2.7%→lower) is only confirmed at the next full
+    production eval, not claimed here as measured.
+
+**Not attempted this session, deliberately: items #1, #3, #4, #5 above.** Each is explicitly
+documented as needing real design work or careful multi-case validation, not a same-session
+ablation — e.g. #4's own text says "further changes need careful validation against currently-
+passing cases, not a quick tweak." Attempting several of these together right before a commit +
+deploy would be exactly the kind of compound, unmeasured change this project's own "Single-
+variable ablations only" rule (Experiment Discipline, above) exists to prevent — and is now also
+what the new eval-metric gate (MLOps / Deploy Gate, above) is positioned to catch if violated
+anyway. Left for a dedicated session per claim/experiment, same as before.
 
 ---
 

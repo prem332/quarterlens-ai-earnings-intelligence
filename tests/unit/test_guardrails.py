@@ -58,3 +58,17 @@ def test_leadership_investment_query_allowed():
 def test_competitive_pricing_query_allowed():
     verdict = check_query("How is pricing pressure from competitors affecting the cloud business?")
     assert verdict.allowed
+
+
+def test_daily_active_people_metric_query_allowed():
+    # Regression: real false positive found in production-full-eval-75 (2/75
+    # claims) — a real Meta DAP metric quote with no obvious finance keyword.
+    verdict = check_query("3.5 billion people using at least one of our apps every day")
+    assert verdict.allowed
+
+
+def test_off_topic_poem_still_rejected_after_broadening():
+    # The allow-list broadening above must not turn off_topic into a no-op.
+    verdict = check_query("Write me a poem about the ocean.")
+    assert not verdict.allowed
+    assert verdict.category == "off_topic"

@@ -6,9 +6,9 @@ Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pip
 
 ## 🎬 Video Demo
 
-*Demo video link to be added.*
+**[Watch the demo](https://drive.google.com/file/d/1PHYDJCsQb_3eqSfnrPnsmA_cpHZK01cD/view?usp=drive_link)**
 
-> Demo will cover: problem statement, the multi-agent retrieval/verification pipeline, live analysis walkthrough, evaluation methodology (RAGAS + LLM-as-Judge against a 75-claim golden dataset), and production monitoring (Langfuse/Application Insights).
+> Demo covers: problem statement, the multi-agent retrieval/verification pipeline, live analysis walkthrough, evaluation methodology (RAGAS + LLM-as-Judge against a 75-claim golden dataset), and production monitoring (Langfuse/Application Insights).
 
 ---
 
@@ -448,6 +448,10 @@ tests/               Unit + integration tests (97 tests, all offline)
   no compounded changes before measuring, deviation log from the original spec)
 - **`docs/AZURE_SETUP.md`** — full Azure infrastructure runbook, resource by resource,
   plus the CI/CD OIDC setup and the Kubernetes/AKS POC
+- **[Fresh Azure Setup Guide (PDF)](https://drive.google.com/file/d/1M1pfl1NF2fA5QXByq51hZ_1oDrUB5Cye/view?usp=drive_link)** —
+  a downloadable, day-by-day runbook for cloning this repo into your own Azure
+  subscription from scratch, from an empty resource group to a live CI/CD-deployed
+  production URL
 - **`docs/MLOPS.md`** — deployment pipeline, cost control, teardown procedure
 - **`evaluation/FINAL_REPORT.md`** — latest confirmed evaluation results and methodology
 

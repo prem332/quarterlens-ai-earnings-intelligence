@@ -2,6 +2,25 @@
 
 Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pipeline, Azure OpenAI, Azure AI Search and LangGraph — built 100% on Microsoft Azure
 
+![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![Azure](https://img.shields.io/badge/Azure-Native-0078D4?logo=microsoftazure&logoColor=white)
+![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-1b2a4a)
+![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react&logoColor=black)
+![CI](https://github.com/prem332/quarterlens-ai-earnings-intelligence/actions/workflows/ci.yml/badge.svg)
+![Tests](https://img.shields.io/badge/Tests-97%2F97%20passing-1f7a4d)
+![License](https://img.shields.io/github/license/prem332/quarterlens-ai-earnings-intelligence)
+
+## At a Glance
+
+- Multi-agent RAG system built with LangGraph — retrieval, numeric validation, language comparison, sentiment, and self-verifying report generation
+- Azure OpenAI + Azure AI Search + Azure SQL + Cosmos DB + Redis + Container Apps
+- 3,526 indexed filing & transcript chunks across 5 companies, 5 fiscal quarters
+- 75-claim hand-verified golden evaluation dataset (RAGAS + LLM-as-judge)
+- 97 automated tests, CI/CD with a deploy-blocking quality gate
+- Production latency: **p50 5.99s** (down from a first working run of 123s)
+- Faithfulness: **96.5%** · Recall@5: **100%**
+
 ---
 
 ## 🎬 Video Demo
@@ -14,15 +33,13 @@ Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pip
 
 ## 🌐 Live Demo
 
-**https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io**
-
-> **Note:** The Azure resources backing this project (AI Search, OpenAI, SQL, Redis) are run on-demand to manage cost and may be paused between working sessions — see `docs/MLOPS.md` for the teardown/cost-control policy. If the link above is unresponsive, the resources are likely paused; run locally via **Quick Start** below, or ask for a live walkthrough. Consumption-tier Container Apps also scale to zero when idle, so the first request after a period of inactivity pays a real cold-start cost (container spin-up + model warm-up, ~50s) — subsequent requests are fast (see Evaluation Results below).
+Azure resources are provisioned on-demand and may be paused or torn down to control cost — see `docs/MLOPS.md`. If a live instance isn't currently running, use the **Quick Start** below, watch the demo video above, or follow `docs/AZURE_SETUP.md` to stand up your own copy in minutes.
 
 ---
 
 ## 🎯 Project Overview
 
-QuarterLens AI cross-verifies what executives say on quarterly earnings calls against what their companies actually filed with the SEC. Ask a question like *"Did Azure revenue growth accelerate this quarter, and did management's tone match the numbers?"* and it retrieves the relevant 10-Q/10-K and transcript passages, verifies every number against a structured financial-facts database, checks whether the language in the call matches the language in the filing, scores the tone with FinBERT, and drafts a cited, self-verified report.
+QuarterLens AI is a production-grade multi-agent RAG system that verifies claims made during public-company earnings calls against SEC filings. It combines retrieval, deterministic numeric validation, language-shift comparison, sentiment analysis, and self-verifying report generation to produce cited financial analyses — for example, *"Did Azure revenue growth accelerate this quarter, and did management's tone match the numbers?"*
 
 Covers 5 companies (AAPL, MSFT, NVDA, GOOGL, META) across 5 fiscal quarters, retrieving over a 3,500-chunk hybrid-search index built from 25 filings and 25 earnings-call transcripts.
 
@@ -34,6 +51,8 @@ Covers 5 companies (AAPL, MSFT, NVDA, GOOGL, META) across 5 fiscal quarters, ret
 ---
 
 ## 🏗️ Architecture
+
+![QuarterLens AI 5-agent architecture](docs/images/architecture.png)
 
 ### High-Level System Architecture
 ```
@@ -118,57 +137,6 @@ Step 5: Streamed back to the React frontend
 
 ---
 
-## 📊 Evaluation Results
-
-Evaluated against the full 75-claim hand-verified golden dataset (retrieval, comparison, numeric, sentiment, and out-of-scope claim types) spanning all 5 companies and 5 fiscal quarters. Headline numbers below are from real HTTP requests against the **deployed production API**, not an in-process pipeline call — every claim went through `POST /api/analysis/run` → poll `/status` → `GET /api/reports/{run_id}`, `no_cache=true` forced on every request so no result was served from cache, Redis flushed immediately beforehand. Methodology, run history, and the project's single-variable-ablation discipline are tracked in `CLAUDE.md`.
-
-### RAGAS Evaluation (production, n=75, `k=2` measurement window)
-
-| Metric | Score | Locked Target | Status |
-|--------|-------|----------------|--------|
-| **Faithfulness** | 0.9646 | 0.90 | ✅ PASS |
-| **Answer Relevancy** | 0.9361 | 0.90 | ✅ PASS |
-| **Context Precision** | 0.8176 | 0.60 | ✅ PASS |
-| **Context Recall** | 0.8218 (0.8682 excl. out-of-scope) | 0.90 | close, not cleared (see Known Issues in `CLAUDE.md`) |
-
-### Retrieval Metrics
-
-| Metric | Score | Target |
-|--------|-------|--------|
-| **Precision@5** | 0.7222 | 0.60 |
-| **Recall@5** | 1.0000 | — |
-
-### LLM-as-Judge
-
-**4.09 / 5 (81.8%)** at n=75 against production. Target is 4.5/5 (90%) — not cleared, and this project does not have an active plan to close that remaining gap further (the root cause is an architectural MMR concentration-vs-diversity tradeoff, fully diagnosed in `CLAUDE.md`, with four prior remediation attempts already tried and reverted for regressing other metrics).
-
-### Production Latency (n=75 traces, real end-to-end HTTP wall time)
-
-| Metric | Value |
-|--------|------:|
-| p50 | 5.99s |
-| p90 | 9.27s |
-| p95 | 9.41s |
-| p99 | 21.44s |
-| mean | 7.06s |
-| Error rate | 1.3% (1/75 — an input-guardrail false positive, not an infra failure) |
-
-Independently cross-validated via Langfuse's own OTEL trace instrumentation on the exact same run: pure backend execution time of p50=4.74s / p90=6.93s / p95=7.62s / p99=20.46s — consistently *lower* than the end-to-end numbers above at every percentile, exactly as expected since it excludes network time and polling overhead. Notably, both independent measurement methods caught the same p99 latency spike, real evidence of a genuine backend-side event (consistent with an Azure SQL Serverless cold-resume) rather than a measurement artifact.
-
-**Real cost for this run: $0.947491 total** — input $0.725825, output $0.218435, input cached-tokens $0.003149.
-
-> `context_precision` here is an order-insensitive relevant-chunk fraction over the top-k, judged by an LLM per chunk — not the RAGAS-paper rank-weighted Average Precision. `k` and the per-chunk text window are measurement-scope parameters, not retrieval changes; both values are reported so the number is reproducible, not cherry-picked.
-
-### Automated Test Results
-
-- **97/97 tests passing**, ruff lint clean
-- **Unit tests** — `agents/` (router, comparison_agent, sentiment_agent), `numeric_validation_agent`, `tools/` (calculate_metric, rerank_documents, search_documents, run_finbert), `api/guardrails.py`
-- **Integration tests** — full LangGraph pipeline wiring: fan-out/fan-in across the three parallel agents, the decision-log reducer, error routing
-- All offline — no live Azure calls, no real model loads (Key-Vault-backed client singletons are stubbed, `azure.cosmos.CosmosClient` specifically patched since it uniquely makes a real network call at construction time)
-- CI-gated: a failing eval-metric quality gate (RAGAS/judge/retrieval scores against regression-guard floors, not just a completion check) blocks the Azure Container Apps deploy — see "Deployment" below
-
----
-
 ## ✨ Features
 
 ### Core AI Features
@@ -198,6 +166,61 @@ Independently cross-validated via Langfuse's own OTEL trace instrumentation on t
 - CI-gated deployment: a two-stage eval gate (cheap completion smoke test, then a 10-claim RAGAS/judge/retrieval quality gate against regression-guard floors) blocks the deploy on a real quality regression, not just a crash
 - Independent cross-validation of every production latency/cost claim via Langfuse OTEL tracing, not a single self-reported source
 - Documented single-variable-ablation discipline — every retrieval/generation change measured in isolation, with a rolled-back-experiments log kept in `CLAUDE.md`
+
+---
+
+## 📊 Evaluation Results
+
+Evaluated against the full 75-claim hand-verified golden dataset (retrieval, comparison, numeric, sentiment, and out-of-scope claim types) spanning all 5 companies and 5 fiscal quarters. Headline numbers below are from real HTTP requests against the **deployed production API**, not an in-process pipeline call — every claim went through `POST /api/analysis/run` → poll `/status` → `GET /api/reports/{run_id}`, `no_cache=true` forced on every request so no result was served from cache, Redis flushed immediately beforehand. Methodology, run history, and the project's single-variable-ablation discipline are tracked in `CLAUDE.md`.
+
+![Evaluation metrics dashboard](docs/images/evaluation.png)
+
+### RAGAS Evaluation (production, n=75, `k=2` measurement window)
+
+| Metric | Score | Locked Target | Status |
+|--------|-------|----------------|--------|
+| **Faithfulness** | 0.9646 | 0.90 | ✅ PASS |
+| **Answer Relevancy** | 0.9361 | 0.90 | ✅ PASS |
+| **Context Precision** | 0.8176 | 0.60 | ✅ PASS |
+| **Context Recall** | 0.8218 (0.8682 excl. out-of-scope) | 0.90 | close, not cleared (see Known Issues in `CLAUDE.md`) |
+
+### Retrieval Metrics
+
+| Metric | Score | Target |
+|--------|-------|--------|
+| **Precision@5** | 0.7222 | 0.60 |
+| **Recall@5** | 1.0000 | — |
+
+### LLM-as-Judge
+
+**4.09 / 5 (81.8%)** at n=75 against production. Target is 4.5/5 (90%) — not cleared, and this project does not have an active plan to close that remaining gap further (the root cause is an architectural MMR concentration-vs-diversity tradeoff, fully diagnosed in `CLAUDE.md`, with four prior remediation attempts already tried and reverted for regressing other metrics).
+
+![Production latency: 123s to 5.99s](docs/images/latency.png)
+
+### Production Latency (n=75 traces, real end-to-end HTTP wall time)
+
+| Metric | Value |
+|--------|------:|
+| p50 | 5.99s |
+| p90 | 9.27s |
+| p95 | 9.41s |
+| p99 | 21.44s |
+| mean | 7.06s |
+| Error rate | 1.3% (1/75 — an input-guardrail false positive, not an infra failure) |
+
+Independently cross-validated via Langfuse's own OTEL trace instrumentation on the exact same run: pure backend execution time of p50=4.74s / p90=6.93s / p95=7.62s / p99=20.46s — consistently *lower* than the end-to-end numbers above at every percentile, exactly as expected since it excludes network time and polling overhead. Notably, both independent measurement methods caught the same p99 latency spike, real evidence of a genuine backend-side event (consistent with an Azure SQL Serverless cold-resume) rather than a measurement artifact.
+
+**Real cost for this run: $0.947491 total** — input $0.725825, output $0.218435, input cached-tokens $0.003149.
+
+> `context_precision` here is an order-insensitive relevant-chunk fraction over the top-k, judged by an LLM per chunk — not the RAGAS-paper rank-weighted Average Precision. `k` and the per-chunk text window are measurement-scope parameters, not retrieval changes; both values are reported so the number is reproducible, not cherry-picked.
+
+### Automated Test Results
+
+- **97/97 tests passing**, ruff lint clean
+- **Unit tests** — `agents/` (router, comparison_agent, sentiment_agent), `numeric_validation_agent`, `tools/` (calculate_metric, rerank_documents, search_documents, run_finbert), `api/guardrails.py`
+- **Integration tests** — full LangGraph pipeline wiring: fan-out/fan-in across the three parallel agents, the decision-log reducer, error routing
+- All offline — no live Azure calls, no real model loads (Key-Vault-backed client singletons are stubbed, `azure.cosmos.CosmosClient` specifically patched since it uniquely makes a real network call at construction time)
+- CI-gated: a failing eval-metric quality gate (RAGAS/judge/retrieval scores against regression-guard floors, not just a completion check) blocks the Azure Container Apps deploy — see "Deployment" below
 
 ---
 

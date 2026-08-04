@@ -33,7 +33,9 @@ Production-grade Earnings Intelligence Platform powered by a Multi-Agent RAG pip
 
 ## 🌐 Live Demo
 
-Azure resources are provisioned on-demand and may be paused or torn down to control cost — see `docs/MLOPS.md`. If a live instance isn't currently running, use the **Quick Start** below, watch the demo video above, or follow `docs/AZURE_SETUP.md` to stand up your own copy in minutes.
+**https://quarterlens-api.calmsand-fcf08f52.eastus.azurecontainerapps.io**
+
+Azure resources are provisioned on-demand and may be paused or torn down to control cost — see `docs/MLOPS.md`. If the link above isn't currently responding, use the **Quick Start** below, watch the demo video above, or follow `docs/AZURE_SETUP.md` to stand up your own copy in minutes.
 
 ---
 
